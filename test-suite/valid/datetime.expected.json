@@ -1,0 +1,5 @@
+{
+  "full": {"$type": "Date", "value": "2024-01-15T10:30:00.123Z"},
+  "noMs": {"$type": "Date", "value": "2024-01-15T10:30:00.000Z"},
+  "dateOnly": {"$type": "Date", "value": "2024-01-15T00:00:00.000Z"}
+}

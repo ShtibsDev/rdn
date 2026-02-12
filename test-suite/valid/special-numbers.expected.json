@@ -1,0 +1,5 @@
+{
+  "nan": {"$type": "Number", "value": "NaN"},
+  "inf": {"$type": "Number", "value": "Infinity"},
+  "negInf": {"$type": "Number", "value": "-Infinity"}
+}

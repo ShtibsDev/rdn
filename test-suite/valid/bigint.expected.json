@@ -1,0 +1,6 @@
+{
+  "small": {"$type": "BigInt", "value": "0"},
+  "positive": {"$type": "BigInt", "value": "42"},
+  "negative": {"$type": "BigInt", "value": "-99"},
+  "large": {"$type": "BigInt", "value": "999999999999999999"}
+}

@@ -1,0 +1,21 @@
+[package]
+name = "rdn"
+version = "0.1.0"
+edition = "2021"
+description = "RDN (Rich Data Notation) parser and serializer"
+license = "MIT"
+
+[features]
+default = []
+wasm = ["wasm-bindgen"]
+
+[dependencies]
+wasm-bindgen = { version = "0.2", optional = true }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+serde_json = "1"
+
+[[bench]]
+name = "parse_benchmark"
+harness = false

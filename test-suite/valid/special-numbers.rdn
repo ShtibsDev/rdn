@@ -1,0 +1,5 @@
+{
+  "nan": NaN,
+  "inf": Infinity,
+  "negInf": -Infinity
+}

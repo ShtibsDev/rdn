@@ -1,0 +1,16 @@
+{
+  "null": null,
+  "bool": true,
+  "int": 42,
+  "float": 3.14,
+  "nan": NaN,
+  "inf": Infinity,
+  "bigint": 42n,
+  "string": "hello",
+  "date": @2024-01-15T10:30:00.000Z,
+  "regexp": /^test$/i,
+  "binary": b"SGVsbG8=",
+  "array": [1, 2, 3],
+  "map": Map{"a" => 1},
+  "set": Set{1, 2, 3}
+}

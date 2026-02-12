@@ -1,0 +1,96 @@
+(* RDN Grammar — Extracted from rdn-spec.md v1.0 *)
+(* EBNF notation (ISO/IEC 14977) *)
+
+rdn_text     = ws, value, ws ;
+
+value        = null | boolean | number | bigint | string
+             | array | tuple | object | map | set
+             | datetime | time_only | duration
+             | regexp | binary ;
+
+ws           = { "\t" | "\n" | "\r" | " " } ;
+
+(* === JSON-Compatible Types === *)
+
+null         = "null" ;
+boolean      = "true" | "false" ;
+
+number       = [ "-" ], int, [ frac ], [ exp ]
+             | "NaN"
+             | "Infinity"
+             | "-Infinity" ;
+int          = "0" | non_zero_digit, { digit } ;
+frac         = ".", digit, { digit } ;
+exp          = ( "e" | "E" ), [ "+" | "-" ], digit, { digit } ;
+
+digit        = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+non_zero_digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+string       = '"', { char }, '"' ;
+char         = unescaped | escaped ;
+unescaped    = (* any Unicode character except " \ and control characters *) ;
+escaped      = "\", escape_char ;
+escape_char  = '"' | "\" | "/" | "b" | "f" | "n" | "r" | "t"
+             | "u", hex_digit, hex_digit, hex_digit, hex_digit ;
+
+hex_digit    = digit | "A" | "B" | "C" | "D" | "E" | "F"
+             | "a" | "b" | "c" | "d" | "e" | "f" ;
+
+array        = "[", ws, "]"
+             | "[", ws, value, { ws, ",", ws, value }, ws, "]" ;
+
+object       = "{", ws, "}"
+             | "{", ws, member, { ws, ",", ws, member }, ws, "}" ;
+member       = string, ws, ":", ws, value ;
+
+(* === RDN-Specific Types === *)
+
+bigint       = [ "-" ], digit, { digit }, "n" ;
+
+datetime     = "@", datetime_body ;
+datetime_body = iso_full | iso_no_ms | date_only | unix_ts ;
+iso_full     = yyyy, "-", mm, "-", dd, "T", hh, ":", mi, ":", ss, ".", mmm, "Z" ;
+iso_no_ms    = yyyy, "-", mm, "-", dd, "T", hh, ":", mi, ":", ss, "Z" ;
+date_only    = yyyy, "-", mm, "-", dd ;
+unix_ts      = digit, { digit } ;
+
+yyyy         = digit, digit, digit, digit ;
+mm           = digit, digit ;
+dd           = digit, digit ;
+hh           = digit, digit ;
+mi           = digit, digit ;
+ss           = digit, digit ;
+mmm          = digit, digit, digit ;
+
+time_only    = "@", hh, ":", mi, ":", ss, [ ".", mmm ] ;
+
+duration     = "@", "P", duration_body ;
+duration_body = { digit, { digit }, ( "Y" | "M" | "D" ) },
+               [ "T", { digit, { digit }, ( "H" | "M" | "S" ) } ] ;
+
+regexp       = "/", regexp_body, "/", regexp_flags ;
+regexp_body  = ( regexp_char | "\/" ), { regexp_char | "\/" } ;
+regexp_char  = (* any character except "/" and NUL *) ;
+regexp_flags = { "d" | "g" | "i" | "m" | "s" | "u" | "v" | "y" } ;
+
+binary       = binary_b64 | binary_hex ;
+binary_b64   = "b", '"', { base64_char }, [ "=" | "==" ], '"' ;
+binary_hex   = "x", '"', { hex_digit }, '"' ;
+base64_char  = letter | digit | "+" | "/" ;
+
+letter       = "A" | "B" | (* ... *) | "Z" | "a" | "b" | (* ... *) | "z" ;
+
+map          = explicit_map | implicit_map ;
+explicit_map = "Map{", ws, "}"
+             | "Map{", ws, map_entry, { ws, ",", ws, map_entry }, ws, "}" ;
+implicit_map = "{", ws, map_entry, { ws, ",", ws, map_entry }, ws, "}" ;
+map_entry    = value, ws, "=>", ws, value ;
+
+set          = explicit_set | implicit_set ;
+explicit_set = "Set{", ws, "}"
+             | "Set{", ws, value, { ws, ",", ws, value }, ws, "}" ;
+implicit_set = "{", ws, value, ws, "}"
+             | "{", ws, value, ws, ",", ws, value, { ws, ",", ws, value }, ws, "}" ;
+
+tuple        = "(", ws, ")"
+             | "(", ws, value, { ws, ",", ws, value }, ws, ")" ;

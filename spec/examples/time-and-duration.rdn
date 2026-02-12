@@ -1,0 +1,8 @@
+{
+  "morning": @14:30:00,
+  "precise": @23:59:59.999,
+  "midnight": @00:00:00,
+  "fullDuration": @P1Y2M3DT4H5M6S,
+  "hourOnly": @PT1H,
+  "dayOnly": @P1D
+}

@@ -1,0 +1,6 @@
+{
+  "time": {"$type": "TimeOnly", "value": {"hours": 14, "minutes": 30, "seconds": 0, "milliseconds": 0}},
+  "timeMs": {"$type": "TimeOnly", "value": {"hours": 23, "minutes": 59, "seconds": 59, "milliseconds": 999}},
+  "duration": {"$type": "Duration", "value": "P1Y2M3DT4H5M6S"},
+  "shortDuration": {"$type": "Duration", "value": "PT1H"}
+}

@@ -1,0 +1,4 @@
+{
+  "simple": {"$type": "RegExp", "value": {"source": "test", "flags": "gi"}},
+  "anchored": {"$type": "RegExp", "value": {"source": "^[a-z]+$", "flags": "i"}}
+}

@@ -1,0 +1,8 @@
+{
+  "user": {
+    "id": 42n,
+    "created": @2024-01-15T10:30:00.000Z,
+    "tags": {"admin", "editor"},
+    "sessions": Map{@2024-01-14 => @PT2H, @2024-01-15 => @PT1H30M}
+  }
+}

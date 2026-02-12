@@ -1,0 +1,5 @@
+{
+  "base64": {"$type": "Binary", "value": "SGVsbG8="},
+  "hex": {"$type": "Binary", "value": "SGVsbG8="},
+  "empty": {"$type": "Binary", "value": ""}
+}

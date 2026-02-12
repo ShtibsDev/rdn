@@ -1,0 +1,5 @@
+{
+  "simple": /test/gi,
+  "anchored": /^[a-z]+$/i,
+  "url": /^https?:\/\/[\w.-]+\.[a-z]{2,}\/?$/gi
+}

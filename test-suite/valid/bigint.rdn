@@ -1,0 +1,6 @@
+{
+  "small": 0n,
+  "positive": 42n,
+  "negative": -99n,
+  "large": 999999999999999999n
+}

@@ -1,0 +1,13 @@
+{
+  "null": null,
+  "boolTrue": true,
+  "boolFalse": false,
+  "integer": 42,
+  "float": 3.14,
+  "scientific": 1e10,
+  "nan": NaN,
+  "posInfinity": Infinity,
+  "negInfinity": -Infinity,
+  "string": "hello world",
+  "escaped": "line1\nline2\ttab"
+}

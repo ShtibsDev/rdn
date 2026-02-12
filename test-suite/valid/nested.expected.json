@@ -1,0 +1,8 @@
+{
+  "user": {
+    "id": {"$type": "BigInt", "value": "42"},
+    "created": {"$type": "Date", "value": "2024-01-15T10:30:00.000Z"},
+    "tags": {"$type": "Set", "value": ["admin", "editor"]},
+    "sessions": {"$type": "Map", "value": [[{"$type": "Date", "value": "2024-01-14T00:00:00.000Z"}, {"$type": "Duration", "value": "PT2H"}], [{"$type": "Date", "value": "2024-01-15T00:00:00.000Z"}, {"$type": "Duration", "value": "PT1H30M"}]]}
+  }
+}

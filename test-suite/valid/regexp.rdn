@@ -1,0 +1,4 @@
+{
+  "simple": /test/gi,
+  "anchored": /^[a-z]+$/i
+}

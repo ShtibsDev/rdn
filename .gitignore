@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+target/
+out/
+bin/
+obj/
+
+# TypeScript
+*.tsbuildinfo
+
+# Rust
+implementations/rust/target/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Go
+implementations/go/bin/
+
+# C#
+implementations/csharp/bin/
+implementations/csharp/obj/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local

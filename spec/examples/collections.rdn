@@ -1,0 +1,12 @@
+{
+  "explicitMap": Map{"a" => 1, "b" => 2},
+  "implicitMap": {"key" => "val"},
+  "nonStringKeys": Map{1 => "one", @2024-01-01 => "new year"},
+  "emptyMap": Map{},
+  "explicitSet": Set{1, 2, 3},
+  "implicitSet": {"hello", "world"},
+  "singleSet": {"only"},
+  "emptySet": Set{},
+  "tuple": (1, 2, 3),
+  "emptyTuple": ()
+}

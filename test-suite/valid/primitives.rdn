@@ -1,0 +1,8 @@
+{
+  "null": null,
+  "true": true,
+  "false": false,
+  "integer": 42,
+  "float": 3.14,
+  "string": "hello"
+}
