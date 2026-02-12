@@ -190,6 +190,11 @@ b"SGVsbG8="       → Uint8Array [72, 101, 108, 108, 111]
 b""               → Uint8Array []
 ```
 
+Base64 validation follows RFC 4648 strictly:
+- Content length (excluding padding) must be a multiple of 4.
+- Padding characters (`=`) may only appear at the end (1 or 2 trailing `=`).
+- Non-zero padding bits are rejected (RFC 4648 §3.5).
+
 **Hexadecimal** (prefix `x"`):
 ```
 x"48656C6C6F"     → Uint8Array [72, 101, 108, 108, 111]
@@ -390,12 +395,75 @@ The stringifier maintains a stack-based cycle detection mechanism. If a referenc
 }
 ```
 
-## 12. Implementation Notes
+## 12. Error Handling
+
+All parse errors throw `SyntaxError` with a descriptive message and position info:
+
+```
+SyntaxError: <description> in RDN at position <offset>
+```
+
+The `<offset>` is the byte offset from the start of the input string where the error was detected.
+
+Examples:
+- `SyntaxError: Unterminated string in RDN at position 6`
+- `SyntaxError: Invalid base64: length must be a multiple of 4 in RDN at position 8`
+- `SyntaxError: Invalid base64 character in RDN at position 5`
+- `SyntaxError: Unexpected data after value in RDN at position 3`
+
+The parser uses the `kRdnParseError` message template (`"% in RDN at position %"`) rather than reusing JSON error templates, ensuring all 60+ error paths produce clear, RDN-specific messages.
+
+## 13. Security Considerations
+
+RDN extends JSON's attack surface by constructing live JavaScript objects from serialized data. Implementations and consumers should be aware of the following:
+
+### 13.1 RegExp and ReDoS
+
+`RDN.parse` constructs live `RegExp` objects from pattern literals. A malicious RDN payload can embed patterns that cause **catastrophic backtracking** (ReDoS) when later executed against adversarial input:
+
+```
+/(a+)+$/          — O(2^n) backtracking on "aaa...X"
+/^(a|a)*$/        — exponential alternation
+/(\d+)+$/         — nested quantifier
+```
+
+The parse itself completes instantly — the risk is at **execution time** when `.test()`, `.match()`, or `.exec()` is called. This is equivalent to `new RegExp(untrustedInput)` and is an inherent capability of the format.
+
+**Mitigation for consumers:**
+- Treat RegExp values from untrusted RDN sources the same way you would treat `eval()` output — do not execute them without validation.
+- Consider using a safe-regex static analyzer on parsed patterns before execution.
+- Apply execution timeouts when matching untrusted patterns against untrusted input.
+
+### 13.2 Prototype Pollution
+
+The RDN parser is **not vulnerable** to prototype pollution. Keys like `__proto__` and `constructor` are treated as ordinary own properties — they do not modify `Object.prototype` or any prototype chain. This is enforced by using direct property slot assignment rather than generic property setting.
+
+### 13.3 Stack Depth and Nesting
+
+Deeply nested structures (thousands of levels) are handled gracefully. The parser relies on V8's stack guard to detect stack overflow and throws a `RangeError` rather than crashing. Both the parser and stringifier have this protection.
+
+### 13.4 Resource Exhaustion
+
+The parser does not impose explicit size limits on arrays, objects, Maps, Sets, strings, or BigInts. It relies on V8's heap allocator to enforce memory limits. A malicious payload with millions of entries will eventually trigger an out-of-memory condition rather than an exploitable overflow.
+
+### 13.5 Binary Data Validation
+
+Base64 and hexadecimal decoders perform strict validation:
+- Base64: RFC 4648 compliant. Length must be a multiple of 4, padding only at end, non-zero padding bits rejected.
+- Hex: Even length required, invalid characters rejected.
+
+Output buffers are pre-allocated to the exact decoded size before any writes occur, preventing buffer overflows.
+
+### 13.6 Circular Reference Detection
+
+The stringifier detects circular references (an object appearing as its own descendant) and throws a `TypeError`, consistent with `JSON.stringify`. Detection uses a hash set of object addresses checked periodically during serialization.
+
+## 14. Implementation Notes
 
 - The parser is a recursive-descent parser templated on `Char` (uint8_t for one-byte, uint16_t for two-byte strings).
 - Token dispatch uses a 256-entry constexpr lookup table for O(1) branching.
 - Strings use deferred materialization — the parser scans and records position/length without allocating, only materializing a V8 String when needed.
-- Object construction uses a 4-entry LRU map cache. When arrays contain objects of the same shape, subsequent objects skip all map transition lookups and write properties directly at known field offsets.
+- Object construction uses a 16-entry LRU map cache. When arrays contain objects of the same shape, subsequent objects skip all map transition lookups and write properties directly at known field offsets.
 - The stringifier uses SWAR (SIMD Within A Register) for whole-string escape detection, scanning 4 bytes at a time.
 - Date formatting uses a pre-computed digit-pair table for direct 2-char writes (~10ns vs ~100-200ns for snprintf).
 - TimeOnly and Duration objects use cached maps with pre-computed `FieldIndex` values — the first parse builds the map, subsequent parses write properties directly.
