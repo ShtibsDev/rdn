@@ -72,7 +72,7 @@ namespace Rdn.Serialization
             {
                 // Fast path that avoids maintaining state variables and dealing with preserved references.
 
-                if (reader.TokenType != JsonTokenType.StartArray)
+                if (reader.TokenType != JsonTokenType.StartArray && reader.TokenType != JsonTokenType.StartSet)
                 {
                     ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type);
                 }
@@ -89,7 +89,7 @@ namespace Rdn.Serialization
                     while (true)
                     {
                         reader.ReadWithVerify();
-                        if (reader.TokenType == JsonTokenType.EndArray)
+                        if (reader.TokenType == JsonTokenType.EndArray || reader.TokenType == JsonTokenType.EndSet)
                         {
                             break;
                         }
@@ -105,7 +105,7 @@ namespace Rdn.Serialization
                     while (true)
                     {
                         reader.ReadWithVerify();
-                        if (reader.TokenType == JsonTokenType.EndArray)
+                        if (reader.TokenType == JsonTokenType.EndArray || reader.TokenType == JsonTokenType.EndSet)
                         {
                             break;
                         }
@@ -121,7 +121,7 @@ namespace Rdn.Serialization
                 // Slower path that supports continuation and reading metadata.
                 if (state.Current.ObjectState == StackFrameObjectState.None)
                 {
-                    if (reader.TokenType == JsonTokenType.StartArray)
+                    if (reader.TokenType == JsonTokenType.StartArray || reader.TokenType == JsonTokenType.StartSet)
                     {
                         state.Current.ObjectState = StackFrameObjectState.ReadMetadata;
                     }
@@ -214,7 +214,7 @@ namespace Rdn.Serialization
 
                         if (state.Current.PropertyState < StackFramePropertyState.ReadValueIsEnd)
                         {
-                            if (reader.TokenType == JsonTokenType.EndArray)
+                            if (reader.TokenType == JsonTokenType.EndArray || reader.TokenType == JsonTokenType.EndSet)
                             {
                                 break;
                             }

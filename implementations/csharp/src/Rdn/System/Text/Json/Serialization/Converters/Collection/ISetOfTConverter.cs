@@ -34,6 +34,51 @@ namespace Rdn.Serialization.Converters
             }
         }
 
+        internal override bool OnTryWrite(Utf8JsonWriter writer, TCollection value, JsonSerializerOptions options, ref WriteStack state)
+        {
+            if (value == null)
+            {
+                writer.WriteNullValue();
+                return true;
+            }
+
+            JsonTypeInfo jsonTypeInfo = state.Current.JsonTypeInfo;
+
+            if (!state.Current.ProcessedStartToken)
+            {
+                state.Current.ProcessedStartToken = true;
+
+                jsonTypeInfo.OnSerializing?.Invoke(value);
+
+                if (state.CurrentContainsMetadata && CanHaveMetadata)
+                {
+                    state.Current.MetadataPropertyName = JsonSerializer.WriteMetadataForCollection(this, ref state, writer);
+                }
+
+                writer.WriteStartSet();
+                state.Current.JsonPropertyInfo = jsonTypeInfo.ElementTypeInfo!.PropertyInfoForTypeInfo;
+            }
+
+            bool success = OnWriteResume(writer, value, options, ref state);
+            if (success)
+            {
+                if (!state.Current.ProcessedEndToken)
+                {
+                    state.Current.ProcessedEndToken = true;
+                    writer.WriteEndSet();
+
+                    if (state.Current.MetadataPropertyName != 0)
+                    {
+                        writer.WriteEndObject();
+                    }
+                }
+
+                jsonTypeInfo.OnSerialized?.Invoke(value);
+            }
+
+            return success;
+        }
+
         internal override void ConfigureJsonTypeInfo(JsonTypeInfo jsonTypeInfo, JsonSerializerOptions options)
         {
             // Deserialize as HashSet<TElement> for interface types that support it.

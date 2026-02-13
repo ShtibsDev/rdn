@@ -31,6 +31,7 @@ namespace Rdn
         // RDN-specific constants
         public const byte AtSign = (byte)'@';
         public const byte LetterP = (byte)'P';
+        public const byte LetterS = (byte)'S';
         public const int RdnFullDateTimeLength = 24; // YYYY-MM-DDTHH:mm:ss.sssZ (without @)
         public const int RdnDateOnlyLength = 10; // YYYY-MM-DD
         public const int RdnTimeOnlyMinLength = 8; // HH:MM:SS

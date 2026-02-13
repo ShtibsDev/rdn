@@ -92,5 +92,15 @@ namespace Rdn
         ///   Indicates that the token type is an RDN Duration literal (e.g. <c>@P1Y2M3DT4H5M6S</c>).
         /// </summary>
         RdnDuration = 14,
+
+        /// <summary>
+        ///   Indicates that the token type is the start of an RDN Set.
+        /// </summary>
+        StartSet = 15,
+
+        /// <summary>
+        ///   Indicates that the token type is the end of an RDN Set.
+        /// </summary>
+        EndSet = 16,
     }
 }

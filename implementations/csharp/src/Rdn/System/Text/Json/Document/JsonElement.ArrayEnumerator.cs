@@ -24,7 +24,7 @@ namespace Rdn
                 _target = target;
                 _curIdx = currentIndex;
 
-                Debug.Assert(target.TokenType == JsonTokenType.StartArray);
+                Debug.Assert(target.TokenType == JsonTokenType.StartArray || target.TokenType == JsonTokenType.StartSet);
 
                 _endIdxOrVersion = target._parent.GetEndIndex(_target._idx, includeEndElement: false);
             }

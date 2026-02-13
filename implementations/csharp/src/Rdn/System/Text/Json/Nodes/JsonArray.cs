@@ -100,6 +100,7 @@ namespace Rdn.Nodes
             switch (node)
             {
                 case JsonObject:
+                case JsonSet:
                     return false;
                 case JsonValue value:
                     // JsonValue instances have special comparison semantics, dispatch to their implementation.

@@ -62,5 +62,10 @@ namespace Rdn
         ///   Indicates that a value is an RDN Duration literal.
         /// </summary>
         RdnDuration,
+
+        /// <summary>
+        ///   Indicates that a value is an RDN Set.
+        /// </summary>
+        Set,
     }
 }

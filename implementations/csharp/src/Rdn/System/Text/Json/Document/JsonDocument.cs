@@ -132,7 +132,10 @@ namespace Rdn
 
             DbRow row = _parsedData.Get(index);
 
-            CheckExpectedType(JsonTokenType.StartArray, row.TokenType);
+            if (row.TokenType != JsonTokenType.StartArray && row.TokenType != JsonTokenType.StartSet)
+            {
+                ThrowHelper.ThrowJsonElementWrongTypeException(JsonTokenType.StartArray, row.TokenType);
+            }
 
             return row.SizeOrLength;
         }
@@ -154,7 +157,10 @@ namespace Rdn
 
             DbRow row = _parsedData.Get(currentIndex);
 
-            CheckExpectedType(JsonTokenType.StartArray, row.TokenType);
+            if (row.TokenType != JsonTokenType.StartArray && row.TokenType != JsonTokenType.StartSet)
+            {
+                ThrowHelper.ThrowJsonElementWrongTypeException(JsonTokenType.StartArray, row.TokenType);
+            }
 
             int arrayLength = row.SizeOrLength;
 
@@ -845,6 +851,10 @@ namespace Rdn
                     writer.WriteStartArray();
                     WriteComplexElement(index, writer);
                     return;
+                case JsonTokenType.StartSet:
+                    writer.WriteStartSet();
+                    WriteComplexElement(index, writer);
+                    return;
                 case JsonTokenType.String:
                     WriteString(row, writer);
                     return;
@@ -922,6 +932,12 @@ namespace Rdn
                         continue;
                     case JsonTokenType.EndArray:
                         writer.WriteEndArray();
+                        continue;
+                    case JsonTokenType.StartSet:
+                        writer.WriteStartSet();
+                        continue;
+                    case JsonTokenType.EndSet:
+                        writer.WriteEndSet();
                         continue;
                     case JsonTokenType.PropertyName:
                         WritePropertyName(row, writer);
@@ -1099,6 +1115,42 @@ namespace Rdn
                     arrayItemsOrPropertyCount = row.SizeOrLength;
                     numberOfRowsForValues += row.NumberOfRows;
                 }
+                else if (tokenType == JsonTokenType.StartSet)
+                {
+                    if (inArray)
+                    {
+                        arrayItemsOrPropertyCount++;
+                    }
+
+                    numberOfRowsForMembers++;
+                    database.Append(tokenType, tokenStart, DbRow.UnknownSize);
+                    var row = new StackRow(arrayItemsOrPropertyCount, numberOfRowsForValues + 1);
+                    stack.Push(row);
+                    arrayItemsOrPropertyCount = 0;
+                    numberOfRowsForValues = 0;
+                }
+                else if (tokenType == JsonTokenType.EndSet)
+                {
+                    int rowIndex = database.FindIndexOfFirstUnsetSizeOrLength(JsonTokenType.StartSet);
+
+                    numberOfRowsForValues++;
+                    numberOfRowsForMembers++;
+                    database.SetLength(rowIndex, arrayItemsOrPropertyCount);
+                    database.SetNumberOfRows(rowIndex, numberOfRowsForValues);
+
+                    if (arrayItemsOrPropertyCount + 1 != numberOfRowsForValues)
+                    {
+                        database.SetHasComplexChildren(rowIndex);
+                    }
+
+                    int newRowIndex = database.Length;
+                    database.Append(tokenType, tokenStart, reader.ValueSpan.Length);
+                    database.SetNumberOfRows(newRowIndex, numberOfRowsForValues);
+
+                    StackRow row = stack.Pop();
+                    arrayItemsOrPropertyCount = row.SizeOrLength;
+                    numberOfRowsForValues += row.NumberOfRows;
+                }
                 else if (tokenType == JsonTokenType.PropertyName)
                 {
                     numberOfRowsForValues++;
@@ -1162,7 +1214,7 @@ namespace Rdn
 
         private static void ValidateNoDuplicateProperties(JsonDocument document)
         {
-            if (document.RootElement.ValueKind is JsonValueKind.Array or JsonValueKind.Object)
+            if (document.RootElement.ValueKind is JsonValueKind.Array or JsonValueKind.Object or JsonValueKind.Set)
             {
                 ValidateDuplicatePropertiesCore(document);
             }
@@ -1170,7 +1222,7 @@ namespace Rdn
 
         private static void ValidateDuplicatePropertiesCore(JsonDocument document)
         {
-            Debug.Assert(document.RootElement.ValueKind is JsonValueKind.Array or JsonValueKind.Object);
+            Debug.Assert(document.RootElement.ValueKind is JsonValueKind.Array or JsonValueKind.Object or JsonValueKind.Set);
 
             using PropertyNameSet propertyNameSet = new PropertyNameSet();
 
@@ -1191,7 +1243,7 @@ namespace Rdn
 
                         while (enumerator.MoveNext())
                         {
-                            if (enumerator.Current.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                            if (enumerator.Current.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Set)
                             {
                                 traversalPath.Push(enumerator.Current.Value.MetadataDbIndex);
                                 databaseIndexOflastProcessedChild = null;
@@ -1213,12 +1265,13 @@ namespace Rdn
                         break;
                     }
                     case JsonValueKind.Array:
+                    case JsonValueKind.Set:
                     {
                         JsonElement.ArrayEnumerator enumerator = new(curr, databaseIndexOflastProcessedChild ?? -1);
 
                         while (enumerator.MoveNext())
                         {
-                            if (enumerator.Current.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                            if (enumerator.Current.ValueKind is JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Set)
                             {
                                 traversalPath.Push(enumerator.Current.MetadataDbIndex);
                                 databaseIndexOflastProcessedChild = null;

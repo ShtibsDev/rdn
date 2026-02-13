@@ -47,6 +47,8 @@ namespace Rdn.Serialization.Converters
                     return JsonObjectConverter.ReadAsJsonElement(ref reader, options);
                 case JsonTokenType.StartArray:
                     return JsonArrayConverter.ReadAsJsonElement(ref reader, options);
+                case JsonTokenType.StartSet:
+                    return JsonSetConverter.ReadAsJsonElement(ref reader, options);
                 case JsonTokenType.Null:
                     return null;
                 default:
@@ -68,6 +70,8 @@ namespace Rdn.Serialization.Converters
                     return JsonObjectConverter.ReadAsJsonNode(ref reader, options);
                 case JsonTokenType.StartArray:
                     return JsonArrayConverter.ReadAsJsonNode(ref reader, options);
+                case JsonTokenType.StartSet:
+                    return JsonSetConverter.ReadAsJsonNode(ref reader, options);
                 case JsonTokenType.Null:
                     return null;
                 default:
@@ -90,6 +94,9 @@ namespace Rdn.Serialization.Converters
                     break;
                 case JsonValueKind.Array:
                     node = new JsonArray(element, options);
+                    break;
+                case JsonValueKind.Set:
+                    node = new JsonSet(element, options);
                     break;
                 default:
                     node = new JsonValueOfElement(element, options);

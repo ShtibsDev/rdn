@@ -127,6 +127,8 @@ namespace Rdn
                     return JsonValueKind.Array;
                 case JsonTokenType.StartObject:
                     return JsonValueKind.Object;
+                case JsonTokenType.StartSet:
+                    return JsonValueKind.Set;
                 case JsonTokenType.String:
                 case JsonTokenType.Number:
                 case JsonTokenType.True:

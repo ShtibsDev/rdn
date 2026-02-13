@@ -494,6 +494,7 @@ namespace Rdn
                     // Any of the "value start" states are acceptable.
                     case JsonTokenType.StartObject:
                     case JsonTokenType.StartArray:
+                    case JsonTokenType.StartSet:
                     {
                         long startingOffset = reader.TokenStartIndex;
 
@@ -527,7 +528,8 @@ namespace Rdn
 
                         Debug.Assert(
                             reader.TokenType == JsonTokenType.EndObject ||
-                            reader.TokenType == JsonTokenType.EndArray);
+                            reader.TokenType == JsonTokenType.EndArray ||
+                            reader.TokenType == JsonTokenType.EndSet);
 
                         break;
                     }

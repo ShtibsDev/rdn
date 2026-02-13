@@ -1336,13 +1336,14 @@ namespace Rdn
                     return element1.ValueEquals(element2.ValueSpan);
 
                 case JsonValueKind.Array:
+                case JsonValueKind.Set:
                     if (element1.GetArrayLength() != element2.GetArrayLength())
                     {
                         return false;
                     }
 
-                    ArrayEnumerator arrayEnumerator2 = element2.EnumerateArray();
-                    foreach (JsonElement e1 in element1.EnumerateArray())
+                    ArrayEnumerator arrayEnumerator2 = kind == JsonValueKind.Set ? element2.EnumerateSet() : element2.EnumerateArray();
+                    foreach (JsonElement e1 in kind == JsonValueKind.Set ? element1.EnumerateSet() : element1.EnumerateArray())
                     {
                         bool success = arrayEnumerator2.MoveNext();
                         Debug.Assert(success, "enumerators must have matching length");
@@ -1627,6 +1628,32 @@ namespace Rdn
         }
 
         /// <summary>
+        ///   Get an enumerator to enumerate the values in the RDN Set represented by this JsonElement.
+        /// </summary>
+        /// <returns>
+        ///   An enumerator to enumerate the values in the RDN Set represented by this JsonElement.
+        /// </returns>
+        /// <exception cref="InvalidOperationException">
+        ///   This value's <see cref="ValueKind"/> is not <see cref="JsonValueKind.Set"/>.
+        /// </exception>
+        /// <exception cref="ObjectDisposedException">
+        ///   The parent <see cref="JsonDocument"/> has been disposed.
+        /// </exception>
+        public ArrayEnumerator EnumerateSet()
+        {
+            CheckValidInstance();
+
+            JsonTokenType tokenType = TokenType;
+
+            if (tokenType != JsonTokenType.StartSet)
+            {
+                ThrowHelper.ThrowJsonElementWrongTypeException(JsonTokenType.StartSet, tokenType);
+            }
+
+            return new ArrayEnumerator(this);
+        }
+
+        /// <summary>
         ///   Get an enumerator to enumerate the properties in the JSON object represented by this JsonElement.
         /// </summary>
         /// <returns>
@@ -1700,6 +1727,7 @@ namespace Rdn
                 case JsonTokenType.Number:
                 case JsonTokenType.StartArray:
                 case JsonTokenType.StartObject:
+                case JsonTokenType.StartSet:
                     {
                         // null parent should have hit the None case
                         Debug.Assert(_parent != null);

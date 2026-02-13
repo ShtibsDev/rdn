@@ -217,7 +217,7 @@ namespace Rdn
             {
                 // StartArray or StartObject should have length -1, otherwise the length should not be -1.
                 Debug.Assert(
-                    (tokenType == JsonTokenType.StartArray || tokenType == JsonTokenType.StartObject) ==
+                    (tokenType == JsonTokenType.StartArray || tokenType == JsonTokenType.StartObject || tokenType == JsonTokenType.StartSet) ==
                     (length == DbRow.UnknownSize));
 
                 if (Length >= _data.Length - DbRow.Size)
@@ -282,13 +282,13 @@ namespace Rdn
             internal void SetNumberOfRows(int index, int numberOfRows)
             {
                 AssertValidIndex(index);
-                Debug.Assert(numberOfRows >= 1 && numberOfRows <= 0x0FFFFFFF);
+                Debug.Assert(numberOfRows >= 1 && numberOfRows <= 0x07FFFFFF);
 
                 Span<byte> dataPos = _data.AsSpan(index + NumberOfRowsOffset);
                 int current = MemoryMarshal.Read<int>(dataPos);
 
-                // Persist the most significant nybble
-                int value = (current & unchecked((int)0xF0000000)) | numberOfRows;
+                // Persist the most significant 5 bits (token type)
+                int value = (current & unchecked((int)0xF8000000)) | numberOfRows;
                 MemoryMarshal.Write(dataPos, ref value);
             }
 
@@ -306,7 +306,7 @@ namespace Rdn
 
             internal int FindIndexOfFirstUnsetSizeOrLength(JsonTokenType lookupType)
             {
-                Debug.Assert(lookupType == JsonTokenType.StartObject || lookupType == JsonTokenType.StartArray);
+                Debug.Assert(lookupType == JsonTokenType.StartObject || lookupType == JsonTokenType.StartArray || lookupType == JsonTokenType.StartSet);
                 return FindOpenElement(lookupType);
             }
 
@@ -340,7 +340,7 @@ namespace Rdn
                 AssertValidIndex(index);
                 uint union = MemoryMarshal.Read<uint>(_data.AsSpan(index + NumberOfRowsOffset));
 
-                return (JsonTokenType)(union >> 28);
+                return (JsonTokenType)(union >> 27);
             }
 
             internal MetadataDb CopySegment(int startIndex, int endIndex)

@@ -1073,7 +1073,7 @@ namespace Rdn
             {
                 Debug.Assert(token == JsonConstants.CloseBrace);
 
-                if (_enclosingContainer != EnclosingContainerType.Object)
+                if (_enclosingContainer != EnclosingContainerType.Object && _enclosingContainer != EnclosingContainerType.Set)
                 {
                     ThrowInvalidOperationException_MismatchedObjectArray(token);
                 }
@@ -1085,8 +1085,8 @@ namespace Rdn
 
         private void WriteEndIndented(byte token)
         {
-            // Do not format/indent empty JSON object/array.
-            if (_tokenType == JsonTokenType.StartObject || _tokenType == JsonTokenType.StartArray)
+            // Do not format/indent empty JSON object/array/set.
+            if (_tokenType == JsonTokenType.StartObject || _tokenType == JsonTokenType.StartArray || _tokenType == JsonTokenType.StartSet)
             {
                 WriteEndMinimized(token);
             }
@@ -1273,6 +1273,11 @@ namespace Rdn
             /// JSON array. Chosen so that its lower nibble is 0 to ensure it does not conflict with <see cref="JsonTokenType"/> numeric values that currently are less than 16.
             /// </summary>
             Array = 0x10,
+
+            /// <summary>
+            /// RDN Set. Like Array but uses brace delimiters and "Set{" prefix.
+            /// </summary>
+            Set = 0x18,
 
             /// <summary>
             /// Partial UTF-8 string. This is a container if viewed as an array of "utf-8 string segment"-typed values. This array can only be one level deep

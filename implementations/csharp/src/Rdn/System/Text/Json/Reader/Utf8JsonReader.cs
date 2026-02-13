@@ -37,6 +37,10 @@ namespace Rdn
         private JsonReaderOptions _readerOptions;
         private BitStack _bitStack;
 
+        // Bit N=1 means depth N is a Set (vs Array). Used to disambiguate } as EndSet vs EndObject
+        // when BitStack reports false (non-object). Only tracks depths 0-63; deeper sets always assumed.
+        private long _setDepthMask;
+
         private long _totalConsumed;
         private bool _isLastSegment;
         private readonly bool _isMultiSegment;
@@ -107,7 +111,7 @@ namespace Rdn
             get
             {
                 int readerDepth = _bitStack.CurrentDepth;
-                if (TokenType is JsonTokenType.StartArray or JsonTokenType.StartObject)
+                if (TokenType is JsonTokenType.StartArray or JsonTokenType.StartObject or JsonTokenType.StartSet)
                 {
                     Debug.Assert(readerDepth >= 1);
                     readerDepth--;
@@ -331,7 +335,7 @@ namespace Rdn
                 Debug.Assert(result);
             }
 
-            if (TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
+            if (TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray or JsonTokenType.StartSet)
             {
                 int depth = CurrentDepth;
                 do
@@ -409,9 +413,9 @@ namespace Rdn
                     }
                 }
 
-                if (TokenType is not (JsonTokenType.StartObject or JsonTokenType.StartArray))
+                if (TokenType is not (JsonTokenType.StartObject or JsonTokenType.StartArray or JsonTokenType.StartSet))
                 {
-                    // The next value is not an object or array, so there is nothing to skip.
+                    // The next value is not an object, array, or set, so there is nothing to skip.
                     return true;
                 }
             }
@@ -786,7 +790,7 @@ namespace Rdn
 
         private void EndArray()
         {
-            if (_inObject || _bitStack.CurrentDepth <= 0)
+            if (_inObject || _bitStack.CurrentDepth <= 0 || IsCurrentDepthSet())
                 ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.MismatchedObjectArray, JsonConstants.CloseBracket);
 
             if (_trailingCommaBeforeComment)
@@ -810,6 +814,212 @@ namespace Rdn
             _consumed++;
             _bytePositionInLine++;
             _inObject = _bitStack.Pop();
+        }
+
+        /// <summary>
+        /// Disambiguates '{' — determines whether it starts an Object or an implicit Set.
+        /// Empty {} → Object. First value is non-string → Set. First value is string → look ahead for separator.
+        /// </summary>
+        private void ConsumeBrace()
+        {
+            ReadOnlySpan<byte> localBuffer = _buffer;
+            int pos = _consumed + 1; // skip past '{'
+
+            // Skip whitespace after '{'
+            while (pos < localBuffer.Length && localBuffer[pos] is JsonConstants.Space or JsonConstants.CarriageReturn or JsonConstants.LineFeed or JsonConstants.Tab)
+            {
+                pos++;
+            }
+
+            if (pos >= localBuffer.Length)
+            {
+                // Not enough data to disambiguate — default to Object (safe for incomplete data)
+                StartObject();
+                return;
+            }
+
+            byte peek = localBuffer[pos];
+
+            // Empty {} → Object
+            if (peek == JsonConstants.CloseBrace)
+            {
+                StartObject();
+                return;
+            }
+
+            // Non-string first value → Set (digit, -, [, {, t, f, n, @, S)
+            if (peek != JsonConstants.Quote)
+            {
+                StartSet();
+                return;
+            }
+
+            // First value is a string — need to scan past it and check separator
+            int endQuote = ScanPastJsonString(localBuffer, pos);
+            if (endQuote < 0)
+            {
+                // Couldn't find end of string — default to Object
+                StartObject();
+                return;
+            }
+
+            // Skip whitespace after the string
+            int afterString = endQuote + 1;
+            while (afterString < localBuffer.Length && localBuffer[afterString] is JsonConstants.Space or JsonConstants.CarriageReturn or JsonConstants.LineFeed or JsonConstants.Tab)
+            {
+                afterString++;
+            }
+
+            if (afterString >= localBuffer.Length)
+            {
+                // Not enough data — default to Object
+                StartObject();
+                return;
+            }
+
+            byte separator = localBuffer[afterString];
+            if (separator == JsonConstants.KeyValueSeparator)
+            {
+                // "key": → Object
+                StartObject();
+            }
+            else if (separator == JsonConstants.ListSeparator || separator == JsonConstants.CloseBrace)
+            {
+                // "val", or "val"} → Set
+                StartSet();
+            }
+            else if (separator == (byte)'=')
+            {
+                // "key"=> → Map (not yet supported)
+                ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, separator);
+            }
+            else
+            {
+                StartObject();
+            }
+        }
+
+        /// <summary>
+        /// Lightweight scan to find the closing quote of a JSON string starting at position pos.
+        /// Returns the index of the closing quote, or -1 if not found.
+        /// Does not validate — just skips backslash-escapes.
+        /// </summary>
+        private static int ScanPastJsonString(ReadOnlySpan<byte> buffer, int pos)
+        {
+            Debug.Assert(buffer[pos] == JsonConstants.Quote);
+            pos++; // skip opening quote
+
+            while (pos < buffer.Length)
+            {
+                byte b = buffer[pos];
+                if (b == JsonConstants.Quote)
+                {
+                    return pos;
+                }
+                if (b == JsonConstants.BackSlash)
+                {
+                    pos++; // skip escaped character
+                }
+                pos++;
+            }
+
+            return -1; // not found
+        }
+
+        private void StartSet()
+        {
+            if (_bitStack.CurrentDepth >= _readerOptions.MaxDepth)
+                ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ArrayDepthTooLarge);
+
+            _bitStack.PushFalse(); // Sets push false like arrays
+
+            // Mark this depth as a Set
+            int depth = _bitStack.CurrentDepth;
+            if (depth < 64)
+            {
+                _setDepthMask |= (1L << depth);
+            }
+
+            ValueSpan = _buffer.Slice(_consumed, 1);
+            _consumed++;
+            _bytePositionInLine++;
+            _tokenType = JsonTokenType.StartSet;
+            _inObject = false;
+        }
+
+        private bool ConsumeExplicitSet()
+        {
+            ReadOnlySpan<byte> span = _buffer.Slice(_consumed);
+            if (span.Length < 4)
+            {
+                if (IsLastSpan)
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, span[0]);
+                }
+                return false;
+            }
+
+            if (span[0] != (byte)'S' || span[1] != (byte)'e' || span[2] != (byte)'t' || span[3] != JsonConstants.OpenBrace)
+            {
+                ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, span[0]);
+            }
+
+            StartExplicitSet();
+            return true;
+        }
+
+        private void StartExplicitSet()
+        {
+            if (_bitStack.CurrentDepth >= _readerOptions.MaxDepth)
+                ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ArrayDepthTooLarge);
+
+            _bitStack.PushFalse();
+
+            int depth = _bitStack.CurrentDepth;
+            if (depth < 64)
+            {
+                _setDepthMask |= (1L << depth);
+            }
+
+            ValueSpan = _buffer.Slice(_consumed, 4); // "Set{"
+            _consumed += 4;
+            _bytePositionInLine += 4;
+            _tokenType = JsonTokenType.StartSet;
+            _inObject = false;
+        }
+
+        private void EndSet()
+        {
+            if (_inObject || _bitStack.CurrentDepth <= 0)
+                ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.MismatchedObjectArray, JsonConstants.CloseBrace);
+
+            if (_trailingCommaBeforeComment)
+            {
+                if (!_readerOptions.AllowTrailingCommas)
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                }
+                _trailingCommaBeforeComment = false;
+            }
+
+            // Clear the set depth bit
+            int depth = _bitStack.CurrentDepth;
+            if (depth < 64)
+            {
+                _setDepthMask &= ~(1L << depth);
+            }
+
+            _tokenType = JsonTokenType.EndSet;
+            ValueSpan = _buffer.Slice(_consumed, 1);
+
+            UpdateBitStackOnEndToken();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private readonly bool IsCurrentDepthSet()
+        {
+            int depth = _bitStack.CurrentDepth;
+            return depth < 64 ? (_setDepthMask & (1L << depth)) != 0 : false;
         }
 
         private bool ReadSingleSegment()
@@ -880,6 +1090,18 @@ namespace Rdn
                     goto Done;
                 }
             }
+            else if (_tokenType == JsonTokenType.StartSet)
+            {
+                if (first == JsonConstants.CloseBrace)
+                {
+                    EndSet();
+                }
+                else
+                {
+                    retVal = ConsumeValue(first);
+                    goto Done;
+                }
+            }
             else if (_tokenType == JsonTokenType.StartArray)
             {
                 if (first == JsonConstants.CloseBracket)
@@ -930,7 +1152,7 @@ namespace Rdn
                         return false;
                     }
 
-                    if (_tokenType is not JsonTokenType.EndArray and not JsonTokenType.EndObject)
+                    if (_tokenType is not JsonTokenType.EndArray and not JsonTokenType.EndObject and not JsonTokenType.EndSet)
                     {
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.InvalidEndOfJsonNonPrimitive);
                     }
@@ -961,12 +1183,7 @@ namespace Rdn
         {
             if (first == JsonConstants.OpenBrace)
             {
-                _bitStack.SetFirstBit();
-                _tokenType = JsonTokenType.StartObject;
-                ValueSpan = _buffer.Slice(_consumed, 1);
-                _consumed++;
-                _bytePositionInLine++;
-                _inObject = true;
+                ConsumeBrace();
                 _isNotPrimitive = true;
             }
             else if (first == JsonConstants.OpenBracket)
@@ -998,7 +1215,7 @@ namespace Rdn
                     return false;
                 }
 
-                _isNotPrimitive = _tokenType is JsonTokenType.StartObject or JsonTokenType.StartArray;
+                _isNotPrimitive = _tokenType is JsonTokenType.StartObject or JsonTokenType.StartArray or JsonTokenType.StartSet;
                 // Intentionally fall out of the if-block to return true
             }
             return true;
@@ -1051,7 +1268,7 @@ namespace Rdn
                 }
                 else if (marker == JsonConstants.OpenBrace)
                 {
-                    StartObject();
+                    ConsumeBrace();
                 }
                 else if (marker == JsonConstants.OpenBracket)
                 {
@@ -1077,6 +1294,10 @@ namespace Rdn
                 {
                     return ConsumeRdnLiteral();
                 }
+                else if (marker == JsonConstants.LetterS)
+                {
+                    return ConsumeExplicitSet();
+                }
                 else
                 {
                     switch (_readerOptions.CommentHandling)
@@ -1097,7 +1318,7 @@ namespace Rdn
                                 {
                                     if (_consumed >= (uint)_buffer.Length)
                                     {
-                                        if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject)
+                                        if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet)
                                         {
                                             ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.InvalidEndOfJsonNonPrimitive);
                                         }
@@ -1821,12 +2042,32 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (first == JsonConstants.CloseBrace && IsCurrentDepthSet())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndSet();
+                            return ConsumeTokenResult.Success;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
                     return ConsumeValue(first) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
                 }
             }
             else if (marker == JsonConstants.CloseBrace)
             {
-                EndObject();
+                if (_inObject)
+                {
+                    EndObject();
+                }
+                else if (IsCurrentDepthSet())
+                {
+                    EndSet();
+                }
+                else
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.MismatchedObjectArray, JsonConstants.CloseBrace);
+                }
             }
             else if (marker == JsonConstants.CloseBracket)
             {
@@ -1846,7 +2087,7 @@ namespace Rdn
 
             if (JsonReaderHelper.IsTokenTypePrimitive(_previousTokenType))
             {
-                _tokenType = _inObject ? JsonTokenType.StartObject : JsonTokenType.StartArray;
+                _tokenType = _inObject ? JsonTokenType.StartObject : (IsCurrentDepthSet() ? JsonTokenType.StartSet : JsonTokenType.StartArray);
             }
             else
             {
@@ -1890,7 +2131,7 @@ namespace Rdn
             if (first == JsonConstants.ListSeparator)
             {
                 // A comma without some JSON value preceding it is invalid
-                if (_previousTokenType <= JsonTokenType.StartObject || _previousTokenType == JsonTokenType.StartArray || _trailingCommaBeforeComment)
+                if (_previousTokenType <= JsonTokenType.StartObject || _previousTokenType == JsonTokenType.StartArray || _previousTokenType == JsonTokenType.StartSet || _trailingCommaBeforeComment)
                 {
                     ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfPropertyOrValueAfterComment, first);
                 }
@@ -1973,6 +2214,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (first == JsonConstants.CloseBrace && IsCurrentDepthSet())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndSet();
+                            goto Done;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
 
                     if (ConsumeValue(first))
                     {
@@ -1986,7 +2236,18 @@ namespace Rdn
             }
             else if (first == JsonConstants.CloseBrace)
             {
-                EndObject();
+                if (_inObject)
+                {
+                    EndObject();
+                }
+                else if (IsCurrentDepthSet())
+                {
+                    EndSet();
+                }
+                else
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.MismatchedObjectArray, JsonConstants.CloseBrace);
+                }
             }
             else if (first == JsonConstants.CloseBracket)
             {
@@ -2025,6 +2286,15 @@ namespace Rdn
                 }
                 goto Done;
             }
+            else if (_tokenType == JsonTokenType.StartSet)
+            {
+                Debug.Assert(first != JsonConstants.CloseBrace);
+                if (!ConsumeValue(first))
+                {
+                    goto RollBack;
+                }
+                goto Done;
+            }
             else if (_tokenType == JsonTokenType.StartArray)
             {
                 Debug.Assert(first != JsonConstants.CloseBracket);
@@ -2044,7 +2314,7 @@ namespace Rdn
             }
             else
             {
-                Debug.Assert(_tokenType is JsonTokenType.EndArray or JsonTokenType.EndObject);
+                Debug.Assert(_tokenType is JsonTokenType.EndArray or JsonTokenType.EndObject or JsonTokenType.EndSet);
                 if (_inObject)
                 {
                     Debug.Assert(first != JsonConstants.CloseBrace);
@@ -2193,6 +2463,21 @@ namespace Rdn
                     goto Done;
                 }
             }
+            else if (_tokenType == JsonTokenType.StartSet)
+            {
+                if (marker == JsonConstants.CloseBrace)
+                {
+                    EndSet();
+                }
+                else
+                {
+                    if (!ConsumeValue(marker))
+                    {
+                        goto IncompleteNoRollback;
+                    }
+                    goto Done;
+                }
+            }
             else if (_tokenType == JsonTokenType.StartArray)
             {
                 if (marker == JsonConstants.CloseBracket)
@@ -2290,13 +2575,33 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (marker == JsonConstants.CloseBrace && IsCurrentDepthSet())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndSet();
+                            goto Done;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
 
                     return ConsumeValue(marker) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
                 }
             }
             else if (marker == JsonConstants.CloseBrace)
             {
-                EndObject();
+                if (_inObject)
+                {
+                    EndObject();
+                }
+                else if (IsCurrentDepthSet())
+                {
+                    EndSet();
+                }
+                else
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.MismatchedObjectArray, JsonConstants.CloseBrace);
+                }
             }
             else if (marker == JsonConstants.CloseBracket)
             {

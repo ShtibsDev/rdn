@@ -191,6 +191,18 @@ namespace Rdn
                     goto Done;
                 }
             }
+            else if (_tokenType == JsonTokenType.StartSet)
+            {
+                if (first == JsonConstants.CloseBrace)
+                {
+                    EndSet();
+                }
+                else
+                {
+                    retVal = ConsumeValueMultiSegment(first);
+                    goto Done;
+                }
+            }
             else if (_tokenType == JsonTokenType.StartArray)
             {
                 if (first == JsonConstants.CloseBracket)
@@ -238,7 +250,7 @@ namespace Rdn
                 return false;
             }
 
-            if (_tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject)
+            if (_tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet)
             {
                 ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.InvalidEndOfJsonNonPrimitive);
             }
@@ -336,12 +348,7 @@ namespace Rdn
         {
             if (first == JsonConstants.OpenBrace)
             {
-                _bitStack.SetFirstBit();
-                _tokenType = JsonTokenType.StartObject;
-                ValueSpan = _buffer.Slice(_consumed, 1);
-                _consumed++;
-                _bytePositionInLine++;
-                _inObject = true;
+                ConsumeBrace();
                 _isNotPrimitive = true;
             }
             else if (first == JsonConstants.OpenBracket)
@@ -369,7 +376,7 @@ namespace Rdn
                     return false;
                 }
 
-                _isNotPrimitive = _tokenType is JsonTokenType.StartObject or JsonTokenType.StartArray;
+                _isNotPrimitive = _tokenType is JsonTokenType.StartObject or JsonTokenType.StartArray or JsonTokenType.StartSet;
                 // Intentionally fall out of the if-block to return true
             }
             return true;
@@ -411,7 +418,7 @@ namespace Rdn
                 }
                 else if (marker == JsonConstants.OpenBrace)
                 {
-                    StartObject();
+                    ConsumeBrace();
                 }
                 else if (marker == JsonConstants.OpenBracket)
                 {
@@ -436,6 +443,10 @@ namespace Rdn
                 else if (marker == JsonConstants.AtSign)
                 {
                     return ConsumeRdnLiteralMultiSegment();
+                }
+                else if (marker == JsonConstants.LetterS)
+                {
+                    return ConsumeExplicitSet();
                 }
                 else
                 {
@@ -464,13 +475,13 @@ namespace Rdn
                                 {
                                     if (_consumed >= (uint)_buffer.Length)
                                     {
-                                        if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject)
+                                        if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet)
                                         {
                                             ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.InvalidEndOfJsonNonPrimitive);
                                         }
                                         if (!GetNextSpan())
                                         {
-                                            if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject)
+                                            if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet)
                                             {
                                                 ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.InvalidEndOfJsonNonPrimitive);
                                             }
@@ -1669,12 +1680,32 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (first == JsonConstants.CloseBrace && IsCurrentDepthSet())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndSet();
+                            return ConsumeTokenResult.Success;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
                     return ConsumeValueMultiSegment(first) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
                 }
             }
             else if (marker == JsonConstants.CloseBrace)
             {
-                EndObject();
+                if (_inObject)
+                {
+                    EndObject();
+                }
+                else if (IsCurrentDepthSet())
+                {
+                    EndSet();
+                }
+                else
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.MismatchedObjectArray, JsonConstants.CloseBrace);
+                }
             }
             else if (marker == JsonConstants.CloseBracket)
             {
@@ -1694,7 +1725,7 @@ namespace Rdn
 
             if (JsonReaderHelper.IsTokenTypePrimitive(_previousTokenType))
             {
-                _tokenType = _inObject ? JsonTokenType.StartObject : JsonTokenType.StartArray;
+                _tokenType = _inObject ? JsonTokenType.StartObject : (IsCurrentDepthSet() ? JsonTokenType.StartSet : JsonTokenType.StartArray);
             }
             else
             {
@@ -1738,7 +1769,7 @@ namespace Rdn
             if (first == JsonConstants.ListSeparator)
             {
                 // A comma without some JSON value preceding it is invalid
-                if (_previousTokenType <= JsonTokenType.StartObject || _previousTokenType == JsonTokenType.StartArray || _trailingCommaBeforeComment)
+                if (_previousTokenType <= JsonTokenType.StartObject || _previousTokenType == JsonTokenType.StartArray || _previousTokenType == JsonTokenType.StartSet || _trailingCommaBeforeComment)
                 {
                     ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfPropertyOrValueAfterComment, first);
                 }
@@ -1830,6 +1861,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (first == JsonConstants.CloseBrace && IsCurrentDepthSet())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndSet();
+                            goto Done;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
 
                     if (ConsumeValueMultiSegment(first))
                     {
@@ -1843,7 +1883,18 @@ namespace Rdn
             }
             else if (first == JsonConstants.CloseBrace)
             {
-                EndObject();
+                if (_inObject)
+                {
+                    EndObject();
+                }
+                else if (IsCurrentDepthSet())
+                {
+                    EndSet();
+                }
+                else
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.MismatchedObjectArray, JsonConstants.CloseBrace);
+                }
             }
             else if (first == JsonConstants.CloseBracket)
             {
@@ -1884,6 +1935,15 @@ namespace Rdn
                 }
                 goto Done;
             }
+            else if (_tokenType == JsonTokenType.StartSet)
+            {
+                Debug.Assert(first != JsonConstants.CloseBrace);
+                if (!ConsumeValueMultiSegment(first))
+                {
+                    goto RollBack;
+                }
+                goto Done;
+            }
             else if (_tokenType == JsonTokenType.StartArray)
             {
                 Debug.Assert(first != JsonConstants.CloseBracket);
@@ -1903,7 +1963,7 @@ namespace Rdn
             }
             else
             {
-                Debug.Assert(_tokenType == JsonTokenType.EndArray || _tokenType == JsonTokenType.EndObject);
+                Debug.Assert(_tokenType is JsonTokenType.EndArray or JsonTokenType.EndObject or JsonTokenType.EndSet);
                 if (_inObject)
                 {
                     Debug.Assert(first != JsonConstants.CloseBrace);
@@ -2056,6 +2116,21 @@ namespace Rdn
                     goto Done;
                 }
             }
+            else if (_tokenType == JsonTokenType.StartSet)
+            {
+                if (marker == JsonConstants.CloseBrace)
+                {
+                    EndSet();
+                }
+                else
+                {
+                    if (!ConsumeValueMultiSegment(marker))
+                    {
+                        goto IncompleteNoRollback;
+                    }
+                    goto Done;
+                }
+            }
             else if (_tokenType == JsonTokenType.StartArray)
             {
                 if (marker == JsonConstants.CloseBracket)
@@ -2162,12 +2237,33 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (marker == JsonConstants.CloseBrace && IsCurrentDepthSet())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndSet();
+                            goto Done;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
+
                     return ConsumeValueMultiSegment(marker) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
                 }
             }
             else if (marker == JsonConstants.CloseBrace)
             {
-                EndObject();
+                if (_inObject)
+                {
+                    EndObject();
+                }
+                else if (IsCurrentDepthSet())
+                {
+                    EndSet();
+                }
+                else
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.MismatchedObjectArray, JsonConstants.CloseBrace);
+                }
             }
             else if (marker == JsonConstants.CloseBracket)
             {

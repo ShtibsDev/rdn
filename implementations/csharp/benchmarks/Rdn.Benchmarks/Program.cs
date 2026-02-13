@@ -3,6 +3,7 @@ using BenchmarkDotNet.Running;
 
 BenchmarkRunner.Run<JsonBenchmarks>();
 BenchmarkRunner.Run<RdnDateTimeBenchmarks>();
+BenchmarkRunner.Run<RdnSetBenchmarks>();
 
 [MemoryDiagnoser]
 public class JsonBenchmarks
@@ -120,4 +121,51 @@ public class RdnDateTimeBenchmarks
     [Benchmark]
     public string SerializeObjectWithDates()
         => Rdn.JsonSerializer.Serialize(TestEvent);
+}
+
+[MemoryDiagnoser]
+public class RdnSetBenchmarks
+{
+    private static readonly byte[] ExplicitSetBytes = System.Text.Encoding.UTF8.GetBytes("Set{1,2,3,4,5}");
+    private static readonly byte[] ImplicitSetNonStringBytes = System.Text.Encoding.UTF8.GetBytes("{1,2,3,4,5}");
+    private static readonly byte[] ImplicitSetStringBytes = System.Text.Encoding.UTF8.GetBytes("{\"a\",\"b\",\"c\"}");
+    private static readonly byte[] ObjectBytes = System.Text.Encoding.UTF8.GetBytes("{\"key\":1}");
+    private static readonly HashSet<int> TestHashSet = new() { 1, 2, 3, 4, 5 };
+    private static readonly string SerializedHashSet = Rdn.JsonSerializer.Serialize(TestHashSet);
+
+    [Benchmark]
+    public void ParseExplicitSet()
+    {
+        var reader = new Rdn.Utf8JsonReader(ExplicitSetBytes);
+        while (reader.Read()) { }
+    }
+
+    [Benchmark]
+    public void ParseImplicitSet_NonString()
+    {
+        var reader = new Rdn.Utf8JsonReader(ImplicitSetNonStringBytes);
+        while (reader.Read()) { }
+    }
+
+    [Benchmark]
+    public void ParseImplicitSet_String()
+    {
+        var reader = new Rdn.Utf8JsonReader(ImplicitSetStringBytes);
+        while (reader.Read()) { }
+    }
+
+    [Benchmark]
+    public void ParseBraceDisambiguation_Object()
+    {
+        var reader = new Rdn.Utf8JsonReader(ObjectBytes);
+        while (reader.Read()) { }
+    }
+
+    [Benchmark]
+    public string SerializeHashSet()
+        => Rdn.JsonSerializer.Serialize(TestHashSet);
+
+    [Benchmark]
+    public HashSet<int>? DeserializeHashSet()
+        => Rdn.JsonSerializer.Deserialize<HashSet<int>>(SerializedHashSet);
 }

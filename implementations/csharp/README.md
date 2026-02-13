@@ -114,6 +114,85 @@ writer.WriteRdnDurationValue(new RdnDuration("PT30M")); // @PT30M
 writer.WriteEndObject();
 ```
 
+## RDN Set Support
+
+RDN Sets are unordered collections, delimited by braces. Both explicit (`Set{...}`) and implicit (`{...}`) syntax are supported during parsing. Serialization always outputs explicit `Set{...}` syntax.
+
+| Form | Syntax | Example |
+|------|--------|---------|
+| Explicit empty | `Set{}` | `Set{}` |
+| Explicit | `Set{v, ...}` | `Set{1, 2, 3}` |
+| Implicit single | `{v}` | `{"only"}` |
+| Implicit multi | `{v, v, ...}` | `{"a", "b", "c"}` |
+
+### Brace Disambiguation
+
+When parsing `{`, the reader looks ahead to distinguish Object from Set:
+
+| After first value | Result |
+|---|---|
+| `:` | Object |
+| `,` or `}` | Set |
+| Empty `{}` | Object |
+
+### Serialize / Deserialize
+
+```csharp
+using Rdn;
+
+// HashSet<T> serializes as Set{...}
+string rdn = JsonSerializer.Serialize(new HashSet<int> { 1, 2, 3 });
+// => Set{1,2,3}
+
+var set = JsonSerializer.Deserialize<HashSet<int>>("Set{1, 2, 3}");
+// Implicit syntax also works:
+var set2 = JsonSerializer.Deserialize<HashSet<int>>("{1, 2, 3}");
+```
+
+### Document API
+
+```csharp
+using var doc = JsonDocument.Parse("Set{10, 20, 30}");
+doc.RootElement.ValueKind  // JsonValueKind.Set
+doc.RootElement.GetArrayLength()  // 3
+
+foreach (var element in doc.RootElement.EnumerateSet())
+{
+    Console.WriteLine(element.GetInt32());
+}
+```
+
+### Mutable DOM (JsonSet)
+
+```csharp
+using Rdn.Nodes;
+
+var set = new JsonSet(JsonValue.Create(1), JsonValue.Create(2));
+set.Add(JsonValue.Create(3));
+set.Count  // 3
+
+// Parse from RDN
+var parsed = JsonNode.Parse("Set{1, 2, 3}") as JsonSet;
+```
+
+### Writer
+
+```csharp
+writer.WriteStartSet();
+writer.WriteNumberValue(1);
+writer.WriteNumberValue(2);
+writer.WriteEndSet();
+// => Set{1,2}
+
+// Named property
+writer.WriteStartObject();
+writer.WriteStartSet("tags");
+writer.WriteStringValue("a");
+writer.WriteEndSet();
+writer.WriteEndObject();
+// => {"tags":Set{"a"}}
+```
+
 ### RdnDuration
 
 `TimeSpan` cannot represent years or months. `RdnDuration` preserves the original ISO 8601 string and offers a best-effort conversion:
@@ -137,6 +216,6 @@ simple.TryToTimeSpan(out TimeSpan ts); // true, ts = 04:30:00
 - [ ] Regex
 - [ ] Binary (`byte[]`)
 - [ ] Map
-- [ ] Set
+- [x] Set
 - [ ] Tuple
 - [ ] Conform to the shared test suite in `test-suite/`

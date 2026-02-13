@@ -542,6 +542,18 @@ namespace Rdn.Serialization
 
                     break;
 
+                case JsonTokenType.StartSet:
+                    if (reader.TokenType != JsonTokenType.EndSet)
+                    {
+                        ThrowHelper.ThrowJsonException_SerializationConverterRead(this);
+                    }
+                    else if (depth != reader.CurrentDepth)
+                    {
+                        ThrowHelper.ThrowJsonException_SerializationConverterRead(this);
+                    }
+
+                    break;
+
                 case JsonTokenType.None:
                     Debug.Assert(IsRootLevelMultiContentStreamingConverter);
                     break;
