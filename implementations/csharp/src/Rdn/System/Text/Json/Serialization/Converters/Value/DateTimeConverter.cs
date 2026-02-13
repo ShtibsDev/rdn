@@ -10,12 +10,16 @@ namespace Rdn.Serialization.Converters
     {
         public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
+            if (reader.TokenType == JsonTokenType.RdnDateTime)
+            {
+                return reader.GetRdnDateTime();
+            }
             return reader.GetDateTime();
         }
 
         public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
         {
-            writer.WriteStringValue(value);
+            writer.WriteRdnDateTimeValue(value);
         }
 
         internal override DateTime ReadAsPropertyNameCore(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

@@ -28,6 +28,14 @@ namespace Rdn
         public const byte UtcOffsetToken = (byte)'Z';
         public const byte TimePrefix = (byte)'T';
 
+        // RDN-specific constants
+        public const byte AtSign = (byte)'@';
+        public const byte LetterP = (byte)'P';
+        public const int RdnFullDateTimeLength = 24; // YYYY-MM-DDTHH:mm:ss.sssZ (without @)
+        public const int RdnDateOnlyLength = 10; // YYYY-MM-DD
+        public const int RdnTimeOnlyMinLength = 8; // HH:MM:SS
+        public const int RdnTimeOnlyMaxLength = 12; // HH:MM:SS.mmm
+
         public const string NewLineLineFeed = "\n";
         public const string NewLineCarriageReturnLineFeed = "\r\n";
 

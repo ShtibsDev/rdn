@@ -2,6 +2,7 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 
 BenchmarkRunner.Run<JsonBenchmarks>();
+BenchmarkRunner.Run<RdnDateTimeBenchmarks>();
 
 [MemoryDiagnoser]
 public class JsonBenchmarks
@@ -47,4 +48,76 @@ public class JsonBenchmarks
         using var doc = Rdn.JsonDocument.Parse(TestJson);
         return doc.RootElement.GetProperty("Age").GetInt32();
     }
+}
+
+[MemoryDiagnoser]
+public class RdnDateTimeBenchmarks
+{
+    public record EventRecord(string Name, DateTime CreatedAt, DateTime UpdatedAt);
+
+    private static readonly byte[] FullIsoBytes = System.Text.Encoding.UTF8.GetBytes("{\"d\":@2024-01-15T10:30:00.123Z}");
+    private static readonly byte[] UnixTimestampBytes = System.Text.Encoding.UTF8.GetBytes("{\"d\":@1705312200}");
+    private static readonly byte[] TimeOnlyBytes = System.Text.Encoding.UTF8.GetBytes("{\"t\":@14:30:00}");
+
+    private static readonly DateTime TestDateTime = new(2024, 1, 15, 10, 30, 0, 123, DateTimeKind.Utc);
+    private static readonly TimeOnly TestTimeOnly = new(14, 30, 0);
+    private static readonly EventRecord TestEvent = new("deploy", new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc), new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc));
+
+    // --- Reader ---
+
+    [Benchmark]
+    public void ParseRdnDateTime_FullIso()
+    {
+        var reader = new Rdn.Utf8JsonReader(FullIsoBytes);
+        while (reader.Read()) { }
+    }
+
+    [Benchmark]
+    public void ParseRdnDateTime_UnixTimestamp()
+    {
+        var reader = new Rdn.Utf8JsonReader(UnixTimestampBytes);
+        while (reader.Read()) { }
+    }
+
+    [Benchmark]
+    public void ParseRdnTimeOnly()
+    {
+        var reader = new Rdn.Utf8JsonReader(TimeOnlyBytes);
+        while (reader.Read()) { }
+    }
+
+    // --- Writer ---
+
+    [Benchmark]
+    public byte[] WriteRdnDateTime()
+    {
+        var buffer = new System.IO.MemoryStream();
+        using (var writer = new Rdn.Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("d");
+            writer.WriteRdnDateTimeValue(TestDateTime);
+            writer.WriteEndObject();
+        }
+        return buffer.ToArray();
+    }
+
+    [Benchmark]
+    public byte[] WriteJsonStringDateTime()
+    {
+        var buffer = new System.IO.MemoryStream();
+        using (var writer = new System.Text.Json.Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("d", TestDateTime);
+            writer.WriteEndObject();
+        }
+        return buffer.ToArray();
+    }
+
+    // --- Serializer ---
+
+    [Benchmark]
+    public string SerializeObjectWithDates()
+        => Rdn.JsonSerializer.Serialize(TestEvent);
 }

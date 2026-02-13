@@ -67,6 +67,13 @@ namespace Rdn.Serialization.Metadata
 #endif
 
         /// <summary>
+        /// Returns a <see cref="JsonConverter{T}"/> instance that converts <see cref="RdnDuration"/> values.
+        /// </summary>
+        /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
+        public static JsonConverter<RdnDuration> RdnDurationConverter => s_rdnDurationConverter ??= new RdnDurationConverter();
+        private static JsonConverter<RdnDuration>? s_rdnDurationConverter;
+
+        /// <summary>
         /// Returns a <see cref="JsonConverter{T}"/> instance that converts <see cref="decimal"/> values.
         /// </summary>
         /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>

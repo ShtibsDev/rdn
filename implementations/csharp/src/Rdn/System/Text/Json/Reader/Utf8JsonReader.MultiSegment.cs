@@ -433,6 +433,10 @@ namespace Rdn
                 {
                     return ConsumeLiteralMultiSegment(JsonConstants.NullValue, JsonTokenType.Null);
                 }
+                else if (marker == JsonConstants.AtSign)
+                {
+                    return ConsumeRdnLiteralMultiSegment();
+                }
                 else
                 {
                     switch (_readerOptions.CommentHandling)

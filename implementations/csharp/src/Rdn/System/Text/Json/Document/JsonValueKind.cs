@@ -47,5 +47,20 @@ namespace Rdn
         ///   Indicates that a value is the JSON value <c>null</c>.
         /// </summary>
         Null,
+
+        /// <summary>
+        ///   Indicates that a value is an RDN DateTime literal.
+        /// </summary>
+        RdnDateTime,
+
+        /// <summary>
+        ///   Indicates that a value is an RDN TimeOnly literal.
+        /// </summary>
+        RdnTimeOnly,
+
+        /// <summary>
+        ///   Indicates that a value is an RDN Duration literal.
+        /// </summary>
+        RdnDuration,
     }
 }

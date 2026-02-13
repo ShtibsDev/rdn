@@ -54,7 +54,7 @@ namespace Rdn
 
             internal DbRow(JsonTokenType jsonTokenType, int location, int sizeOrLength)
             {
-                Debug.Assert(jsonTokenType > JsonTokenType.None && jsonTokenType <= JsonTokenType.Null);
+                Debug.Assert(jsonTokenType > JsonTokenType.None && (jsonTokenType <= JsonTokenType.Null || jsonTokenType == JsonTokenType.RdnDateTime || jsonTokenType == JsonTokenType.RdnTimeOnly || jsonTokenType == JsonTokenType.RdnDuration));
                 Debug.Assert((byte)jsonTokenType < 1 << 4);
                 Debug.Assert(location >= 0);
                 Debug.Assert(sizeOrLength >= UnknownSize);

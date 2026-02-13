@@ -1073,6 +1073,10 @@ namespace Rdn
                 {
                     return ConsumeLiteral(JsonConstants.NullValue, JsonTokenType.Null);
                 }
+                else if (marker == JsonConstants.AtSign)
+                {
+                    return ConsumeRdnLiteral();
+                }
                 else
                 {
                     switch (_readerOptions.CommentHandling)

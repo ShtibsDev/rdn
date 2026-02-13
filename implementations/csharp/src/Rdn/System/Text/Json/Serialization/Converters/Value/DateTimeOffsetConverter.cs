@@ -10,12 +10,20 @@ namespace Rdn.Serialization.Converters
     {
         public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
+            if (reader.TokenType == JsonTokenType.RdnDateTime)
+            {
+                if (reader.TryGetRdnDateTime(out DateTime dt))
+                {
+                    return new DateTimeOffset(dt, TimeSpan.Zero);
+                }
+                ThrowHelper.ThrowFormatException(DataType.DateTimeOffset);
+            }
             return reader.GetDateTimeOffset();
         }
 
         public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
         {
-            writer.WriteStringValue(value);
+            writer.WriteRdnDateTimeOffsetValue(value);
         }
 
         internal override DateTimeOffset ReadAsPropertyNameCore(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

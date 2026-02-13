@@ -1233,9 +1233,14 @@ namespace Rdn
         /// </exception>
         public bool TryGetDateTime(out DateTime value)
         {
-            if (TokenType != JsonTokenType.String)
+            if (TokenType != JsonTokenType.String && TokenType != JsonTokenType.RdnDateTime)
             {
                 ThrowHelper.ThrowInvalidOperationException_ExpectedString(TokenType);
+            }
+
+            if (TokenType == JsonTokenType.RdnDateTime)
+            {
+                return TryGetRdnDateTimeCore(out value);
             }
 
             return TryGetDateTimeCore(out value);
@@ -1278,9 +1283,20 @@ namespace Rdn
         /// </exception>
         public bool TryGetDateTimeOffset(out DateTimeOffset value)
         {
-            if (TokenType != JsonTokenType.String)
+            if (TokenType != JsonTokenType.String && TokenType != JsonTokenType.RdnDateTime)
             {
                 ThrowHelper.ThrowInvalidOperationException_ExpectedString(TokenType);
+            }
+
+            if (TokenType == JsonTokenType.RdnDateTime)
+            {
+                if (TryGetRdnDateTimeCore(out DateTime dt))
+                {
+                    value = new DateTimeOffset(dt, TimeSpan.Zero);
+                    return true;
+                }
+                value = default;
+                return false;
             }
 
             return TryGetDateTimeOffsetCore(out value);
@@ -1356,5 +1372,171 @@ namespace Rdn
 
             return JsonReaderHelper.TryGetValue(span, ValueIsEscaped, out value);
         }
+
+        // --- RDN Date/Time API ---
+
+        /// <summary>
+        /// Gets the RDN DateTime value from the current token.
+        /// </summary>
+        public DateTime GetRdnDateTime()
+        {
+            if (!TryGetRdnDateTime(out DateTime value))
+            {
+                ThrowHelper.ThrowFormatException(DataType.DateTime);
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Tries to get the RDN DateTime value from the current token.
+        /// Accepts both RdnDateTime tokens and String tokens containing ISO dates.
+        /// </summary>
+        public bool TryGetRdnDateTime(out DateTime value)
+        {
+            if (TokenType == JsonTokenType.RdnDateTime)
+            {
+                return TryGetRdnDateTimeCore(out value);
+            }
+            if (TokenType == JsonTokenType.String)
+            {
+                return TryGetDateTimeCore(out value);
+            }
+            ThrowHelper.ThrowInvalidOperationException_ExpectedString(TokenType);
+            value = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Core parser for RDN DateTime from ValueSpan (body after @).
+        /// Handles: full ISO, date-only, no-ms, and unix timestamp.
+        /// </summary>
+        internal bool TryGetRdnDateTimeCore(out DateTime value)
+        {
+            ReadOnlySpan<byte> span = HasValueSequence ? ValueSequence.ToArray() : ValueSpan;
+
+            if (span.Length == 0)
+            {
+                value = default;
+                return false;
+            }
+
+            // Unix timestamp: all digits
+            if (span.Length <= 13 && JsonHelpers.IsDigit(span[0]) && !span.Contains(JsonConstants.Hyphen) && !span.Contains(JsonConstants.Colon))
+            {
+                return TryParseUnixTimestamp(span, out value);
+            }
+
+            // ISO date/datetime: parse using existing helpers
+            if (JsonHelpers.TryParseAsISO(span, out DateTime tmp))
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private static bool TryParseUnixTimestamp(ReadOnlySpan<byte> span, out DateTime value)
+        {
+            if (System.Buffers.Text.Utf8Parser.TryParse(span, out long timestamp, out int bytesConsumed) && bytesConsumed == span.Length)
+            {
+                // Timestamps > 10 digits are likely milliseconds
+                if (span.Length > 10)
+                {
+                    value = DateTime.UnixEpoch.AddMilliseconds(timestamp);
+                }
+                else
+                {
+                    value = DateTime.UnixEpoch.AddSeconds(timestamp);
+                }
+                value = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+                return true;
+            }
+            value = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the RDN TimeOnly value from the current token.
+        /// </summary>
+        public TimeOnly GetRdnTimeOnly()
+        {
+            if (!TryGetRdnTimeOnly(out TimeOnly value))
+            {
+                ThrowHelper.ThrowFormatException(DataType.TimeOnly);
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Tries to get the RDN TimeOnly value from the current token.
+        /// </summary>
+        public bool TryGetRdnTimeOnly(out TimeOnly value)
+        {
+            if (TokenType != JsonTokenType.RdnTimeOnly && TokenType != JsonTokenType.String)
+            {
+                ThrowHelper.ThrowInvalidOperationException_ExpectedString(TokenType);
+            }
+
+            ReadOnlySpan<byte> span = HasValueSequence ? ValueSequence.ToArray() : ValueSpan;
+
+            if (span.Length < 5) // minimum: HH:MM
+            {
+                value = default;
+                return false;
+            }
+
+            // Parse HH:MM:SS[.mmm]
+            if (span.Length >= 2 && span.Length <= 16)
+            {
+                if (System.Buffers.Text.Utf8Parser.TryParse(span, out TimeSpan ts, out int consumed, 'c') && consumed == span.Length)
+                {
+                    if (ts >= TimeSpan.Zero && ts <= TimeOnly.MaxValue.ToTimeSpan())
+                    {
+                        value = TimeOnly.FromTimeSpan(ts);
+                        return true;
+                    }
+                }
+            }
+
+            value = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the RDN Duration value from the current token.
+        /// </summary>
+        public RdnDuration GetRdnDuration()
+        {
+            if (!TryGetRdnDuration(out RdnDuration value))
+            {
+                ThrowHelper.ThrowFormatException(DataType.TimeSpan);
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Tries to get the RDN Duration value from the current token.
+        /// </summary>
+        public bool TryGetRdnDuration(out RdnDuration value)
+        {
+            if (TokenType != JsonTokenType.RdnDuration)
+            {
+                ThrowHelper.ThrowInvalidOperationException_ExpectedString(TokenType);
+            }
+
+            ReadOnlySpan<byte> span = HasValueSequence ? ValueSequence.ToArray() : ValueSpan;
+
+            if (span.Length < 2 || span[0] != (byte)'P')
+            {
+                value = default;
+                return false;
+            }
+
+            value = new RdnDuration(JsonReaderHelper.TranscodeHelper(span));
+            return true;
+        }
     }
 }
+

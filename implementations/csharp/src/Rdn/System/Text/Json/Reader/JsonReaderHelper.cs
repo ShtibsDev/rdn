@@ -132,8 +132,11 @@ namespace Rdn
                 case JsonTokenType.True:
                 case JsonTokenType.False:
                 case JsonTokenType.Null:
+                case JsonTokenType.RdnDateTime:
+                case JsonTokenType.RdnTimeOnly:
+                case JsonTokenType.RdnDuration:
                     // This is the offset between the set of literals within JsonValueType and JsonTokenType
-                    // Essentially: JsonTokenType.Null - JsonValueType.Null
+                    // Essentially: JsonTokenType.Null - JsonValueType.Null (and RDN types follow the same offset)
                     return (JsonValueKind)((byte)tokenType - 4);
                 default:
                     Debug.Fail($"No mapping for token type {tokenType}");
@@ -144,7 +147,7 @@ namespace Rdn
         // Returns true if the TokenType is a primitive "value", i.e. String, Number, True, False, and Null
         // Otherwise, return false.
         public static bool IsTokenTypePrimitive(JsonTokenType tokenType) =>
-            (tokenType - JsonTokenType.String) <= (JsonTokenType.Null - JsonTokenType.String);
+            (tokenType - JsonTokenType.String) <= (JsonTokenType.RdnDuration - JsonTokenType.String);
 
         // A hex digit is valid if it is in the range: [0..9] | [A..F] | [a..f]
         // Otherwise, return false.

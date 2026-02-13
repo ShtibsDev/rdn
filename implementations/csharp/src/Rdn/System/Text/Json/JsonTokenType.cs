@@ -77,5 +77,20 @@ namespace Rdn
         ///   Indicates that the token type is the JSON literal <c>null</c>.
         /// </summary>
         Null = 11,
+
+        /// <summary>
+        ///   Indicates that the token type is an RDN DateTime literal (e.g. <c>@2024-01-15T10:30:00.123Z</c>).
+        /// </summary>
+        RdnDateTime = 12,
+
+        /// <summary>
+        ///   Indicates that the token type is an RDN TimeOnly literal (e.g. <c>@14:30:00</c>).
+        /// </summary>
+        RdnTimeOnly = 13,
+
+        /// <summary>
+        ///   Indicates that the token type is an RDN Duration literal (e.g. <c>@P1Y2M3DT4H5M6S</c>).
+        /// </summary>
+        RdnDuration = 14,
     }
 }

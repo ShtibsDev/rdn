@@ -16,6 +16,11 @@ namespace Rdn.Serialization.Converters
 
         public override TimeOnly Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
+            if (reader.TokenType == JsonTokenType.RdnTimeOnly)
+            {
+                return reader.GetRdnTimeOnly();
+            }
+
             if (reader.TokenType != JsonTokenType.String)
             {
                 ThrowHelper.ThrowInvalidOperationException_ExpectedString(reader.TokenType);
@@ -78,12 +83,7 @@ namespace Rdn.Serialization.Converters
 
         public override void Write(Utf8JsonWriter writer, TimeOnly value, JsonSerializerOptions options)
         {
-            Span<byte> output = stackalloc byte[MaximumTimeOnlyFormatLength];
-
-            bool result = Utf8Formatter.TryFormat(value.ToTimeSpan(), output, out int bytesWritten, 'c');
-            Debug.Assert(result);
-
-            writer.WriteStringValue(output.Slice(0, bytesWritten));
+            writer.WriteRdnTimeOnlyValue(value);
         }
 
         internal override void WriteAsPropertyNameCore(Utf8JsonWriter writer, TimeOnly value, JsonSerializerOptions options, bool isWritingExtensionDataProperty)

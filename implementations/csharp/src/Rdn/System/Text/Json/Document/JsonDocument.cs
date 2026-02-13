@@ -661,12 +661,19 @@ namespace Rdn
 
             DbRow row = _parsedData.Get(index);
 
+            if (row.TokenType == JsonTokenType.RdnDateTime)
+            {
+                ReadOnlySpan<byte> data = _utf8Json.Span;
+                ReadOnlySpan<byte> segment = data.Slice(row.Location, row.SizeOrLength);
+                return TryParseRdnDateTime(segment, out value);
+            }
+
             CheckExpectedType(JsonTokenType.String, row.TokenType);
 
-            ReadOnlySpan<byte> data = _utf8Json.Span;
-            ReadOnlySpan<byte> segment = data.Slice(row.Location, row.SizeOrLength);
+            ReadOnlySpan<byte> data2 = _utf8Json.Span;
+            ReadOnlySpan<byte> segment2 = data2.Slice(row.Location, row.SizeOrLength);
 
-            return JsonReaderHelper.TryGetValue(segment, row.HasComplexChildren, out value);
+            return JsonReaderHelper.TryGetValue(segment2, row.HasComplexChildren, out value);
         }
 
         internal bool TryGetValue(int index, out DateTimeOffset value)
@@ -675,12 +682,106 @@ namespace Rdn
 
             DbRow row = _parsedData.Get(index);
 
+            if (row.TokenType == JsonTokenType.RdnDateTime)
+            {
+                ReadOnlySpan<byte> data = _utf8Json.Span;
+                ReadOnlySpan<byte> segment = data.Slice(row.Location, row.SizeOrLength);
+                if (TryParseRdnDateTime(segment, out DateTime dt))
+                {
+                    value = new DateTimeOffset(dt, TimeSpan.Zero);
+                    return true;
+                }
+                value = default;
+                return false;
+            }
+
             CheckExpectedType(JsonTokenType.String, row.TokenType);
+
+            ReadOnlySpan<byte> data2 = _utf8Json.Span;
+            ReadOnlySpan<byte> segment2 = data2.Slice(row.Location, row.SizeOrLength);
+
+            return JsonReaderHelper.TryGetValue(segment2, row.HasComplexChildren, out value);
+        }
+
+        private static bool TryParseRdnDateTime(ReadOnlySpan<byte> span, out DateTime value)
+        {
+            if (span.Length == 0)
+            {
+                value = default;
+                return false;
+            }
+
+            // Unix timestamp: all digits, no hyphens or colons
+            if (span.Length <= 13 && JsonHelpers.IsDigit(span[0]) && !span.Contains(JsonConstants.Hyphen) && !span.Contains(JsonConstants.Colon))
+            {
+                if (Utf8Parser.TryParse(span, out long timestamp, out int consumed) && consumed == span.Length)
+                {
+                    if (span.Length > 10)
+                        value = DateTime.SpecifyKind(DateTime.UnixEpoch.AddMilliseconds(timestamp), DateTimeKind.Utc);
+                    else
+                        value = DateTime.SpecifyKind(DateTime.UnixEpoch.AddSeconds(timestamp), DateTimeKind.Utc);
+                    return true;
+                }
+                value = default;
+                return false;
+            }
+
+            // ISO date/datetime
+            if (JsonHelpers.TryParseAsISO(span, out DateTime tmp))
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        internal bool TryGetRdnTimeOnly(int index, out TimeOnly value)
+        {
+            CheckNotDisposed();
+
+            DbRow row = _parsedData.Get(index);
+
+            if (row.TokenType != JsonTokenType.RdnTimeOnly)
+            {
+                value = default;
+                return false;
+            }
 
             ReadOnlySpan<byte> data = _utf8Json.Span;
             ReadOnlySpan<byte> segment = data.Slice(row.Location, row.SizeOrLength);
 
-            return JsonReaderHelper.TryGetValue(segment, row.HasComplexChildren, out value);
+            if (Utf8Parser.TryParse(segment, out TimeSpan ts, out int consumed, 'c') && consumed == segment.Length)
+            {
+                if (ts >= TimeSpan.Zero && ts <= TimeOnly.MaxValue.ToTimeSpan())
+                {
+                    value = TimeOnly.FromTimeSpan(ts);
+                    return true;
+                }
+            }
+
+            value = default;
+            return false;
+        }
+
+        internal bool TryGetRdnDuration(int index, out RdnDuration value)
+        {
+            CheckNotDisposed();
+
+            DbRow row = _parsedData.Get(index);
+
+            if (row.TokenType != JsonTokenType.RdnDuration)
+            {
+                value = default;
+                return false;
+            }
+
+            ReadOnlySpan<byte> data = _utf8Json.Span;
+            ReadOnlySpan<byte> segment = data.Slice(row.Location, row.SizeOrLength);
+
+            value = new RdnDuration(System.Text.Encoding.UTF8.GetString(segment));
+            return true;
         }
 
         internal bool TryGetValue(int index, out Guid value)
@@ -759,9 +860,24 @@ namespace Rdn
                 case JsonTokenType.Null:
                     writer.WriteNullValue();
                     return;
+                case JsonTokenType.RdnDateTime:
+                case JsonTokenType.RdnTimeOnly:
+                case JsonTokenType.RdnDuration:
+                    WriteRdnLiteral(row, writer);
+                    return;
             }
 
             Debug.Fail($"Unexpected encounter with JsonTokenType {row.TokenType}");
+        }
+
+        private void WriteRdnLiteral(DbRow row, Utf8JsonWriter writer)
+        {
+            ReadOnlySpan<byte> body = _utf8Json.Slice(row.Location, row.SizeOrLength).Span;
+            // Write as raw: @ + body
+            Span<byte> buffer = stackalloc byte[1 + body.Length];
+            buffer[0] = JsonConstants.AtSign;
+            body.CopyTo(buffer.Slice(1));
+            writer.WriteRawValue(buffer, skipInputValidation: true);
         }
 
         private void WriteComplexElement(int index, Utf8JsonWriter writer)
@@ -789,6 +905,11 @@ namespace Rdn
                         continue;
                     case JsonTokenType.Null:
                         writer.WriteNullValue();
+                        continue;
+                    case JsonTokenType.RdnDateTime:
+                    case JsonTokenType.RdnTimeOnly:
+                    case JsonTokenType.RdnDuration:
+                        WriteRdnLiteral(row, writer);
                         continue;
                     case JsonTokenType.StartObject:
                         writer.WriteStartObject();
@@ -998,7 +1119,7 @@ namespace Rdn
                 }
                 else
                 {
-                    Debug.Assert(tokenType >= JsonTokenType.String && tokenType <= JsonTokenType.Null);
+                    Debug.Assert((tokenType >= JsonTokenType.String && tokenType <= JsonTokenType.Null) || tokenType == JsonTokenType.RdnDateTime || tokenType == JsonTokenType.RdnTimeOnly || tokenType == JsonTokenType.RdnDuration);
                     numberOfRowsForValues++;
                     numberOfRowsForMembers++;
 
@@ -1018,6 +1139,13 @@ namespace Rdn
                         {
                             database.SetHasComplexChildren(database.Length - DbRow.Size);
                         }
+                    }
+                    else if (tokenType == JsonTokenType.RdnDateTime || tokenType == JsonTokenType.RdnTimeOnly || tokenType == JsonTokenType.RdnDuration)
+                    {
+                        // Adding 1 to skip the @ prefix will never overflow
+                        Debug.Assert(tokenStart < int.MaxValue);
+
+                        database.Append(tokenType, tokenStart + 1, reader.ValueSpan.Length);
                     }
                     else
                     {

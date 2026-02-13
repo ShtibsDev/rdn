@@ -1169,6 +1169,48 @@ namespace Rdn
             return value;
         }
 
+        /// <summary>
+        /// Gets the value of the element as an RDN TimeOnly.
+        /// </summary>
+        public TimeOnly GetRdnTimeOnly()
+        {
+            if (!TryGetRdnTimeOnly(out TimeOnly value))
+            {
+                ThrowHelper.ThrowFormatException();
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Attempts to get the value of the element as an RDN TimeOnly.
+        /// </summary>
+        public bool TryGetRdnTimeOnly(out TimeOnly value)
+        {
+            CheckValidInstance();
+            return _parent.TryGetRdnTimeOnly(_idx, out value);
+        }
+
+        /// <summary>
+        /// Gets the value of the element as an RDN Duration.
+        /// </summary>
+        public RdnDuration GetRdnDuration()
+        {
+            if (!TryGetRdnDuration(out RdnDuration value))
+            {
+                ThrowHelper.ThrowFormatException();
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Attempts to get the value of the element as an RDN Duration.
+        /// </summary>
+        public bool TryGetRdnDuration(out RdnDuration value)
+        {
+            CheckValidInstance();
+            return _parent.TryGetRdnDuration(_idx, out value);
+        }
+
         internal string GetPropertyName()
         {
             CheckValidInstance();
@@ -1665,6 +1707,13 @@ namespace Rdn
                     }
                 case JsonTokenType.String:
                     return GetString()!;
+                case JsonTokenType.RdnDateTime:
+                case JsonTokenType.RdnTimeOnly:
+                case JsonTokenType.RdnDuration:
+                    {
+                        Debug.Assert(_parent != null);
+                        return "@" + _parent.GetRawValueAsString(_idx);
+                    }
                 case JsonTokenType.Comment:
                 case JsonTokenType.EndArray:
                 case JsonTokenType.EndObject:

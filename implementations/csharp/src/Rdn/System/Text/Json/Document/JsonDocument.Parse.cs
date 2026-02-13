@@ -553,6 +553,9 @@ namespace Rdn
                         return true;
 
                     case JsonTokenType.Number:
+                    case JsonTokenType.RdnDateTime:
+                    case JsonTokenType.RdnTimeOnly:
+                    case JsonTokenType.RdnDuration:
                     {
                         if (reader.HasValueSequence)
                         {
