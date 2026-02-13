@@ -28,6 +28,7 @@ implementations/go/bin/
 # C#
 implementations/csharp/bin/
 implementations/csharp/obj/
+BenchmarkDotNet.Artifacts/
 
 # IDE
 .idea/
