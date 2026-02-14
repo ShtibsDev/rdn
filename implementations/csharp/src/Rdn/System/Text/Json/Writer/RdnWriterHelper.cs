@@ -88,6 +88,23 @@ namespace Rdn
         }
 
         /// <summary>
+        /// Formats a DateOnly as YYYY-MM-DD (10 bytes) directly into the buffer.
+        /// </summary>
+        public static int FormatRdnDateOnly(Span<byte> output, DateOnly value)
+        {
+            // YYYY-MM-DD = 10 chars
+            Debug.Assert(output.Length >= 10);
+
+            WriteFourDigit(output, value.Year);
+            output[4] = (byte)'-';
+            WriteTwoDigit(output.Slice(5), value.Month);
+            output[7] = (byte)'-';
+            WriteTwoDigit(output.Slice(8), value.Day);
+
+            return 10;
+        }
+
+        /// <summary>
         /// Formats a TimeOnly as HH:MM:SS[.mmm] into the buffer.
         /// Returns the number of bytes written (8 or 12).
         /// </summary>
@@ -110,6 +127,51 @@ namespace Rdn
             }
 
             return 8;
+        }
+        /// <summary>
+        /// Converts a TimeSpan to an ISO 8601 duration string (e.g. "P1DT2H3M4S", "PT30M", "P0D").
+        /// </summary>
+        public static string FormatTimeSpanAsIsoDuration(TimeSpan value)
+        {
+            bool negative = value < TimeSpan.Zero;
+            if (negative) value = value.Negate();
+
+            int days = value.Days;
+            int hours = value.Hours;
+            int minutes = value.Minutes;
+            int seconds = value.Seconds;
+            int milliseconds = value.Milliseconds;
+
+            var sb = new System.Text.StringBuilder(16);
+            if (negative) sb.Append('-');
+            sb.Append('P');
+
+            if (days > 0)
+                sb.Append(days).Append('D');
+
+            if (hours > 0 || minutes > 0 || seconds > 0 || milliseconds > 0)
+            {
+                sb.Append('T');
+                if (hours > 0)
+                    sb.Append(hours).Append('H');
+                if (minutes > 0)
+                    sb.Append(minutes).Append('M');
+                if (milliseconds > 0)
+                {
+                    double totalSeconds = seconds + milliseconds / 1000.0;
+                    sb.Append(totalSeconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)).Append('S');
+                }
+                else if (seconds > 0)
+                {
+                    sb.Append(seconds).Append('S');
+                }
+            }
+
+            // P with no components = zero duration
+            if (sb.Length == (negative ? 2 : 1))
+                sb.Append("0D");
+
+            return sb.ToString();
         }
     }
 }

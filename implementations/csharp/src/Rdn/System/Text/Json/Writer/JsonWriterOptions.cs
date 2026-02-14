@@ -160,13 +160,35 @@ namespace Rdn
             }
         }
 
+        /// <summary>
+        /// When <see langword="true"/>, the writer always emits <c>Map{</c> and <c>Set{</c> prefixes
+        /// for non-empty collections. When <see langword="false"/> (the default), non-empty Maps and Sets
+        /// are written with just <c>{</c> since the content syntax (<c>=&gt;</c> or bare values) is unambiguous.
+        /// Empty collections always emit the prefix (<c>Map{}</c> / <c>Set{}</c>) to disambiguate from <c>{}</c>.
+        /// </summary>
+        public bool AlwaysWriteCollectionTypeNames
+        {
+            get
+            {
+                return (_optionsMask & AlwaysWriteCollectionTypeNamesBit) != 0;
+            }
+            set
+            {
+                if (value)
+                    _optionsMask |= AlwaysWriteCollectionTypeNamesBit;
+                else
+                    _optionsMask &= ~AlwaysWriteCollectionTypeNamesBit;
+            }
+        }
+
         internal bool IndentedOrNotSkipValidation => (_optionsMask & (IndentBit | SkipValidationBit)) != SkipValidationBit;  // Equivalent to: Indented || !SkipValidation;
 
-        private const int OptionsBitCount = 4;
+        private const int OptionsBitCount = 5;
         private const int IndentBit = 1;
         private const int SkipValidationBit = 2;
         private const int NewLineBit = 4;
         private const int IndentCharacterBit = 8;
+        private const int AlwaysWriteCollectionTypeNamesBit = 16;
         private const int IndentSizeMask = JsonConstants.MaximumIndentSize << OptionsBitCount;
     }
 }

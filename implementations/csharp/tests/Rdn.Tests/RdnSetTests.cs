@@ -271,11 +271,24 @@ public class RdnSetTests
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
         using var writer = new Utf8JsonWriter(buffer);
-        writer.WriteStartSet();
+        writer.WriteStartSet(forceTypeName: true);
         writer.WriteEndSet();
         writer.Flush();
 
         Assert.Equal("Set{}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+    }
+
+    [Fact]
+    public void Writer_NonEmptySet_OmitsPrefix()
+    {
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartSet();
+        writer.WriteNumberValue(42);
+        writer.WriteEndSet();
+        writer.Flush();
+
+        Assert.Equal("{42}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     [Fact]
@@ -290,7 +303,7 @@ public class RdnSetTests
         writer.WriteEndSet();
         writer.Flush();
 
-        Assert.Equal("Set{1,2,3}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+        Assert.Equal("{1,2,3}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     [Fact]
@@ -304,7 +317,7 @@ public class RdnSetTests
         writer.WriteEndSet();
         writer.Flush();
 
-        Assert.Equal("Set{\"a\",\"b\"}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+        Assert.Equal("{\"a\",\"b\"}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     [Fact]
@@ -319,7 +332,7 @@ public class RdnSetTests
         writer.WriteEndObject();
         writer.Flush();
 
-        Assert.Equal("{\"tags\":Set{\"a\"}}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+        Assert.Equal("{\"tags\":{\"a\"}}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     [Fact]
@@ -334,9 +347,24 @@ public class RdnSetTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Contains("Set{", output);
+        // Non-empty set should NOT have Set{ prefix
+        Assert.DoesNotContain("Set{", output);
+        Assert.StartsWith("{", output);
         Assert.Contains("1", output);
         Assert.Contains("2", output);
+    }
+
+    [Fact]
+    public void Writer_AlwaysWriteCollectionTypeNames_Set()
+    {
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { AlwaysWriteCollectionTypeNames = true });
+        writer.WriteStartSet();
+        writer.WriteNumberValue(1);
+        writer.WriteEndSet();
+        writer.Flush();
+
+        Assert.Equal("Set{1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     #endregion
@@ -349,9 +377,10 @@ public class RdnSetTests
         var set = new HashSet<int> { 1, 2, 3 };
         var rdn = JsonSerializer.Serialize(set);
 
-        // Must use Set{...} syntax
-        Assert.StartsWith("Set{", rdn);
+        // Non-empty sets use implicit syntax (no Set{ prefix)
+        Assert.StartsWith("{", rdn);
         Assert.EndsWith("}", rdn);
+        Assert.DoesNotContain("Set{", rdn);
         Assert.Contains("1", rdn);
         Assert.Contains("2", rdn);
         Assert.Contains("3", rdn);
@@ -363,7 +392,8 @@ public class RdnSetTests
         var set = new HashSet<string> { "hello", "world" };
         var rdn = JsonSerializer.Serialize(set);
 
-        Assert.StartsWith("Set{", rdn);
+        Assert.StartsWith("{", rdn);
+        Assert.DoesNotContain("Set{", rdn);
         Assert.Contains("\"hello\"", rdn);
         Assert.Contains("\"world\"", rdn);
     }
@@ -478,7 +508,7 @@ public class RdnSetTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("Set{1,2,3}", output);
+        Assert.Equal("{1,2,3}", output);
     }
 
     [Fact]
@@ -549,7 +579,7 @@ public class RdnSetTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("Set{1,2}", output);
+        Assert.Equal("{1,2}", output);
     }
 
     [Fact]
@@ -647,7 +677,9 @@ public class RdnSetTests
         var obj = new ObjectWithSet { Name = "test", Tags = new HashSet<string> { "a", "b" } };
         var rdn = JsonSerializer.Serialize(obj);
         Assert.Contains("\"Name\":\"test\"", rdn);
-        Assert.Contains("\"Tags\":Set{", rdn);
+        // Non-empty set uses implicit syntax
+        Assert.Contains("\"Tags\":{", rdn);
+        Assert.DoesNotContain("\"Tags\":Set{", rdn);
     }
 
     [Fact]

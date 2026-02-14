@@ -14,6 +14,12 @@ namespace Rdn.Serialization.Converters
 
         public override DateOnly Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
+            if (reader.TokenType == JsonTokenType.RdnDateTime)
+            {
+                DateTime dt = reader.GetRdnDateTime();
+                return DateOnly.FromDateTime(dt);
+            }
+
             if (reader.TokenType != JsonTokenType.String)
             {
                 ThrowHelper.ThrowInvalidOperationException_ExpectedString(reader.TokenType);
@@ -64,10 +70,7 @@ namespace Rdn.Serialization.Converters
 
         public override void Write(Utf8JsonWriter writer, DateOnly value, JsonSerializerOptions options)
         {
-            Span<byte> buffer = stackalloc byte[FormatLength];
-            bool formattedSuccessfully = value.TryFormat(buffer, out int charsWritten, "O", CultureInfo.InvariantCulture);
-            Debug.Assert(formattedSuccessfully && charsWritten == FormatLength);
-            writer.WriteStringValue(buffer);
+            writer.WriteRdnDateOnlyValue(value);
         }
 
         internal override void WriteAsPropertyNameCore(Utf8JsonWriter writer, DateOnly value, JsonSerializerOptions options, bool isWritingExtensionDataProperty)

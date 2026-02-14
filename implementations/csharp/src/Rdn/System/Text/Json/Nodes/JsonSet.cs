@@ -265,7 +265,7 @@ namespace Rdn.Nodes
             }
             else
             {
-                writer.WriteStartSet();
+                writer.WriteStartSet(forceTypeName: List.Count == 0);
 
                 foreach (JsonNode? element in List)
                 {

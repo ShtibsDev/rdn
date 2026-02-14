@@ -94,9 +94,9 @@ public class SmokeTests
         var data = new Dictionary<string, object> { ["list"] = new[] { 1, 2, 3 }, ["nested"] = new { x = 1, y = 2 }, ["null_val"] = null! };
 
         string json = JsonSerializer.Serialize(data);
-        Assert.Contains("\"list\":", json);
-        Assert.Contains("\"nested\":", json);
-        Assert.Contains("\"null_val\":null", json);
+        Assert.Contains("\"list\"=>", json);
+        Assert.Contains("\"nested\"=>", json);
+        Assert.Contains("\"null_val\"=>null", json);
     }
 
     [Fact]

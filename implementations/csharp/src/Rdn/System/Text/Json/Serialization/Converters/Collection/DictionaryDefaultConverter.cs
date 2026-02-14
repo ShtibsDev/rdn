@@ -55,7 +55,8 @@ namespace Rdn.Serialization.Converters
                 {
                     state.Current.PropertyState = StackFramePropertyState.Name;
                     TKey key = enumerator.Current.Key;
-                    _keyConverter.WriteAsPropertyNameCore(writer, key, options, state.Current.IsWritingExtensionDataProperty);
+                    _keyConverter.Write(writer, key, options);
+                    writer.WriteMapArrow();
                 }
 
                 TValue element = enumerator.Current.Value;

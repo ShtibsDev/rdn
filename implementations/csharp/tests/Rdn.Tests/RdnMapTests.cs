@@ -307,11 +307,26 @@ public class RdnMapTests
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
         using var writer = new Utf8JsonWriter(buffer);
-        writer.WriteStartMap();
+        writer.WriteStartMap(forceTypeName: true);
         writer.WriteEndMap();
         writer.Flush();
 
         Assert.Equal("Map{}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+    }
+
+    [Fact]
+    public void Writer_NonEmptyMap_OmitsPrefix()
+    {
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartMap();
+        writer.WriteStringValue("a");
+        writer.WriteMapArrow();
+        writer.WriteNumberValue(1);
+        writer.WriteEndMap();
+        writer.Flush();
+
+        Assert.Equal("{\"a\"=>1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     [Fact]
@@ -329,7 +344,7 @@ public class RdnMapTests
         writer.WriteEndMap();
         writer.Flush();
 
-        Assert.Equal("Map{\"a\"=>1,\"b\"=>2}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+        Assert.Equal("{\"a\"=>1,\"b\"=>2}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     [Fact]
@@ -346,7 +361,7 @@ public class RdnMapTests
         writer.WriteEndObject();
         writer.Flush();
 
-        Assert.Equal("{\"data\":Map{\"x\"=>1}}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+        Assert.Equal("{\"data\":{\"x\"=>1}}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     [Fact]
@@ -358,12 +373,30 @@ public class RdnMapTests
         writer.WriteStringValue("a");
         writer.WriteMapArrow();
         writer.WriteNumberValue(1);
+        writer.WriteStringValue("b");
+        writer.WriteMapArrow();
+        writer.WriteNumberValue(2);
         writer.WriteEndMap();
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Contains("Map{", output);
-        Assert.Contains(" => ", output);
+        var expected = "{\n  \"a\" => 1,\n  \"b\" => 2\n}";
+        Assert.Equal(expected, output);
+    }
+
+    [Fact]
+    public void Writer_AlwaysWriteCollectionTypeNames_Map()
+    {
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { AlwaysWriteCollectionTypeNames = true });
+        writer.WriteStartMap();
+        writer.WriteStringValue("a");
+        writer.WriteMapArrow();
+        writer.WriteNumberValue(1);
+        writer.WriteEndMap();
+        writer.Flush();
+
+        Assert.Equal("Map{\"a\"=>1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     #endregion
@@ -420,7 +453,7 @@ public class RdnMapTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("Map{\"a\"=>1,\"b\"=>2}", output);
+        Assert.Equal("{\"a\"=>1,\"b\"=>2}", output);
     }
 
     [Fact]
@@ -465,7 +498,7 @@ public class RdnMapTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("Map{\"inner\"=>Map{1=>2}}", output);
+        Assert.Equal("{\"inner\"=>{1=>2}}", output);
     }
 
     #endregion
@@ -503,7 +536,7 @@ public class RdnMapTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("Map{\"x\"=>10,\"y\"=>20}", output);
+        Assert.Equal("{\"x\"=>10,\"y\"=>20}", output);
     }
 
     [Fact]
@@ -703,7 +736,7 @@ public class RdnMapTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("{\"data\":Map{\"a\"=>1}}", output);
+        Assert.Equal("{\"data\":{\"a\"=>1}}", output);
     }
 
     [Fact]
@@ -716,7 +749,7 @@ public class RdnMapTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("Map{\"arr\"=>[1,2,3]}", output);
+        Assert.Equal("{\"arr\"=>[1,2,3]}", output);
     }
 
     #endregion
@@ -744,6 +777,156 @@ public class RdnMapTests
             while (reader.Read()) { }
         });
     }
+
+    #endregion
+
+    #region 9. Dictionary<TKey, TValue> serialization as RDN Maps
+
+    [Fact]
+    public void Serialize_DictionaryStringInt_ProducesMapSyntax()
+    {
+        var dict = new Dictionary<string, int> { ["a"] = 1, ["b"] = 2 };
+        string rdn = JsonSerializer.Serialize(dict);
+        Assert.Contains("=>", rdn);
+        Assert.StartsWith("{", rdn);
+        Assert.EndsWith("}", rdn);
+        // Non-empty maps should NOT have Map{ prefix
+        Assert.DoesNotContain("Map{", rdn);
+    }
+
+    [Fact]
+    public void Roundtrip_DictionaryStringInt()
+    {
+        var original = new Dictionary<string, int> { ["hello"] = 1, ["world"] = 2 };
+        string rdn = JsonSerializer.Serialize(original);
+        Assert.Contains("=>", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<Dictionary<string, int>>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Equal(2, deserialized.Count);
+        Assert.Equal(1, deserialized["hello"]);
+        Assert.Equal(2, deserialized["world"]);
+    }
+
+    [Fact]
+    public void Roundtrip_DictionaryIntString()
+    {
+        var original = new Dictionary<int, string> { [1] = "one", [2] = "two" };
+        string rdn = JsonSerializer.Serialize(original);
+        Assert.Contains("=>", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<Dictionary<int, string>>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Equal(2, deserialized.Count);
+        Assert.Equal("one", deserialized[1]);
+        Assert.Equal("two", deserialized[2]);
+    }
+
+    [Fact]
+    public void Roundtrip_DictionaryDateTimeString()
+    {
+        var dt = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
+        var original = new Dictionary<DateTime, string> { [dt] = "event" };
+        string rdn = JsonSerializer.Serialize(original);
+        Assert.Contains("=>", rdn);
+        Assert.Contains("@2024-01-15T10:30:00.000Z", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<Dictionary<DateTime, string>>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Single(deserialized);
+        Assert.Equal("event", deserialized[dt]);
+    }
+
+    [Fact]
+    public void Roundtrip_DictionaryDateOnlyInt()
+    {
+        var date = new DateOnly(2024, 6, 15);
+        var original = new Dictionary<DateOnly, int> { [date] = 42 };
+        string rdn = JsonSerializer.Serialize(original);
+        Assert.Contains("=>", rdn);
+        Assert.Contains("@2024-06-15", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<Dictionary<DateOnly, int>>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Single(deserialized);
+        Assert.Equal(42, deserialized[date]);
+    }
+
+    [Fact]
+    public void Roundtrip_EmptyDictionary()
+    {
+        var original = new Dictionary<string, int>();
+        string rdn = JsonSerializer.Serialize(original);
+        Assert.Equal("Map{}", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<Dictionary<string, int>>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Empty(deserialized);
+    }
+
+    [Fact]
+    public void Roundtrip_NestedDictionary()
+    {
+        var original = new Dictionary<string, Dictionary<int, string>>
+        {
+            ["outer"] = new Dictionary<int, string> { [1] = "inner" }
+        };
+        string rdn = JsonSerializer.Serialize(original);
+        Assert.Contains("=>", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<Dictionary<string, Dictionary<int, string>>>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Single(deserialized);
+        Assert.Equal("inner", deserialized["outer"][1]);
+    }
+
+    [Fact]
+    public void Deserialize_MapSyntax_IntoDictionary()
+    {
+        // Manually written RDN Map syntax should deserialize correctly
+        string rdn = """Map{"x"=>10,"y"=>20}""";
+        var dict = JsonSerializer.Deserialize<Dictionary<string, int>>(rdn);
+        Assert.NotNull(dict);
+        Assert.Equal(2, dict.Count);
+        Assert.Equal(10, dict["x"]);
+        Assert.Equal(20, dict["y"]);
+    }
+
+    [Fact]
+    public void Deserialize_ImplicitMapSyntax_IntoDictionary()
+    {
+        // Implicit brace disambiguation: string => value → Map
+        string rdn = """{"x"=>10,"y"=>20}""";
+        var dict = JsonSerializer.Deserialize<Dictionary<string, int>>(rdn);
+        Assert.NotNull(dict);
+        Assert.Equal(2, dict.Count);
+        Assert.Equal(10, dict["x"]);
+        Assert.Equal(20, dict["y"]);
+    }
+
+    [Fact]
+    public void Deserialize_ObjectSyntax_IntoDictionary()
+    {
+        // Standard JSON object syntax should still work for backward compatibility
+        string json = """{"x":10,"y":20}""";
+        var dict = JsonSerializer.Deserialize<Dictionary<string, int>>(json);
+        Assert.NotNull(dict);
+        Assert.Equal(2, dict.Count);
+        Assert.Equal(10, dict["x"]);
+        Assert.Equal(20, dict["y"]);
+    }
+
+    [Fact]
+    public void Serialize_DictionaryInRecord_ProducesMapSyntax()
+    {
+        var record = new RecordWithDict("test", new Dictionary<string, int> { ["a"] = 1 });
+        string rdn = JsonSerializer.Serialize(record);
+        Assert.Contains("=>", rdn);
+        // Non-empty maps use implicit syntax (no Map{ prefix)
+        Assert.DoesNotContain("Map{", rdn);
+    }
+
+    private record RecordWithDict(string Name, Dictionary<string, int> Data);
 
     #endregion
 }

@@ -12,22 +12,27 @@ namespace Rdn
         private static ReadOnlySpan<byte> SetOpenBrace => "Set{"u8;
 
         /// <summary>
-        /// Writes the beginning of an RDN Set: <c>Set{</c>.
+        /// Writes the beginning of an RDN Set.
+        /// When <paramref name="forceTypeName"/> is <see langword="true"/> or
+        /// <see cref="JsonWriterOptions.AlwaysWriteCollectionTypeNames"/> is set,
+        /// writes <c>Set{</c>; otherwise writes just <c>{</c>.
         /// </summary>
-        public void WriteStartSet()
+        public void WriteStartSet(bool forceTypeName = false)
         {
             if (CurrentDepth >= _options.MaxDepth)
             {
                 ThrowInvalidOperationException_DepthTooLarge();
             }
 
+            bool writePrefix = forceTypeName || _options.AlwaysWriteCollectionTypeNames;
+
             if (_options.IndentedOrNotSkipValidation)
             {
-                WriteStartSetSlow();
+                WriteStartSetSlow(writePrefix);
             }
             else
             {
-                WriteStartSetMinimized();
+                WriteStartSetMinimized(writePrefix);
             }
 
             _currentDepth &= JsonConstants.RemoveFlagsBitMask;
@@ -35,12 +40,14 @@ namespace Rdn
             _tokenType = JsonTokenType.StartSet;
         }
 
-        private void WriteStartSetMinimized()
+        private void WriteStartSetMinimized(bool writePrefix)
         {
-            // "Set{" = 4 bytes + optionally 1 list separator
-            if (_memory.Length - BytesPending < 5)
+            int prefixLen = writePrefix ? 4 : 1; // "Set{" = 4 bytes, "{" = 1 byte
+            int maxRequired = prefixLen + 1; // + optionally 1 list separator
+
+            if (_memory.Length - BytesPending < maxRequired)
             {
-                Grow(5);
+                Grow(maxRequired);
             }
 
             Span<byte> output = _memory.Span;
@@ -48,11 +55,18 @@ namespace Rdn
             {
                 output[BytesPending++] = JsonConstants.ListSeparator;
             }
-            SetOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                SetOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
 
-        private void WriteStartSetSlow()
+        private void WriteStartSetSlow(bool writePrefix)
         {
             Debug.Assert(_options.Indented || !_options.SkipValidation);
 
@@ -63,23 +77,24 @@ namespace Rdn
                     ValidateStart();
                     UpdateBitStackOnStartSet();
                 }
-                WriteStartSetIndented();
+                WriteStartSetIndented(writePrefix);
             }
             else
             {
                 Debug.Assert(!_options.SkipValidation);
                 ValidateStart();
                 UpdateBitStackOnStartSet();
-                WriteStartSetMinimized();
+                WriteStartSetMinimized(writePrefix);
             }
         }
 
-        private void WriteStartSetIndented()
+        private void WriteStartSetIndented(bool writePrefix)
         {
             int indent = Indentation;
             Debug.Assert(indent <= _indentLength * _options.MaxDepth);
 
-            int minRequired = indent + 4;   // "Set{" = 4 bytes
+            int prefixLen = writePrefix ? 4 : 1;
+            int minRequired = indent + prefixLen;
             int maxRequired = minRequired + 3; // Optionally, 1 list separator and 1-2 bytes for new line
 
             if (_memory.Length - BytesPending < maxRequired)
@@ -101,8 +116,15 @@ namespace Rdn
                 BytesPending += indent;
             }
 
-            SetOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                SetOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -211,14 +233,15 @@ namespace Rdn
         private void WriteStartSetByOptions(ReadOnlySpan<char> propertyName)
         {
             ValidateWritingPropertyForSet();
+            bool writePrefix = _options.AlwaysWriteCollectionTypeNames;
 
             if (_options.Indented)
             {
-                WritePropertyNameIndentedForSet(propertyName);
+                WritePropertyNameIndentedForSet(propertyName, writePrefix);
             }
             else
             {
-                WritePropertyNameMinimizedForSet(propertyName);
+                WritePropertyNameMinimizedForSet(propertyName, writePrefix);
             }
         }
 
@@ -264,14 +287,15 @@ namespace Rdn
         private void WriteStartSetByOptions(ReadOnlySpan<byte> utf8PropertyName)
         {
             ValidateWritingPropertyForSet();
+            bool writePrefix = _options.AlwaysWriteCollectionTypeNames;
 
             if (_options.Indented)
             {
-                WritePropertyNameIndentedForSet(utf8PropertyName);
+                WritePropertyNameIndentedForSet(utf8PropertyName, writePrefix);
             }
             else
             {
-                WritePropertyNameMinimizedForSet(utf8PropertyName);
+                WritePropertyNameMinimizedForSet(utf8PropertyName, writePrefix);
             }
         }
 
@@ -298,10 +322,11 @@ namespace Rdn
             }
         }
 
-        private void WritePropertyNameMinimizedForSet(ReadOnlySpan<byte> utf8PropertyName)
+        private void WritePropertyNameMinimizedForSet(ReadOnlySpan<byte> utf8PropertyName, bool writePrefix)
         {
-            // "name":Set{ → quote(1) + name + quote(1) + colon(1) + Set{(4) + optional separator(1) = name.Length + 8
-            int maxRequired = utf8PropertyName.Length + 8;
+            int prefixLen = writePrefix ? 4 : 1;
+            // "name":{  or  "name":Set{  → quote(1) + name + quote(1) + colon(1) + prefix + optional separator(1)
+            int maxRequired = utf8PropertyName.Length + 4 + prefixLen;
 
             if (_memory.Length - BytesPending < maxRequired)
             {
@@ -319,17 +344,25 @@ namespace Rdn
             BytesPending += utf8PropertyName.Length;
             output[BytesPending++] = JsonConstants.Quote;
             output[BytesPending++] = JsonConstants.KeyValueSeparator;
-            SetOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                SetOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
 
-        private void WritePropertyNameIndentedForSet(ReadOnlySpan<byte> utf8PropertyName)
+        private void WritePropertyNameIndentedForSet(ReadOnlySpan<byte> utf8PropertyName, bool writePrefix)
         {
             int indent = Indentation;
             Debug.Assert(indent <= _indentLength * _options.MaxDepth);
 
-            // "name": Set{ → indent + name + quotes(2) + colon(1) + space(1) + Set{(4) + separator(1) + newline(2)
-            int maxRequired = indent + utf8PropertyName.Length + 11 + _newLineLength;
+            int prefixLen = writePrefix ? 4 : 1;
+            // "name": Set{  or  "name": {  → indent + name + quotes(2) + colon(1) + space(1) + prefix + separator(1) + newline(2)
+            int maxRequired = indent + utf8PropertyName.Length + 7 + prefixLen + _newLineLength;
 
             if (_memory.Length - BytesPending < maxRequired)
             {
@@ -359,13 +392,21 @@ namespace Rdn
             output[BytesPending++] = JsonConstants.Quote;
             output[BytesPending++] = JsonConstants.KeyValueSeparator;
             output[BytesPending++] = JsonConstants.Space;
-            SetOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                SetOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
 
-        private void WritePropertyNameMinimizedForSet(ReadOnlySpan<char> propertyName)
+        private void WritePropertyNameMinimizedForSet(ReadOnlySpan<char> propertyName, bool writePrefix)
         {
-            int maxRequired = propertyName.Length * JsonConstants.MaxExpansionFactorWhileTranscoding + 8;
+            int prefixLen = writePrefix ? 4 : 1;
+            int maxRequired = propertyName.Length * JsonConstants.MaxExpansionFactorWhileTranscoding + 4 + prefixLen;
 
             if (_memory.Length - BytesPending < maxRequired)
             {
@@ -384,16 +425,24 @@ namespace Rdn
 
             output[BytesPending++] = JsonConstants.Quote;
             output[BytesPending++] = JsonConstants.KeyValueSeparator;
-            SetOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                SetOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
 
-        private void WritePropertyNameIndentedForSet(ReadOnlySpan<char> propertyName)
+        private void WritePropertyNameIndentedForSet(ReadOnlySpan<char> propertyName, bool writePrefix)
         {
             int indent = Indentation;
             Debug.Assert(indent <= _indentLength * _options.MaxDepth);
 
-            int maxRequired = indent + propertyName.Length * JsonConstants.MaxExpansionFactorWhileTranscoding + 11 + _newLineLength;
+            int prefixLen = writePrefix ? 4 : 1;
+            int maxRequired = indent + propertyName.Length * JsonConstants.MaxExpansionFactorWhileTranscoding + 7 + prefixLen + _newLineLength;
 
             if (_memory.Length - BytesPending < maxRequired)
             {
@@ -424,8 +473,15 @@ namespace Rdn
             output[BytesPending++] = JsonConstants.Quote;
             output[BytesPending++] = JsonConstants.KeyValueSeparator;
             output[BytesPending++] = JsonConstants.Space;
-            SetOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                SetOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
     }
 }

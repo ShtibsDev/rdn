@@ -87,6 +87,85 @@ namespace Rdn
         }
 
         /// <summary>
+        /// Writes a DateOnly as an RDN @-prefixed literal: @YYYY-MM-DD (11 bytes, no quotes).
+        /// </summary>
+        public void WriteRdnDateOnlyValue(DateOnly value)
+        {
+            if (!_options.SkipValidation)
+            {
+                ValidateWritingValue();
+            }
+
+            if (_options.Indented)
+            {
+                WriteRdnDateOnlyValueIndented(value);
+            }
+            else
+            {
+                WriteRdnDateOnlyValueMinimized(value);
+            }
+
+            SetFlagToAddListSeparatorBeforeNextItem();
+            _tokenType = JsonTokenType.RdnDateTime;
+        }
+
+        private void WriteRdnDateOnlyValueMinimized(DateOnly value)
+        {
+            // @ (1) + YYYY-MM-DD (10) + optionally 1 list separator = 12
+            int maxRequired = 12;
+
+            if (_memory.Length - BytesPending < maxRequired)
+            {
+                Grow(maxRequired);
+            }
+
+            Span<byte> output = _memory.Span;
+
+            if (_currentDepth < 0)
+            {
+                output[BytesPending++] = JsonConstants.ListSeparator;
+            }
+
+            output[BytesPending++] = JsonConstants.AtSign;
+            int written = RdnWriterHelper.FormatRdnDateOnly(output.Slice(BytesPending), value);
+            BytesPending += written;
+        }
+
+        private void WriteRdnDateOnlyValueIndented(DateOnly value)
+        {
+            int indent = Indentation;
+            Debug.Assert(indent <= _indentLength * _options.MaxDepth);
+
+            int maxRequired = indent + 12 + _newLineLength;
+
+            if (_memory.Length - BytesPending < maxRequired)
+            {
+                Grow(maxRequired);
+            }
+
+            Span<byte> output = _memory.Span;
+
+            if (_currentDepth < 0)
+            {
+                output[BytesPending++] = JsonConstants.ListSeparator;
+            }
+
+            if (_tokenType != JsonTokenType.PropertyName)
+            {
+                if (_tokenType != JsonTokenType.None)
+                {
+                    WriteNewLine(output);
+                }
+                WriteIndentation(output.Slice(BytesPending), indent);
+                BytesPending += indent;
+            }
+
+            output[BytesPending++] = JsonConstants.AtSign;
+            int written = RdnWriterHelper.FormatRdnDateOnly(output.Slice(BytesPending), value);
+            BytesPending += written;
+        }
+
+        /// <summary>
         /// Writes a DateTimeOffset as an RDN @-prefixed literal: @YYYY-MM-DDTHH:mm:ss.sssZ (25 bytes, no quotes).
         /// </summary>
         public void WriteRdnDateTimeOffsetValue(DateTimeOffset value)
@@ -322,6 +401,15 @@ namespace Rdn
             output[BytesPending++] = JsonConstants.AtSign;
             isoBytes.CopyTo(output.Slice(BytesPending));
             BytesPending += isoBytes.Length;
+        }
+
+        /// <summary>
+        /// Writes a TimeSpan as an RDN @-prefixed ISO 8601 duration literal (e.g. @P1DT2H3M4S).
+        /// </summary>
+        public void WriteRdnTimeSpanValue(TimeSpan value)
+        {
+            string iso = RdnWriterHelper.FormatTimeSpanAsIsoDuration(value);
+            WriteRdnDurationValue(new RdnDuration(iso));
         }
     }
 }

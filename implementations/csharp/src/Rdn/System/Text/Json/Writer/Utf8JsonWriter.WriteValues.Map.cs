@@ -14,22 +14,27 @@ namespace Rdn
         private static ReadOnlySpan<byte> MapArrowIndented => " => "u8;
 
         /// <summary>
-        /// Writes the beginning of an RDN Map: <c>Map{</c>.
+        /// Writes the beginning of an RDN Map.
+        /// When <paramref name="forceTypeName"/> is <see langword="true"/> or
+        /// <see cref="JsonWriterOptions.AlwaysWriteCollectionTypeNames"/> is set,
+        /// writes <c>Map{</c>; otherwise writes just <c>{</c>.
         /// </summary>
-        public void WriteStartMap()
+        public void WriteStartMap(bool forceTypeName = false)
         {
             if (CurrentDepth >= _options.MaxDepth)
             {
                 ThrowInvalidOperationException_DepthTooLarge();
             }
 
+            bool writePrefix = forceTypeName || _options.AlwaysWriteCollectionTypeNames;
+
             if (_options.IndentedOrNotSkipValidation)
             {
-                WriteStartMapSlow();
+                WriteStartMapSlow(writePrefix);
             }
             else
             {
-                WriteStartMapMinimized();
+                WriteStartMapMinimized(writePrefix);
             }
 
             _currentDepth &= JsonConstants.RemoveFlagsBitMask;
@@ -37,12 +42,14 @@ namespace Rdn
             _tokenType = JsonTokenType.StartMap;
         }
 
-        private void WriteStartMapMinimized()
+        private void WriteStartMapMinimized(bool writePrefix)
         {
-            // "Map{" = 4 bytes + optionally 1 list separator
-            if (_memory.Length - BytesPending < 5)
+            int prefixLen = writePrefix ? 4 : 1; // "Map{" = 4 bytes, "{" = 1 byte
+            int maxRequired = prefixLen + 1; // + optionally 1 list separator
+
+            if (_memory.Length - BytesPending < maxRequired)
             {
-                Grow(5);
+                Grow(maxRequired);
             }
 
             Span<byte> output = _memory.Span;
@@ -50,11 +57,18 @@ namespace Rdn
             {
                 output[BytesPending++] = JsonConstants.ListSeparator;
             }
-            MapOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                MapOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
 
-        private void WriteStartMapSlow()
+        private void WriteStartMapSlow(bool writePrefix)
         {
             Debug.Assert(_options.Indented || !_options.SkipValidation);
 
@@ -65,23 +79,24 @@ namespace Rdn
                     ValidateStart();
                     UpdateBitStackOnStartMap();
                 }
-                WriteStartMapIndented();
+                WriteStartMapIndented(writePrefix);
             }
             else
             {
                 Debug.Assert(!_options.SkipValidation);
                 ValidateStart();
                 UpdateBitStackOnStartMap();
-                WriteStartMapMinimized();
+                WriteStartMapMinimized(writePrefix);
             }
         }
 
-        private void WriteStartMapIndented()
+        private void WriteStartMapIndented(bool writePrefix)
         {
             int indent = Indentation;
             Debug.Assert(indent <= _indentLength * _options.MaxDepth);
 
-            int minRequired = indent + 4;   // "Map{" = 4 bytes
+            int prefixLen = writePrefix ? 4 : 1;
+            int minRequired = indent + prefixLen;
             int maxRequired = minRequired + 3; // Optionally, 1 list separator and 1-2 bytes for new line
 
             if (_memory.Length - BytesPending < maxRequired)
@@ -103,8 +118,15 @@ namespace Rdn
                 BytesPending += indent;
             }
 
-            MapOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                MapOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -161,6 +183,10 @@ namespace Rdn
             // does not get a comma prefix. The arrow replaces the comma
             // between a key and its value.
             _currentDepth &= JsonConstants.RemoveFlagsBitMask;
+
+            // Set token type to PropertyName so the value after => is written
+            // inline (no newline+indent), just like values after : in objects.
+            _tokenType = JsonTokenType.PropertyName;
         }
 
         private void WriteMapArrowMinimized()
@@ -258,14 +284,15 @@ namespace Rdn
         private void WriteStartMapByOptions(ReadOnlySpan<char> propertyName)
         {
             ValidateWritingPropertyForMap();
+            bool writePrefix = _options.AlwaysWriteCollectionTypeNames;
 
             if (_options.Indented)
             {
-                WritePropertyNameIndentedForMap(propertyName);
+                WritePropertyNameIndentedForMap(propertyName, writePrefix);
             }
             else
             {
-                WritePropertyNameMinimizedForMap(propertyName);
+                WritePropertyNameMinimizedForMap(propertyName, writePrefix);
             }
         }
 
@@ -311,14 +338,15 @@ namespace Rdn
         private void WriteStartMapByOptions(ReadOnlySpan<byte> utf8PropertyName)
         {
             ValidateWritingPropertyForMap();
+            bool writePrefix = _options.AlwaysWriteCollectionTypeNames;
 
             if (_options.Indented)
             {
-                WritePropertyNameIndentedForMap(utf8PropertyName);
+                WritePropertyNameIndentedForMap(utf8PropertyName, writePrefix);
             }
             else
             {
-                WritePropertyNameMinimizedForMap(utf8PropertyName);
+                WritePropertyNameMinimizedForMap(utf8PropertyName, writePrefix);
             }
         }
 
@@ -345,10 +373,11 @@ namespace Rdn
             }
         }
 
-        private void WritePropertyNameMinimizedForMap(ReadOnlySpan<byte> utf8PropertyName)
+        private void WritePropertyNameMinimizedForMap(ReadOnlySpan<byte> utf8PropertyName, bool writePrefix)
         {
-            // "name":Map{ → quote(1) + name + quote(1) + colon(1) + Map{(4) + optional separator(1) = name.Length + 8
-            int maxRequired = utf8PropertyName.Length + 8;
+            int prefixLen = writePrefix ? 4 : 1; // "Map{" = 4 bytes, "{" = 1 byte
+            // "name":{  or  "name":Map{  → quote(1) + name + quote(1) + colon(1) + prefix + optional separator(1)
+            int maxRequired = utf8PropertyName.Length + 4 + prefixLen;
 
             if (_memory.Length - BytesPending < maxRequired)
             {
@@ -366,17 +395,25 @@ namespace Rdn
             BytesPending += utf8PropertyName.Length;
             output[BytesPending++] = JsonConstants.Quote;
             output[BytesPending++] = JsonConstants.KeyValueSeparator;
-            MapOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                MapOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
 
-        private void WritePropertyNameIndentedForMap(ReadOnlySpan<byte> utf8PropertyName)
+        private void WritePropertyNameIndentedForMap(ReadOnlySpan<byte> utf8PropertyName, bool writePrefix)
         {
             int indent = Indentation;
             Debug.Assert(indent <= _indentLength * _options.MaxDepth);
 
-            // "name": Map{ → indent + name + quotes(2) + colon(1) + space(1) + Map{(4) + separator(1) + newline(2)
-            int maxRequired = indent + utf8PropertyName.Length + 11 + _newLineLength;
+            int prefixLen = writePrefix ? 4 : 1;
+            // "name": Map{  or  "name": {  → indent + name + quotes(2) + colon(1) + space(1) + prefix + separator(1) + newline(2)
+            int maxRequired = indent + utf8PropertyName.Length + 7 + prefixLen + _newLineLength;
 
             if (_memory.Length - BytesPending < maxRequired)
             {
@@ -406,13 +443,21 @@ namespace Rdn
             output[BytesPending++] = JsonConstants.Quote;
             output[BytesPending++] = JsonConstants.KeyValueSeparator;
             output[BytesPending++] = JsonConstants.Space;
-            MapOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                MapOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
 
-        private void WritePropertyNameMinimizedForMap(ReadOnlySpan<char> propertyName)
+        private void WritePropertyNameMinimizedForMap(ReadOnlySpan<char> propertyName, bool writePrefix)
         {
-            int maxRequired = propertyName.Length * JsonConstants.MaxExpansionFactorWhileTranscoding + 8;
+            int prefixLen = writePrefix ? 4 : 1;
+            int maxRequired = propertyName.Length * JsonConstants.MaxExpansionFactorWhileTranscoding + 4 + prefixLen;
 
             if (_memory.Length - BytesPending < maxRequired)
             {
@@ -431,16 +476,24 @@ namespace Rdn
 
             output[BytesPending++] = JsonConstants.Quote;
             output[BytesPending++] = JsonConstants.KeyValueSeparator;
-            MapOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                MapOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
 
-        private void WritePropertyNameIndentedForMap(ReadOnlySpan<char> propertyName)
+        private void WritePropertyNameIndentedForMap(ReadOnlySpan<char> propertyName, bool writePrefix)
         {
             int indent = Indentation;
             Debug.Assert(indent <= _indentLength * _options.MaxDepth);
 
-            int maxRequired = indent + propertyName.Length * JsonConstants.MaxExpansionFactorWhileTranscoding + 11 + _newLineLength;
+            int prefixLen = writePrefix ? 4 : 1;
+            int maxRequired = indent + propertyName.Length * JsonConstants.MaxExpansionFactorWhileTranscoding + 7 + prefixLen + _newLineLength;
 
             if (_memory.Length - BytesPending < maxRequired)
             {
@@ -471,8 +524,15 @@ namespace Rdn
             output[BytesPending++] = JsonConstants.Quote;
             output[BytesPending++] = JsonConstants.KeyValueSeparator;
             output[BytesPending++] = JsonConstants.Space;
-            MapOpenBrace.CopyTo(output.Slice(BytesPending));
-            BytesPending += 4;
+            if (writePrefix)
+            {
+                MapOpenBrace.CopyTo(output.Slice(BytesPending));
+                BytesPending += 4;
+            }
+            else
+            {
+                output[BytesPending++] = JsonConstants.OpenBrace;
+            }
         }
     }
 }

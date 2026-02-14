@@ -905,11 +905,11 @@ namespace Rdn
                     WriteComplexElement(index, writer);
                     return;
                 case JsonTokenType.StartSet:
-                    writer.WriteStartSet();
+                    writer.WriteStartSet(forceTypeName: row.SizeOrLength == 0);
                     WriteComplexElement(index, writer);
                     return;
                 case JsonTokenType.StartMap:
-                    writer.WriteStartMap();
+                    writer.WriteStartMap(forceTypeName: row.SizeOrLength == 0);
                     WriteComplexElement(index, writer);
                     return;
                 case JsonTokenType.String:
@@ -1042,7 +1042,7 @@ namespace Rdn
                         depth--;
                         continue;
                     case JsonTokenType.StartSet:
-                        writer.WriteStartSet();
+                        writer.WriteStartSet(forceTypeName: row.SizeOrLength == 0);
                         if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         depth++;
                         continue;
@@ -1051,7 +1051,7 @@ namespace Rdn
                         depth--;
                         continue;
                     case JsonTokenType.StartMap:
-                        writer.WriteStartMap();
+                        writer.WriteStartMap(forceTypeName: row.SizeOrLength == 0);
                         if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         depth++;
                         if (depth < 64) mapMask |= (1L << depth);

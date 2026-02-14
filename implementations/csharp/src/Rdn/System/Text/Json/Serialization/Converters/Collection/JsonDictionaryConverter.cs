@@ -84,7 +84,8 @@ namespace Rdn.Serialization
             {
                 // Fast path that avoids maintaining state variables and dealing with preserved references.
 
-                if (reader.TokenType != JsonTokenType.StartObject)
+                bool isMap = reader.TokenType == JsonTokenType.StartMap;
+                if (!isMap && reader.TokenType != JsonTokenType.StartObject)
                 {
                     ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type);
                 }
@@ -96,6 +97,8 @@ namespace Rdn.Serialization
                 _keyConverter ??= GetConverter<TKey>(keyTypeInfo);
                 _valueConverter ??= GetConverter<TValue>(elementTypeInfo);
 
+                JsonTokenType endToken = isMap ? JsonTokenType.EndMap : JsonTokenType.EndObject;
+
                 if (_valueConverter.CanUseDirectReadOrWrite && state.Current.NumberHandling == null)
                 {
                     // Process all elements.
@@ -104,16 +107,23 @@ namespace Rdn.Serialization
                         // Read the key name.
                         reader.ReadWithVerify();
 
-                        if (reader.TokenType == JsonTokenType.EndObject)
+                        if (reader.TokenType == endToken)
                         {
                             break;
                         }
 
-                        // Read method would have thrown if otherwise.
-                        Debug.Assert(reader.TokenType == JsonTokenType.PropertyName);
-
                         state.Current.JsonPropertyInfo = keyTypeInfo.PropertyInfoForTypeInfo;
-                        TKey key = ReadDictionaryKey(_keyConverter, ref reader, ref state, options);
+                        TKey key;
+                        if (isMap)
+                        {
+                            // Map keys are regular values; arrow is consumed silently by reader.
+                            key = _keyConverter.Read(ref reader, typeof(TKey), options)!;
+                        }
+                        else
+                        {
+                            Debug.Assert(reader.TokenType == JsonTokenType.PropertyName);
+                            key = ReadDictionaryKey(_keyConverter, ref reader, ref state, options);
+                        }
 
                         // Read the value and add.
                         reader.ReadWithVerify();
@@ -130,15 +140,22 @@ namespace Rdn.Serialization
                         // Read the key name.
                         reader.ReadWithVerify();
 
-                        if (reader.TokenType == JsonTokenType.EndObject)
+                        if (reader.TokenType == endToken)
                         {
                             break;
                         }
 
-                        // Read method would have thrown if otherwise.
-                        Debug.Assert(reader.TokenType == JsonTokenType.PropertyName);
                         state.Current.JsonPropertyInfo = keyTypeInfo.PropertyInfoForTypeInfo;
-                        TKey key = ReadDictionaryKey(_keyConverter, ref reader, ref state, options);
+                        TKey key;
+                        if (isMap)
+                        {
+                            key = _keyConverter.Read(ref reader, typeof(TKey), options)!;
+                        }
+                        else
+                        {
+                            Debug.Assert(reader.TokenType == JsonTokenType.PropertyName);
+                            key = ReadDictionaryKey(_keyConverter, ref reader, ref state, options);
+                        }
 
                         reader.ReadWithVerify();
 
@@ -154,7 +171,11 @@ namespace Rdn.Serialization
                 // Slower path that supports continuation and reading metadata.
                 if (state.Current.ObjectState == StackFrameObjectState.None)
                 {
-                    if (reader.TokenType != JsonTokenType.StartObject)
+                    if (reader.TokenType == JsonTokenType.StartMap)
+                    {
+                        state.Current.IsReadingMapFormat = true;
+                    }
+                    else if (reader.TokenType != JsonTokenType.StartObject)
                     {
                         ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type);
                     }
@@ -237,36 +258,46 @@ namespace Rdn.Serialization
                     TKey key;
                     if (state.Current.PropertyState < StackFramePropertyState.Name)
                     {
-                        if (reader.TokenType == JsonTokenType.EndObject)
+                        JsonTokenType endToken = state.Current.IsReadingMapFormat ? JsonTokenType.EndMap : JsonTokenType.EndObject;
+                        if (reader.TokenType == endToken)
                         {
                             break;
                         }
 
-                        // Read method would have thrown if otherwise.
-                        Debug.Assert(reader.TokenType == JsonTokenType.PropertyName);
-
                         state.Current.PropertyState = StackFramePropertyState.Name;
 
-                        if (state.Current.CanContainMetadata)
+                        if (state.Current.IsReadingMapFormat)
                         {
-                            ReadOnlySpan<byte> propertyName = reader.GetUnescapedSpan();
-                            if (JsonSerializer.IsMetadataPropertyName(propertyName, state.Current.BaseJsonTypeInfo.PolymorphicTypeResolver))
+                            // Map keys are regular values; arrow is consumed silently by reader.
+                            state.Current.JsonPropertyInfo = keyTypeInfo.PropertyInfoForTypeInfo;
+                            key = _keyConverter.Read(ref reader, typeof(TKey), options)!;
+                        }
+                        else
+                        {
+                            // Read method would have thrown if otherwise.
+                            Debug.Assert(reader.TokenType == JsonTokenType.PropertyName);
+
+                            if (state.Current.CanContainMetadata)
                             {
-                                if (options.AllowOutOfOrderMetadataProperties)
+                                ReadOnlySpan<byte> propertyName = reader.GetUnescapedSpan();
+                                if (JsonSerializer.IsMetadataPropertyName(propertyName, state.Current.BaseJsonTypeInfo.PolymorphicTypeResolver))
                                 {
-                                    reader.SkipWithVerify();
-                                    state.Current.EndElement();
-                                    continue;
-                                }
-                                else
-                                {
-                                    ThrowHelper.ThrowUnexpectedMetadataException(propertyName, ref reader, ref state);
+                                    if (options.AllowOutOfOrderMetadataProperties)
+                                    {
+                                        reader.SkipWithVerify();
+                                        state.Current.EndElement();
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        ThrowHelper.ThrowUnexpectedMetadataException(propertyName, ref reader, ref state);
+                                    }
                                 }
                             }
-                        }
 
-                        state.Current.JsonPropertyInfo = keyTypeInfo.PropertyInfoForTypeInfo;
-                        key = ReadDictionaryKey(_keyConverter, ref reader, ref state, options);
+                            state.Current.JsonPropertyInfo = keyTypeInfo.PropertyInfoForTypeInfo;
+                            key = ReadDictionaryKey(_keyConverter, ref reader, ref state, options);
+                        }
                     }
                     else
                     {
@@ -351,7 +382,8 @@ namespace Rdn.Serialization
 
                 jsonTypeInfo.OnSerializing?.Invoke(dictionary);
 
-                writer.WriteStartObject();
+                bool isEmpty = dictionary is System.Collections.ICollection c ? c.Count == 0 : false;
+                writer.WriteStartMap(forceTypeName: isEmpty);
 
                 if (state.CurrentContainsMetadata && CanHaveMetadata)
                 {
@@ -367,7 +399,7 @@ namespace Rdn.Serialization
                 if (!state.Current.ProcessedEndToken)
                 {
                     state.Current.ProcessedEndToken = true;
-                    writer.WriteEndObject();
+                    writer.WriteEndMap();
                 }
 
                 jsonTypeInfo.OnSerialized?.Invoke(dictionary);

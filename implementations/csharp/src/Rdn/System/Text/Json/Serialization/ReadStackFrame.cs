@@ -86,6 +86,9 @@ namespace Rdn
         public bool HasParentObject;
         public bool IsPopulating;
 
+        // Tracks whether we are reading a dictionary from RDN Map format (vs JSON Object format).
+        public bool IsReadingMapFormat;
+
         public void EndConstructorParameter()
         {
             CtorArgumentState!.JsonParameterInfo = null;

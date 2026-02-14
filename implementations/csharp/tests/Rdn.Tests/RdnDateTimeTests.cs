@@ -940,6 +940,175 @@ public class RdnDateTimeTests
 
     #endregion
 
+    #region 7b. DateOnly serialization
+
+    private record DateOnlyRecord(DateOnly Date, string Label);
+
+    [Fact]
+    public void Roundtrip_DateOnly()
+    {
+        var original = new DateOnlyRecord(new DateOnly(2024, 6, 15), "release");
+        string rdn = JsonSerializer.Serialize(original);
+
+        Assert.Contains("@2024-06-15", rdn);
+        Assert.DoesNotContain("\"2024-06-15\"", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<DateOnlyRecord>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Equal(original.Date, deserialized.Date);
+        Assert.Equal(original.Label, deserialized.Label);
+    }
+
+    [Fact]
+    public void Writer_DateOnly()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteRdnDateOnlyValue(new DateOnly(2024, 1, 15));
+        }
+
+        var output = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        Assert.Equal("@2024-01-15", output);
+    }
+
+    [Fact]
+    public void Writer_DateOnly_InObject()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("date");
+            writer.WriteRdnDateOnlyValue(new DateOnly(2024, 3, 20));
+            writer.WriteEndObject();
+        }
+
+        var output = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        Assert.Contains("\"date\":@2024-03-20", output);
+        Assert.DoesNotContain("\"@", output);
+    }
+
+    [Fact]
+    public void Reader_DateOnly_FromRdnDateTime()
+    {
+        var rdn = """{"Date": @2024-01-15, "Label": "test"}""";
+        var deserialized = JsonSerializer.Deserialize<DateOnlyRecord>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Equal(new DateOnly(2024, 1, 15), deserialized.Date);
+    }
+
+    [Fact]
+    public void Reader_DateOnly_FromRdnDateTimeWithTime()
+    {
+        // When a full datetime RDN literal is deserialized into DateOnly, should extract the date part
+        var rdn = """{"Date": @2024-06-15T10:30:00.000Z, "Label": "test"}""";
+        var deserialized = JsonSerializer.Deserialize<DateOnlyRecord>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Equal(new DateOnly(2024, 6, 15), deserialized.Date);
+    }
+
+    #endregion
+
+    #region 7c. TimeSpan serialization
+
+    private record TimeSpanRecord(TimeSpan Duration, string Label);
+
+    [Fact]
+    public void Roundtrip_TimeSpan()
+    {
+        var original = new TimeSpanRecord(new TimeSpan(1, 2, 30, 0), "task");
+        string rdn = JsonSerializer.Serialize(original);
+
+        Assert.Contains("@P1DT2H30M", rdn);
+        Assert.DoesNotContain("\"1.", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<TimeSpanRecord>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Equal(original.Duration, deserialized.Duration);
+        Assert.Equal(original.Label, deserialized.Label);
+    }
+
+    [Fact]
+    public void Roundtrip_TimeSpan_HoursOnly()
+    {
+        var original = new TimeSpanRecord(TimeSpan.FromHours(4), "meeting");
+        string rdn = JsonSerializer.Serialize(original);
+
+        Assert.Contains("@PT4H", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<TimeSpanRecord>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Equal(original.Duration, deserialized.Duration);
+    }
+
+    [Fact]
+    public void Roundtrip_TimeSpan_Zero()
+    {
+        var original = new TimeSpanRecord(TimeSpan.Zero, "none");
+        string rdn = JsonSerializer.Serialize(original);
+
+        Assert.Contains("@P0D", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<TimeSpanRecord>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Equal(TimeSpan.Zero, deserialized.Duration);
+    }
+
+    [Fact]
+    public void Roundtrip_TimeSpan_WithSeconds()
+    {
+        var original = new TimeSpanRecord(new TimeSpan(0, 0, 45), "quick");
+        string rdn = JsonSerializer.Serialize(original);
+
+        Assert.Contains("@PT45S", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<TimeSpanRecord>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Equal(original.Duration, deserialized.Duration);
+    }
+
+    [Fact]
+    public void Roundtrip_TimeSpan_WithMilliseconds()
+    {
+        var original = new TimeSpanRecord(new TimeSpan(0, 0, 0, 1, 500), "precise");
+        string rdn = JsonSerializer.Serialize(original);
+
+        Assert.Contains("@PT1.5S", rdn);
+
+        var deserialized = JsonSerializer.Deserialize<TimeSpanRecord>(rdn);
+        Assert.NotNull(deserialized);
+        Assert.Equal(original.Duration, deserialized.Duration);
+    }
+
+    [Fact]
+    public void Writer_TimeSpan()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteRdnTimeSpanValue(new TimeSpan(2, 3, 4, 5));
+        }
+
+        var output = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        Assert.Equal("@P2DT3H4M5S", output);
+    }
+
+    [Fact]
+    public void Writer_TimeSpan_DaysOnly()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteRdnTimeSpanValue(TimeSpan.FromDays(30));
+        }
+
+        var output = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        Assert.Equal("@P30D", output);
+    }
+
+    #endregion
+
     #region 8. Error cases
 
     [Fact]

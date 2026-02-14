@@ -304,7 +304,7 @@ namespace Rdn.Nodes
             }
             else
             {
-                writer.WriteStartMap();
+                writer.WriteStartMap(forceTypeName: Entries.Count == 0);
 
                 foreach (var entry in Entries)
                 {

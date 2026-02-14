@@ -16,6 +16,16 @@ namespace Rdn.Serialization.Converters
 
         public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
+            if (reader.TokenType == JsonTokenType.RdnDuration)
+            {
+                RdnDuration duration = reader.GetRdnDuration();
+                if (duration.TryToTimeSpan(out TimeSpan ts))
+                {
+                    return ts;
+                }
+                ThrowHelper.ThrowFormatException(DataType.TimeSpan);
+            }
+
             if (reader.TokenType != JsonTokenType.String)
             {
                 ThrowHelper.ThrowInvalidOperationException_ExpectedString(reader.TokenType);
@@ -76,12 +86,7 @@ namespace Rdn.Serialization.Converters
 
         public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options)
         {
-            Span<byte> output = stackalloc byte[MaximumTimeSpanFormatLength];
-
-            bool result = Utf8Formatter.TryFormat(value, output, out int bytesWritten, 'c');
-            Debug.Assert(result);
-
-            writer.WriteStringValue(output.Slice(0, bytesWritten));
+            writer.WriteRdnTimeSpanValue(value);
         }
 
         internal override void WriteAsPropertyNameCore(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options, bool isWritingExtensionDataProperty)

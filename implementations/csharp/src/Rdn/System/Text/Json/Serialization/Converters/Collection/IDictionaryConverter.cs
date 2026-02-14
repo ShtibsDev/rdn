@@ -81,14 +81,15 @@ namespace Rdn.Serialization.Converters
                     if (key is string keyString)
                     {
                         _keyConverter ??= GetConverter<string>(typeInfo.KeyTypeInfo!);
-                        _keyConverter.WriteAsPropertyNameCore(writer, keyString, options, state.Current.IsWritingExtensionDataProperty);
+                        _keyConverter.Write(writer, keyString, options);
                     }
                     else
                     {
                         // IDictionary is a special case since it has polymorphic object semantics on serialization
                         // but needs to use JsonConverter<string> on deserialization.
-                        _valueConverter.WriteAsPropertyNameCore(writer, key, options, state.Current.IsWritingExtensionDataProperty);
+                        _valueConverter.Write(writer, key, options);
                     }
+                    writer.WriteMapArrow();
                 }
 
                 object? element = enumerator.Value;

@@ -55,7 +55,7 @@ namespace Rdn.Serialization.Converters
                     state.Current.MetadataPropertyName = JsonSerializer.WriteMetadataForCollection(this, ref state, writer);
                 }
 
-                writer.WriteStartSet();
+                writer.WriteStartSet(forceTypeName: value.Count == 0);
                 state.Current.JsonPropertyInfo = jsonTypeInfo.ElementTypeInfo!.PropertyInfoForTypeInfo;
             }
 
