@@ -228,6 +228,10 @@ namespace Rdn
                 {
                     EndArray();
                 }
+                else if (first == JsonConstants.CloseParen && IsCurrentDepthTuple())
+                {
+                    EndTuple();
+                }
                 else
                 {
                     retVal = ConsumeValueMultiSegment(first);
@@ -379,6 +383,11 @@ namespace Rdn
                 _bytePositionInLine++;
                 _isNotPrimitive = true;
             }
+            else if (first == JsonConstants.OpenParen)
+            {
+                StartTuple();
+                _isNotPrimitive = true;
+            }
             else
             {
                 if (JsonHelpers.IsDigit(first) || first == '-')
@@ -459,6 +468,10 @@ namespace Rdn
                 else if (marker == JsonConstants.OpenBracket)
                 {
                     StartArray();
+                }
+                else if (marker == JsonConstants.OpenParen)
+                {
+                    StartTuple();
                 }
                 else if (JsonHelpers.IsDigit(marker) || marker == '-')
                 {
@@ -1886,6 +1899,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (first == JsonConstants.CloseParen && IsCurrentDepthTuple())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndTuple();
+                            return ConsumeTokenResult.Success;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
                     return ConsumeValueMultiSegment(first) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
                 }
             }
@@ -1911,6 +1933,10 @@ namespace Rdn
             else if (marker == JsonConstants.CloseBracket)
             {
                 EndArray();
+            }
+            else if (marker == JsonConstants.CloseParen)
+            {
+                EndTuple();
             }
             else
             {
@@ -2137,6 +2163,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (first == JsonConstants.CloseParen && IsCurrentDepthTuple())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndTuple();
+                            goto Done;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
 
                     if (ConsumeValueMultiSegment(first))
                     {
@@ -2170,6 +2205,10 @@ namespace Rdn
             else if (first == JsonConstants.CloseBracket)
             {
                 EndArray();
+            }
+            else if (first == JsonConstants.CloseParen)
+            {
+                EndTuple();
             }
             else if (_tokenType == JsonTokenType.None)
             {
@@ -2466,6 +2505,10 @@ namespace Rdn
                 {
                     EndArray();
                 }
+                else if (marker == JsonConstants.CloseParen && IsCurrentDepthTuple())
+                {
+                    EndTuple();
+                }
                 else
                 {
                     if (!ConsumeValueMultiSegment(marker))
@@ -2584,6 +2627,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (marker == JsonConstants.CloseParen && IsCurrentDepthTuple())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndTuple();
+                            goto Done;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
 
                     return ConsumeValueMultiSegment(marker) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
                 }
@@ -2610,6 +2662,10 @@ namespace Rdn
             else if (marker == JsonConstants.CloseBracket)
             {
                 EndArray();
+            }
+            else if (marker == JsonConstants.CloseParen)
+            {
+                EndTuple();
             }
             else
             {

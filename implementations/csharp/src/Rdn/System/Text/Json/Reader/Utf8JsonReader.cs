@@ -48,6 +48,9 @@ namespace Rdn
         // Bit N=0 means the next value at depth N is a map value (expect , or } after it).
         private long _mapExpectArrowMask;
 
+        // Bit N=1 means depth N is a Tuple. Tuples emit StartArray/EndArray but close with ')'.
+        private long _tupleDepthMask;
+
         private long _totalConsumed;
         private bool _isLastSegment;
         private readonly bool _isMultiSegment;
@@ -797,7 +800,7 @@ namespace Rdn
 
         private void EndArray()
         {
-            if (_inObject || _bitStack.CurrentDepth <= 0 || IsCurrentDepthSet() || IsCurrentDepthMap())
+            if (_inObject || _bitStack.CurrentDepth <= 0 || IsCurrentDepthSet() || IsCurrentDepthMap() || IsCurrentDepthTuple())
                 ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.MismatchedObjectArray, JsonConstants.CloseBracket);
 
             if (_trailingCommaBeforeComment)
@@ -1174,6 +1177,59 @@ namespace Rdn
             }
         }
 
+        private void StartTuple()
+        {
+            if (_bitStack.CurrentDepth >= _readerOptions.MaxDepth)
+                ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ArrayDepthTooLarge);
+
+            _bitStack.PushFalse();
+
+            int depth = _bitStack.CurrentDepth;
+            if (depth < 64)
+            {
+                _tupleDepthMask |= (1L << depth);
+            }
+
+            ValueSpan = _buffer.Slice(_consumed, 1);
+            _consumed++;
+            _bytePositionInLine++;
+            _tokenType = JsonTokenType.StartArray; // Tuples emit StartArray
+            _inObject = false;
+        }
+
+        private void EndTuple()
+        {
+            if (_inObject || _bitStack.CurrentDepth <= 0 || !IsCurrentDepthTuple())
+                ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.MismatchedObjectArray, JsonConstants.CloseParen);
+
+            if (_trailingCommaBeforeComment)
+            {
+                if (!_readerOptions.AllowTrailingCommas)
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                }
+                _trailingCommaBeforeComment = false;
+            }
+
+            int depth = _bitStack.CurrentDepth;
+            if (depth < 64)
+            {
+                _tupleDepthMask &= ~(1L << depth);
+            }
+
+            _tokenType = JsonTokenType.EndArray; // Tuples emit EndArray
+            ValueSpan = _buffer.Slice(_consumed, 1);
+
+            UpdateBitStackOnEndToken();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private readonly bool IsCurrentDepthTuple()
+        {
+            int depth = _bitStack.CurrentDepth;
+            return depth < 64 ? (_tupleDepthMask & (1L << depth)) != 0 : false;
+        }
+
         /// <summary>
         /// Consumes the => arrow separator in a Map. Expects current position at '='.
         /// </summary>
@@ -1427,6 +1483,10 @@ namespace Rdn
                 {
                     EndArray();
                 }
+                else if (first == JsonConstants.CloseParen && IsCurrentDepthTuple())
+                {
+                    EndTuple();
+                }
                 else
                 {
                     retVal = ConsumeValue(first);
@@ -1512,6 +1572,11 @@ namespace Rdn
                 ValueSpan = _buffer.Slice(_consumed, 1);
                 _consumed++;
                 _bytePositionInLine++;
+                _isNotPrimitive = true;
+            }
+            else if (first == JsonConstants.OpenParen)
+            {
+                StartTuple();
                 _isNotPrimitive = true;
             }
             else
@@ -1609,6 +1674,10 @@ namespace Rdn
                 else if (marker == JsonConstants.OpenBracket)
                 {
                     StartArray();
+                }
+                else if (marker == JsonConstants.OpenParen)
+                {
+                    StartTuple();
                 }
                 else if (JsonHelpers.IsDigit(marker) || marker == '-')
                 {
@@ -2523,6 +2592,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (first == JsonConstants.CloseParen && IsCurrentDepthTuple())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndTuple();
+                            return ConsumeTokenResult.Success;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
                     return ConsumeValue(first) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
                 }
             }
@@ -2548,6 +2626,10 @@ namespace Rdn
             else if (marker == JsonConstants.CloseBracket)
             {
                 EndArray();
+            }
+            else if (marker == JsonConstants.CloseParen)
+            {
+                EndTuple();
             }
             else
             {
@@ -2758,6 +2840,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (first == JsonConstants.CloseParen && IsCurrentDepthTuple())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndTuple();
+                            goto Done;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
 
                     if (ConsumeValue(first))
                     {
@@ -2791,6 +2882,10 @@ namespace Rdn
             else if (first == JsonConstants.CloseBracket)
             {
                 EndArray();
+            }
+            else if (first == JsonConstants.CloseParen)
+            {
+                EndTuple();
             }
             else if (_tokenType == JsonTokenType.None)
             {
@@ -3081,6 +3176,10 @@ namespace Rdn
                 {
                     EndArray();
                 }
+                else if (marker == JsonConstants.CloseParen && IsCurrentDepthTuple())
+                {
+                    EndTuple();
+                }
                 else
                 {
                     if (!ConsumeValue(marker))
@@ -3230,6 +3329,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (marker == JsonConstants.CloseParen && IsCurrentDepthTuple())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndTuple();
+                            goto Done;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
 
                     return ConsumeValue(marker) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
                 }
@@ -3256,6 +3364,10 @@ namespace Rdn
             else if (marker == JsonConstants.CloseBracket)
             {
                 EndArray();
+            }
+            else if (marker == JsonConstants.CloseParen)
+            {
+                EndTuple();
             }
             else
             {

@@ -28,6 +28,8 @@ namespace Rdn.Serialization.Metadata
                 new EnumConverterFactory(),
                 new JsonNodeConverterFactory(),
                 new FSharpTypeConverterFactory(),
+                // Tuples must be before IEnumerable since Tuple<> implements IEnumerable.
+                new TupleConverterFactory(),
                 new MemoryConverterFactory(),
                 // IAsyncEnumerable takes precedence over IEnumerable.
                 new IAsyncEnumerableConverterFactory(),

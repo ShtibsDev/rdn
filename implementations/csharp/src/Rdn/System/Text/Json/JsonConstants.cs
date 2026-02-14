@@ -35,6 +35,8 @@ namespace Rdn
         public const byte LetterM = (byte)'M';
         public const byte Equals = (byte)'=';
         public const byte GreaterThan = (byte)'>';
+        public const byte OpenParen = (byte)'(';
+        public const byte CloseParen = (byte)')';
         public const int RdnFullDateTimeLength = 24; // YYYY-MM-DDTHH:mm:ss.sssZ (without @)
         public const int RdnDateOnlyLength = 10; // YYYY-MM-DD
         public const int RdnTimeOnlyMinLength = 8; // HH:MM:SS
@@ -58,7 +60,7 @@ namespace Rdn
         public const int MaximumFloatingPointConstantLength = 9;
 
         // Used to search for the end of a number
-        public static ReadOnlySpan<byte> Delimiters => ",}] \n\r\t/="u8;
+        public static ReadOnlySpan<byte> Delimiters => ",}]) \n\r\t/="u8;
 
         // Explicitly skipping ReverseSolidus since that is handled separately
         public static ReadOnlySpan<byte> EscapableChars => "\"nrt/ubf"u8;

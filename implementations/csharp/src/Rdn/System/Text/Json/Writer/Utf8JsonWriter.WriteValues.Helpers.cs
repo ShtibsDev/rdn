@@ -33,7 +33,7 @@ namespace Rdn
         /// </list>
         /// This method performs better without short circuiting (this often gets inlined so using simple branch free code seems to have some benefits).
         /// </summary>
-        private bool CanWriteValue => _enclosingContainer == EnclosingContainerType.Array | _enclosingContainer == EnclosingContainerType.Set | _enclosingContainer == EnclosingContainerType.Map | (byte)_enclosingContainer == (byte)_tokenType;
+        private bool CanWriteValue => _enclosingContainer == EnclosingContainerType.Array | _enclosingContainer == EnclosingContainerType.Set | _enclosingContainer == EnclosingContainerType.Map | _enclosingContainer == EnclosingContainerType.Tuple | (byte)_enclosingContainer == (byte)_tokenType;
 
         private bool HasPartialStringData => _partialStringDataLength != 0;
 

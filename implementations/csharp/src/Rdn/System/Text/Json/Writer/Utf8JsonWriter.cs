@@ -47,6 +47,7 @@ namespace Rdn
         private BitStack _bitStack;
         private long _setDepthMask;
         private long _mapDepthMask;
+        private long _tupleDepthMask;
 
         /// <summary>
         /// This 3-byte array stores the partial string data leftover when writing a string value
@@ -1071,6 +1072,13 @@ namespace Rdn
                     ThrowInvalidOperationException_MismatchedObjectArray(token);
                 }
             }
+            else if (token == JsonConstants.CloseParen)
+            {
+                if (_enclosingContainer != EnclosingContainerType.Tuple)
+                {
+                    ThrowInvalidOperationException_MismatchedObjectArray(token);
+                }
+            }
             else
             {
                 Debug.Assert(token == JsonConstants.CloseBrace);
@@ -1081,13 +1089,14 @@ namespace Rdn
                 }
             }
 
-            // Clear Set/Map depth mask bits for the depth we're leaving.
+            // Clear Set/Map/Tuple depth mask bits for the depth we're leaving.
             int poppedDepth = _bitStack.CurrentDepth;
             if (poppedDepth < 64)
             {
                 long bit = 1L << poppedDepth;
                 _setDepthMask &= ~bit;
                 _mapDepthMask &= ~bit;
+                _tupleDepthMask &= ~bit;
             }
 
             _bitStack.Pop();
@@ -1185,6 +1194,8 @@ namespace Rdn
                     return EnclosingContainerType.Map;
                 if ((_setDepthMask & bit) != 0)
                     return EnclosingContainerType.Set;
+                if ((_tupleDepthMask & bit) != 0)
+                    return EnclosingContainerType.Tuple;
             }
 
             return _bitStack.Peek() ? EnclosingContainerType.Object : EnclosingContainerType.Array;
@@ -1312,6 +1323,11 @@ namespace Rdn
             /// RDN Set. Like Array but uses brace delimiters and "Set{" prefix.
             /// </summary>
             Set = 0x18,
+
+            /// <summary>
+            /// RDN Tuple. Like Array but uses parenthesis delimiters.
+            /// </summary>
+            Tuple = 0x14,
 
             /// <summary>
             /// RDN Map. Like Array but uses brace delimiters, "Map{" prefix, and "=>" arrow separators.
