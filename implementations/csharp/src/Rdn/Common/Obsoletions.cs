@@ -70,8 +70,8 @@ namespace System
         internal const string RuntimeEnvironmentMessage = "RuntimeEnvironment members SystemConfigurationFile, GetRuntimeInterfaceAsIntPtr, and GetRuntimeInterfaceAsObject are not supported and throw PlatformNotSupportedException.";
         internal const string RuntimeEnvironmentDiagId = "SYSLIB0019";
 
-        internal const string JsonSerializerOptionsIgnoreNullValuesMessage = "JsonSerializerOptions.IgnoreNullValues is obsolete. To ignore null values when serializing, set DefaultIgnoreCondition to JsonIgnoreCondition.WhenWritingNull.";
-        internal const string JsonSerializerOptionsIgnoreNullValuesDiagId = "SYSLIB0020";
+        internal const string RdnSerializerOptionsIgnoreNullValuesMessage = "RdnSerializerOptions.IgnoreNullValues is obsolete. To ignore null values when serializing, set DefaultIgnoreCondition to RdnIgnoreCondition.WhenWritingNull.";
+        internal const string RdnSerializerOptionsIgnoreNullValuesDiagId = "SYSLIB0020";
 
         internal const string DerivedCryptographicTypesMessage = "Derived cryptographic types are obsolete. Use the Create method on the base type instead.";
         internal const string DerivedCryptographicTypesDiagId = "SYSLIB0021";
@@ -156,8 +156,8 @@ namespace System
         internal const string RsaEncryptDecryptValueMessage = "RSA.EncryptValue and DecryptValue are not supported and throw NotSupportedException. Use RSA.Encrypt and RSA.Decrypt instead.";
         internal const string RsaEncryptDecryptDiagId = "SYSLIB0048";
 
-        internal const string JsonSerializerOptionsAddContextMessage = "JsonSerializerOptions.AddContext is obsolete. To register a JsonSerializerContext, use either the TypeInfoResolver or TypeInfoResolverChain properties.";
-        internal const string JsonSerializerOptionsAddContextDiagId = "SYSLIB0049";
+        internal const string RdnSerializerOptionsAddContextMessage = "RdnSerializerOptions.AddContext is obsolete. To register a RdnSerializerContext, use either the TypeInfoResolver or TypeInfoResolverChain properties.";
+        internal const string RdnSerializerOptionsAddContextDiagId = "SYSLIB0049";
 
         internal const string LegacyFormatterMessage = "Formatter-based serialization is obsolete and should not be used.";
         internal const string LegacyFormatterDiagId = "SYSLIB0050";

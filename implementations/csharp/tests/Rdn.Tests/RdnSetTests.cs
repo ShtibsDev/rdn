@@ -8,17 +8,17 @@ namespace Rdn.Tests;
 
 public class RdnSetTests
 {
-    #region 1. Utf8JsonReader — Explicit Set parsing
+    #region 1. Utf8RdnReader — Explicit Set parsing
 
     [Fact]
     public void Reader_ExplicitEmptySet()
     {
         var bytes = "Set{}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
         Assert.False(reader.Read());
     }
 
@@ -26,24 +26,24 @@ public class RdnSetTests
     public void Reader_ExplicitSetWithNumbers()
     {
         var bytes = "Set{1, 2, 3}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.Equal(1, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.Equal(2, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.Equal(3, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
         Assert.False(reader.Read());
     }
 
@@ -51,12 +51,12 @@ public class RdnSetTests
     public void Reader_ExplicitSetWithStrings()
     {
         var bytes = "Set{\"a\", \"b\", \"c\"}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.String, reader.TokenType);
+        Assert.Equal(RdnTokenType.String, reader.TokenType);
         Assert.Equal("a", reader.GetString());
 
         Assert.True(reader.Read());
@@ -66,20 +66,20 @@ public class RdnSetTests
         Assert.Equal("c", reader.GetString());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     [Fact]
     public void Reader_ExplicitSetNested()
     {
         var bytes = "Set{Set{1, 2}, Set{3, 4}}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
         Assert.Equal(1, reader.GetInt32());
@@ -87,10 +87,10 @@ public class RdnSetTests
         Assert.Equal(2, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
         Assert.Equal(3, reader.GetInt32());
@@ -98,39 +98,39 @@ public class RdnSetTests
         Assert.Equal(4, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     #endregion
 
-    #region 2. Utf8JsonReader — Implicit Set parsing (brace disambiguation)
+    #region 2. Utf8RdnReader — Implicit Set parsing (brace disambiguation)
 
     [Fact]
     public void Reader_ImplicitSetSingleNumber()
     {
         var bytes = "{42}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.Equal(42, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     [Fact]
     public void Reader_ImplicitSetMultipleNumbers()
     {
         var bytes = "{1, 2, 3}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
         Assert.Equal(1, reader.GetInt32());
@@ -140,7 +140,7 @@ public class RdnSetTests
         Assert.Equal(3, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     [Fact]
@@ -148,16 +148,16 @@ public class RdnSetTests
     {
         // { "only" } — single string followed by } → Set
         var bytes = "{\"only\"}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.String, reader.TokenType);
+        Assert.Equal(RdnTokenType.String, reader.TokenType);
         Assert.Equal("only", reader.GetString());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     [Fact]
@@ -165,9 +165,9 @@ public class RdnSetTests
     {
         // { "a", "b", "c" } → Set (comma after first string)
         var bytes = "{\"a\", \"b\", \"c\"}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
         Assert.Equal("a", reader.GetString());
@@ -177,100 +177,100 @@ public class RdnSetTests
         Assert.Equal("c", reader.GetString());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     [Fact]
     public void Reader_BraceDisambiguation_EmptyBraces_IsObject()
     {
         var bytes = "{}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartObject, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartObject, reader.TokenType);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndObject, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndObject, reader.TokenType);
     }
 
     [Fact]
     public void Reader_BraceDisambiguation_KeyColonValue_IsObject()
     {
         var bytes = "{\"key\": 1}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartObject, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartObject, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.PropertyName, reader.TokenType);
+        Assert.Equal(RdnTokenType.PropertyName, reader.TokenType);
     }
 
     [Fact]
     public void Reader_ImplicitSetWithBoolean()
     {
         var bytes = "{true, false}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.True, reader.TokenType);
+        Assert.Equal(RdnTokenType.True, reader.TokenType);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.False, reader.TokenType);
+        Assert.Equal(RdnTokenType.False, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     [Fact]
     public void Reader_ImplicitSetWithNull()
     {
         var bytes = "{null}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.Null, reader.TokenType);
+        Assert.Equal(RdnTokenType.Null, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     [Fact]
     public void Reader_ImplicitSetWithNestedArray()
     {
         var bytes = "{[1, 2]}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartArray, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartArray, reader.TokenType);
     }
 
     [Fact]
     public void Reader_ImplicitSetWithRdnDateTime()
     {
         var bytes = "{@2024-01-15}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.RdnDateTime, reader.TokenType);
+        Assert.Equal(RdnTokenType.RdnDateTime, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     #endregion
 
-    #region 3. Utf8JsonWriter — Set output
+    #region 3. Utf8RdnWriter — Set output
 
     [Fact]
     public void Writer_EmptySet()
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        using var writer = new Utf8JsonWriter(buffer);
+        using var writer = new Utf8RdnWriter(buffer);
         writer.WriteStartSet(forceTypeName: true);
         writer.WriteEndSet();
         writer.Flush();
@@ -282,7 +282,7 @@ public class RdnSetTests
     public void Writer_NonEmptySet_OmitsPrefix()
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        using var writer = new Utf8JsonWriter(buffer);
+        using var writer = new Utf8RdnWriter(buffer);
         writer.WriteStartSet();
         writer.WriteNumberValue(42);
         writer.WriteEndSet();
@@ -295,7 +295,7 @@ public class RdnSetTests
     public void Writer_SetWithNumbers()
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        using var writer = new Utf8JsonWriter(buffer);
+        using var writer = new Utf8RdnWriter(buffer);
         writer.WriteStartSet();
         writer.WriteNumberValue(1);
         writer.WriteNumberValue(2);
@@ -310,7 +310,7 @@ public class RdnSetTests
     public void Writer_SetWithStrings()
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        using var writer = new Utf8JsonWriter(buffer);
+        using var writer = new Utf8RdnWriter(buffer);
         writer.WriteStartSet();
         writer.WriteStringValue("a");
         writer.WriteStringValue("b");
@@ -324,7 +324,7 @@ public class RdnSetTests
     public void Writer_NamedPropertySet()
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        using var writer = new Utf8JsonWriter(buffer);
+        using var writer = new Utf8RdnWriter(buffer);
         writer.WriteStartObject();
         writer.WriteStartSet("tags");
         writer.WriteStringValue("a");
@@ -339,7 +339,7 @@ public class RdnSetTests
     public void Writer_IndentedSet()
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true });
+        using var writer = new Utf8RdnWriter(buffer, new RdnWriterOptions { Indented = true });
         writer.WriteStartSet();
         writer.WriteNumberValue(1);
         writer.WriteNumberValue(2);
@@ -358,7 +358,7 @@ public class RdnSetTests
     public void Writer_AlwaysWriteCollectionTypeNames_Set()
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { AlwaysWriteCollectionTypeNames = true });
+        using var writer = new Utf8RdnWriter(buffer, new RdnWriterOptions { AlwaysWriteCollectionTypeNames = true });
         writer.WriteStartSet();
         writer.WriteNumberValue(1);
         writer.WriteEndSet();
@@ -375,7 +375,7 @@ public class RdnSetTests
     public void Serialize_HashSetInt()
     {
         var set = new HashSet<int> { 1, 2, 3 };
-        var rdn = JsonSerializer.Serialize(set);
+        var rdn = RdnSerializer.Serialize(set);
 
         // Non-empty sets use implicit syntax (no Set{ prefix)
         Assert.StartsWith("{", rdn);
@@ -390,7 +390,7 @@ public class RdnSetTests
     public void Serialize_HashSetString()
     {
         var set = new HashSet<string> { "hello", "world" };
-        var rdn = JsonSerializer.Serialize(set);
+        var rdn = RdnSerializer.Serialize(set);
 
         Assert.StartsWith("{", rdn);
         Assert.DoesNotContain("Set{", rdn);
@@ -402,7 +402,7 @@ public class RdnSetTests
     public void Deserialize_ExplicitSetToHashSet()
     {
         var rdn = "Set{1, 2, 3}";
-        var set = JsonSerializer.Deserialize<HashSet<int>>(rdn);
+        var set = RdnSerializer.Deserialize<HashSet<int>>(rdn);
 
         Assert.NotNull(set);
         Assert.Equal(3, set!.Count);
@@ -415,7 +415,7 @@ public class RdnSetTests
     public void Deserialize_ImplicitSetToHashSet()
     {
         var rdn = "{1, 2, 3}";
-        var set = JsonSerializer.Deserialize<HashSet<int>>(rdn);
+        var set = RdnSerializer.Deserialize<HashSet<int>>(rdn);
 
         Assert.NotNull(set);
         Assert.Equal(3, set!.Count);
@@ -427,9 +427,9 @@ public class RdnSetTests
     [Fact]
     public void Deserialize_ArrayToHashSet()
     {
-        // HashSet should still deserialize from array syntax for JSON compat
-        var json = "[1, 2, 3]";
-        var set = JsonSerializer.Deserialize<HashSet<int>>(json);
+        // HashSet should still deserialize from array syntax for RDN compat
+        var rdn = "[1, 2, 3]";
+        var set = RdnSerializer.Deserialize<HashSet<int>>(rdn);
 
         Assert.NotNull(set);
         Assert.Equal(3, set!.Count);
@@ -440,8 +440,8 @@ public class RdnSetTests
     public void Roundtrip_HashSetInt()
     {
         var original = new HashSet<int> { 10, 20, 30 };
-        var rdn = JsonSerializer.Serialize(original);
-        var deserialized = JsonSerializer.Deserialize<HashSet<int>>(rdn);
+        var rdn = RdnSerializer.Serialize(original);
+        var deserialized = RdnSerializer.Deserialize<HashSet<int>>(rdn);
 
         Assert.NotNull(deserialized);
         Assert.Equal(original, deserialized);
@@ -451,8 +451,8 @@ public class RdnSetTests
     public void Roundtrip_HashSetString()
     {
         var original = new HashSet<string> { "alpha", "beta" };
-        var rdn = JsonSerializer.Serialize(original);
-        var deserialized = JsonSerializer.Deserialize<HashSet<string>>(rdn);
+        var rdn = RdnSerializer.Serialize(original);
+        var deserialized = RdnSerializer.Deserialize<HashSet<string>>(rdn);
 
         Assert.NotNull(deserialized);
         Assert.Equal(original, deserialized);
@@ -462,34 +462,34 @@ public class RdnSetTests
     public void Serialize_EmptyHashSet()
     {
         var set = new HashSet<int>();
-        var rdn = JsonSerializer.Serialize(set);
+        var rdn = RdnSerializer.Serialize(set);
         Assert.Equal("Set{}", rdn);
     }
 
     #endregion
 
-    #region 5. JsonDocument — Set parsing
+    #region 5. RdnDocument — Set parsing
 
     [Fact]
     public void Document_ParseExplicitSet()
     {
-        using var doc = JsonDocument.Parse("Set{1, 2, 3}");
-        Assert.Equal(JsonValueKind.Set, doc.RootElement.ValueKind);
+        using var doc = RdnDocument.Parse("Set{1, 2, 3}");
+        Assert.Equal(RdnValueKind.Set, doc.RootElement.ValueKind);
         Assert.Equal(3, doc.RootElement.GetArrayLength());
     }
 
     [Fact]
     public void Document_ParseImplicitSet()
     {
-        using var doc = JsonDocument.Parse("{42}");
-        Assert.Equal(JsonValueKind.Set, doc.RootElement.ValueKind);
+        using var doc = RdnDocument.Parse("{42}");
+        Assert.Equal(RdnValueKind.Set, doc.RootElement.ValueKind);
         Assert.Equal(1, doc.RootElement.GetArrayLength());
     }
 
     [Fact]
     public void Document_EnumerateSet()
     {
-        using var doc = JsonDocument.Parse("Set{10, 20, 30}");
+        using var doc = RdnDocument.Parse("Set{10, 20, 30}");
         var values = new List<int>();
         foreach (var element in doc.RootElement.EnumerateSet())
         {
@@ -501,9 +501,9 @@ public class RdnSetTests
     [Fact]
     public void Document_SetWriteToRoundtrip()
     {
-        using var doc = JsonDocument.Parse("Set{1, 2, 3}");
+        using var doc = RdnDocument.Parse("Set{1, 2, 3}");
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        using var writer = new Utf8JsonWriter(buffer);
+        using var writer = new Utf8RdnWriter(buffer);
         doc.RootElement.WriteTo(writer);
         writer.Flush();
 
@@ -514,7 +514,7 @@ public class RdnSetTests
     [Fact]
     public void Document_SetIndexer()
     {
-        using var doc = JsonDocument.Parse("Set{10, 20, 30}");
+        using var doc = RdnDocument.Parse("Set{10, 20, 30}");
         Assert.Equal(10, doc.RootElement[0].GetInt32());
         Assert.Equal(20, doc.RootElement[1].GetInt32());
         Assert.Equal(30, doc.RootElement[2].GetInt32());
@@ -523,58 +523,58 @@ public class RdnSetTests
     [Fact]
     public void Document_EmptyExplicitSet()
     {
-        using var doc = JsonDocument.Parse("Set{}");
-        Assert.Equal(JsonValueKind.Set, doc.RootElement.ValueKind);
+        using var doc = RdnDocument.Parse("Set{}");
+        Assert.Equal(RdnValueKind.Set, doc.RootElement.ValueKind);
         Assert.Equal(0, doc.RootElement.GetArrayLength());
     }
 
     #endregion
 
-    #region 6. JsonSet DOM (mutable)
+    #region 6. RdnSet DOM (mutable)
 
     [Fact]
-    public void JsonSet_CreateAndAdd()
+    public void RdnSet_CreateAndAdd()
     {
-        var set = new JsonSet();
-        set.Add(JsonValue.Create(1));
-        set.Add(JsonValue.Create(2));
+        var set = new RdnSet();
+        set.Add(RdnValue.Create(1));
+        set.Add(RdnValue.Create(2));
         Assert.Equal(2, set.Count);
     }
 
     [Fact]
-    public void JsonSet_Remove()
+    public void RdnSet_Remove()
     {
-        var node = JsonValue.Create(42);
-        var set = new JsonSet(node);
+        var node = RdnValue.Create(42);
+        var set = new RdnSet(node);
         Assert.Equal(1, set.Count);
         Assert.True(set.Remove(node));
         Assert.Equal(0, set.Count);
     }
 
     [Fact]
-    public void JsonSet_Clear()
+    public void RdnSet_Clear()
     {
-        var set = new JsonSet(JsonValue.Create(1), JsonValue.Create(2));
+        var set = new RdnSet(RdnValue.Create(1), RdnValue.Create(2));
         Assert.Equal(2, set.Count);
         set.Clear();
         Assert.Equal(0, set.Count);
     }
 
     [Fact]
-    public void JsonSet_Contains()
+    public void RdnSet_Contains()
     {
-        var node = JsonValue.Create("hello");
-        var set = new JsonSet(node);
+        var node = RdnValue.Create("hello");
+        var set = new RdnSet(node);
         Assert.True(set.Contains(node));
-        Assert.False(set.Contains(JsonValue.Create("world")));
+        Assert.False(set.Contains(RdnValue.Create("world")));
     }
 
     [Fact]
-    public void JsonSet_WriteTo()
+    public void RdnSet_WriteTo()
     {
-        var set = new JsonSet(JsonValue.Create(1), JsonValue.Create(2));
+        var set = new RdnSet(RdnValue.Create(1), RdnValue.Create(2));
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        using var writer = new Utf8JsonWriter(buffer);
+        using var writer = new Utf8RdnWriter(buffer);
         set.WriteTo(writer);
         writer.Flush();
 
@@ -583,19 +583,19 @@ public class RdnSetTests
     }
 
     [Fact]
-    public void JsonSet_ParseFromRdn()
+    public void RdnSet_ParseFromRdn()
     {
-        var node = JsonNode.Parse("Set{1, 2, 3}");
-        Assert.IsType<JsonSet>(node);
-        var set = (JsonSet)node!;
+        var node = RdnNode.Parse("Set{1, 2, 3}");
+        Assert.IsType<RdnSet>(node);
+        var set = (RdnSet)node!;
         Assert.Equal(3, set.Count);
     }
 
     [Fact]
-    public void JsonSet_GetValueKind()
+    public void RdnSet_GetValueKind()
     {
-        var set = new JsonSet(JsonValue.Create(1));
-        Assert.Equal(JsonValueKind.Set, set.GetValueKind());
+        var set = new RdnSet(RdnValue.Create(1));
+        Assert.Equal(RdnValueKind.Set, set.GetValueKind());
     }
 
     #endregion
@@ -606,28 +606,28 @@ public class RdnSetTests
     public void Reader_SetWithNestedObject()
     {
         var bytes = "Set{{\"a\": 1}, {\"b\": 2}}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartObject, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartObject, reader.TokenType);
     }
 
     [Fact]
     public void Reader_ObjectContainingSet()
     {
         var bytes = "{\"tags\": Set{\"a\", \"b\"}}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartObject, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartObject, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.PropertyName, reader.TokenType);
+        Assert.Equal(RdnTokenType.PropertyName, reader.TokenType);
         Assert.Equal("tags", reader.GetString());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
         Assert.Equal("a", reader.GetString());
@@ -635,47 +635,47 @@ public class RdnSetTests
         Assert.Equal("b", reader.GetString());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndObject, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndObject, reader.TokenType);
     }
 
     [Fact]
     public void Reader_ArrayContainingSet()
     {
         var bytes = "[Set{1}, Set{2}]"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartArray, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartArray, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
         Assert.Equal(1, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
         Assert.Equal(2, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndArray, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndArray, reader.TokenType);
     }
 
     [Fact]
     public void Serialize_ObjectWithHashSetField()
     {
         var obj = new ObjectWithSet { Name = "test", Tags = new HashSet<string> { "a", "b" } };
-        var rdn = JsonSerializer.Serialize(obj);
+        var rdn = RdnSerializer.Serialize(obj);
         Assert.Contains("\"Name\":\"test\"", rdn);
         // Non-empty set uses implicit syntax
         Assert.Contains("\"Tags\":{", rdn);
@@ -686,7 +686,7 @@ public class RdnSetTests
     public void Deserialize_ObjectWithHashSetField()
     {
         var rdn = "{\"Name\":\"test\",\"Tags\":Set{\"a\",\"b\"}}";
-        var obj = JsonSerializer.Deserialize<ObjectWithSet>(rdn);
+        var obj = RdnSerializer.Deserialize<ObjectWithSet>(rdn);
         Assert.NotNull(obj);
         Assert.Equal("test", obj!.Name);
         Assert.NotNull(obj.Tags);
@@ -709,9 +709,9 @@ public class RdnSetTests
     public void Reader_MismatchedBraces_ArrayClosedWithBrace_Throws()
     {
         var bytes = "[1, 2}"u8.ToArray();
-        Assert.ThrowsAny<JsonException>(() =>
+        Assert.ThrowsAny<RdnException>(() =>
         {
-            var reader = new Utf8JsonReader(bytes);
+            var reader = new Utf8RdnReader(bytes);
             while (reader.Read()) { }
         });
     }
@@ -720,9 +720,9 @@ public class RdnSetTests
     public void Reader_MismatchedBraces_SetClosedWithBracket_Throws()
     {
         var bytes = "Set{1, 2]"u8.ToArray();
-        Assert.ThrowsAny<JsonException>(() =>
+        Assert.ThrowsAny<RdnException>(() =>
         {
-            var reader = new Utf8JsonReader(bytes);
+            var reader = new Utf8RdnReader(bytes);
             while (reader.Read()) { }
         });
     }

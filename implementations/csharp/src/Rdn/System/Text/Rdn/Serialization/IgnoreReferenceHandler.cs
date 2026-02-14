@@ -1,0 +1,12 @@
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+namespace Rdn.Serialization
+{
+    internal sealed class IgnoreReferenceHandler : ReferenceHandler
+    {
+        public IgnoreReferenceHandler() => HandlingStrategy = RdnKnownReferenceHandler.IgnoreCycles;
+
+        public override ReferenceResolver CreateResolver() => new IgnoreReferenceResolver();
+    }
+}

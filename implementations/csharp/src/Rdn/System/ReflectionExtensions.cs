@@ -43,8 +43,8 @@ namespace Rdn.Reflection
         public static bool IsInSubtypeRelationshipWith(this Type type, Type other) =>
             type.IsAssignableFromInternal(other) || other.IsAssignableFromInternal(type);
 
-        private static bool HasJsonConstructorAttribute(ConstructorInfo constructorInfo)
-            => constructorInfo.GetCustomAttribute<JsonConstructorAttribute>() != null;
+        private static bool HasRdnConstructorAttribute(ConstructorInfo constructorInfo)
+            => constructorInfo.GetCustomAttribute<RdnConstructorAttribute>() != null;
 
         public static bool HasRequiredMemberAttribute(this MemberInfo memberInfo)
         {

@@ -243,7 +243,7 @@ namespace Rdn.Reflection
 
             foreach (ConstructorInfo constructor in constructors)
             {
-                if (HasJsonConstructorAttribute(constructor))
+                if (HasRdnConstructorAttribute(constructor))
                 {
                     if (ctorWithAttribute != null)
                     {
@@ -259,10 +259,10 @@ namespace Rdn.Reflection
                 }
             }
 
-            // Search for non-public ctors with [JsonConstructor].
+            // Search for non-public ctors with [RdnConstructor].
             foreach (ConstructorInfo constructor in type.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance))
             {
-                if (HasJsonConstructorAttribute(constructor))
+                if (HasRdnConstructorAttribute(constructor))
                 {
                     if (ctorWithAttribute != null)
                     {
@@ -340,7 +340,7 @@ namespace Rdn.Reflection
                 // Interface hierarchies support multiple inheritance.
                 // For consistency with class hierarchy resolution order,
                 // sort topologically from most derived to least derived.
-                return JsonHelpers.TraverseGraphWithTopologicalSort(type, static t => t.GetInterfaces());
+                return RdnHelpers.TraverseGraphWithTopologicalSort(type, static t => t.GetInterfaces());
             }
         }
     }

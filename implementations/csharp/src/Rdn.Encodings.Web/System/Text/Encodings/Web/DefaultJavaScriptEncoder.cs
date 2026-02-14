@@ -9,27 +9,27 @@ namespace Rdn.Encodings.Web
     internal sealed class DefaultJavaScriptEncoder : JavaScriptEncoder
     {
         internal static readonly DefaultJavaScriptEncoder BasicLatinSingleton = new DefaultJavaScriptEncoder(new TextEncoderSettings(UnicodeRanges.BasicLatin));
-        internal static readonly DefaultJavaScriptEncoder UnsafeRelaxedEscapingSingleton = new DefaultJavaScriptEncoder(new TextEncoderSettings(UnicodeRanges.All), allowMinimalJsonEscaping: true);
+        internal static readonly DefaultJavaScriptEncoder UnsafeRelaxedEscapingSingleton = new DefaultJavaScriptEncoder(new TextEncoderSettings(UnicodeRanges.All), allowMinimalRdnEscaping: true);
 
         private readonly OptimizedInboxTextEncoder _innerEncoder;
 
         internal DefaultJavaScriptEncoder(TextEncoderSettings settings)
-            : this(settings, allowMinimalJsonEscaping: false)
+            : this(settings, allowMinimalRdnEscaping: false)
         {
         }
 
-        private DefaultJavaScriptEncoder(TextEncoderSettings settings, bool allowMinimalJsonEscaping)
+        private DefaultJavaScriptEncoder(TextEncoderSettings settings, bool allowMinimalRdnEscaping)
         {
             if (settings is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.settings);
             }
 
-            // '\' (U+005C REVERSE SOLIDUS) must always be escaped in Javascript / ECMAScript / JSON.
-            // '/' (U+002F SOLIDUS) is not Javascript / ECMAScript / JSON-sensitive so doesn't need to be escaped.
+            // '\' (U+005C REVERSE SOLIDUS) must always be escaped in Javascript / ECMAScript / RDN.
+            // '/' (U+002F SOLIDUS) is not Javascript / ECMAScript / RDN-sensitive so doesn't need to be escaped.
             // '`' (U+0060 GRAVE ACCENT) is ECMAScript-sensitive (see ECMA-262).
 
-            _innerEncoder = allowMinimalJsonEscaping
+            _innerEncoder = allowMinimalRdnEscaping
                 ? new OptimizedInboxTextEncoder(EscaperImplementation.SingletonMinimallyEscaped, settings.GetAllowedCodePointsBitmap(), forbidHtmlSensitiveCharacters: false,
                     extraCharactersToEscape: ['\"', '\\'])
                 : new OptimizedInboxTextEncoder(EscaperImplementation.Singleton, settings.GetAllowedCodePointsBitmap(), forbidHtmlSensitiveCharacters: true,

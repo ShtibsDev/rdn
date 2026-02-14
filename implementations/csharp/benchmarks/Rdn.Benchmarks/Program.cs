@@ -1,18 +1,18 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 
-BenchmarkRunner.Run<JsonBenchmarks>();
+BenchmarkRunner.Run<RdnBenchmarks>();
 BenchmarkRunner.Run<RdnDateTimeBenchmarks>();
 BenchmarkRunner.Run<RdnSetBenchmarks>();
 
 [MemoryDiagnoser]
-public class JsonBenchmarks
+public class RdnBenchmarks
 {
     public record Person(string Name, int Age, string Email, string[] Tags);
 
     private static readonly Person TestPerson = new("Alice Smith", 30, "alice@example.com", ["developer", "reader", "hiker"]);
-    private static readonly string TestJson = System.Text.Json.JsonSerializer.Serialize(TestPerson);
-    private static readonly byte[] TestJsonUtf8 = System.Text.Encoding.UTF8.GetBytes(TestJson);
+    private static readonly string TestRdn = System.Text.Json.JsonSerializer.Serialize(TestPerson);
+    private static readonly byte[] TestRdnUtf8 = System.Text.Encoding.UTF8.GetBytes(TestRdn);
 
     // --- Serialization ---
 
@@ -21,32 +21,32 @@ public class JsonBenchmarks
         => System.Text.Json.JsonSerializer.Serialize(TestPerson);
 
     [Benchmark]
-    public string RdnTextJson_Serialize()
-        => Rdn.JsonSerializer.Serialize(TestPerson);
+    public string RdnTextRdn_Serialize()
+        => Rdn.RdnSerializer.Serialize(TestPerson);
 
     // --- Deserialization ---
 
     [Benchmark]
     public Person? SystemTextJson_Deserialize()
-        => System.Text.Json.JsonSerializer.Deserialize<Person>(TestJson);
+        => System.Text.Json.JsonSerializer.Deserialize<Person>(TestRdn);
 
     [Benchmark]
-    public Person? RdnTextJson_Deserialize()
-        => Rdn.JsonSerializer.Deserialize<Person>(TestJson);
+    public Person? RdnTextRdn_Deserialize()
+        => Rdn.RdnSerializer.Deserialize<Person>(TestRdn);
 
     // --- Document Parsing ---
 
     [Benchmark]
     public int SystemTextJson_ParseDocument()
     {
-        using var doc = System.Text.Json.JsonDocument.Parse(TestJson);
+        using var doc = System.Text.Json.JsonDocument.Parse(TestRdn);
         return doc.RootElement.GetProperty("Age").GetInt32();
     }
 
     [Benchmark]
-    public int RdnTextJson_ParseDocument()
+    public int RdnTextRdn_ParseDocument()
     {
-        using var doc = Rdn.JsonDocument.Parse(TestJson);
+        using var doc = Rdn.RdnDocument.Parse(TestRdn);
         return doc.RootElement.GetProperty("Age").GetInt32();
     }
 }
@@ -69,21 +69,21 @@ public class RdnDateTimeBenchmarks
     [Benchmark]
     public void ParseRdnDateTime_FullIso()
     {
-        var reader = new Rdn.Utf8JsonReader(FullIsoBytes);
+        var reader = new Rdn.Utf8RdnReader(FullIsoBytes);
         while (reader.Read()) { }
     }
 
     [Benchmark]
     public void ParseRdnDateTime_UnixTimestamp()
     {
-        var reader = new Rdn.Utf8JsonReader(UnixTimestampBytes);
+        var reader = new Rdn.Utf8RdnReader(UnixTimestampBytes);
         while (reader.Read()) { }
     }
 
     [Benchmark]
     public void ParseRdnTimeOnly()
     {
-        var reader = new Rdn.Utf8JsonReader(TimeOnlyBytes);
+        var reader = new Rdn.Utf8RdnReader(TimeOnlyBytes);
         while (reader.Read()) { }
     }
 
@@ -93,7 +93,7 @@ public class RdnDateTimeBenchmarks
     public byte[] WriteRdnDateTime()
     {
         var buffer = new System.IO.MemoryStream();
-        using (var writer = new Rdn.Utf8JsonWriter(buffer))
+        using (var writer = new Rdn.Utf8RdnWriter(buffer))
         {
             writer.WriteStartObject();
             writer.WritePropertyName("d");
@@ -104,7 +104,7 @@ public class RdnDateTimeBenchmarks
     }
 
     [Benchmark]
-    public byte[] WriteJsonStringDateTime()
+    public byte[] WriteRdnStringDateTime()
     {
         var buffer = new System.IO.MemoryStream();
         using (var writer = new System.Text.Json.Utf8JsonWriter(buffer))
@@ -120,7 +120,7 @@ public class RdnDateTimeBenchmarks
 
     [Benchmark]
     public string SerializeObjectWithDates()
-        => Rdn.JsonSerializer.Serialize(TestEvent);
+        => Rdn.RdnSerializer.Serialize(TestEvent);
 }
 
 [MemoryDiagnoser]
@@ -131,41 +131,41 @@ public class RdnSetBenchmarks
     private static readonly byte[] ImplicitSetStringBytes = System.Text.Encoding.UTF8.GetBytes("{\"a\",\"b\",\"c\"}");
     private static readonly byte[] ObjectBytes = System.Text.Encoding.UTF8.GetBytes("{\"key\":1}");
     private static readonly HashSet<int> TestHashSet = new() { 1, 2, 3, 4, 5 };
-    private static readonly string SerializedHashSet = Rdn.JsonSerializer.Serialize(TestHashSet);
+    private static readonly string SerializedHashSet = Rdn.RdnSerializer.Serialize(TestHashSet);
 
     [Benchmark]
     public void ParseExplicitSet()
     {
-        var reader = new Rdn.Utf8JsonReader(ExplicitSetBytes);
+        var reader = new Rdn.Utf8RdnReader(ExplicitSetBytes);
         while (reader.Read()) { }
     }
 
     [Benchmark]
     public void ParseImplicitSet_NonString()
     {
-        var reader = new Rdn.Utf8JsonReader(ImplicitSetNonStringBytes);
+        var reader = new Rdn.Utf8RdnReader(ImplicitSetNonStringBytes);
         while (reader.Read()) { }
     }
 
     [Benchmark]
     public void ParseImplicitSet_String()
     {
-        var reader = new Rdn.Utf8JsonReader(ImplicitSetStringBytes);
+        var reader = new Rdn.Utf8RdnReader(ImplicitSetStringBytes);
         while (reader.Read()) { }
     }
 
     [Benchmark]
     public void ParseBraceDisambiguation_Object()
     {
-        var reader = new Rdn.Utf8JsonReader(ObjectBytes);
+        var reader = new Rdn.Utf8RdnReader(ObjectBytes);
         while (reader.Read()) { }
     }
 
     [Benchmark]
     public string SerializeHashSet()
-        => Rdn.JsonSerializer.Serialize(TestHashSet);
+        => Rdn.RdnSerializer.Serialize(TestHashSet);
 
     [Benchmark]
     public HashSet<int>? DeserializeHashSet()
-        => Rdn.JsonSerializer.Deserialize<HashSet<int>>(SerializedHashSet);
+        => Rdn.RdnSerializer.Deserialize<HashSet<int>>(SerializedHashSet);
 }

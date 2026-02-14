@@ -7,7 +7,7 @@ namespace Rdn.Tests;
 
 public class RdnSpecialNumberTests
 {
-    #region 1. Utf8JsonReader — standalone parsing
+    #region 1. Utf8RdnReader — standalone parsing
 
     [Theory]
     [InlineData("NaN")]
@@ -16,25 +16,25 @@ public class RdnSpecialNumberTests
     public void Reader_SpecialNumber_Standalone(string input)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(input);
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.False(reader.Read());
     }
 
     [Fact]
     public void Reader_NaN_GetDouble()
     {
-        var reader = new Utf8JsonReader("NaN"u8.ToArray());
+        var reader = new Utf8RdnReader("NaN"u8.ToArray());
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.True(double.IsNaN(reader.GetDouble()));
     }
 
     [Fact]
     public void Reader_Infinity_GetDouble()
     {
-        var reader = new Utf8JsonReader("Infinity"u8.ToArray());
+        var reader = new Utf8RdnReader("Infinity"u8.ToArray());
         Assert.True(reader.Read());
         Assert.True(double.IsPositiveInfinity(reader.GetDouble()));
     }
@@ -42,7 +42,7 @@ public class RdnSpecialNumberTests
     [Fact]
     public void Reader_NegativeInfinity_GetDouble()
     {
-        var reader = new Utf8JsonReader("-Infinity"u8.ToArray());
+        var reader = new Utf8RdnReader("-Infinity"u8.ToArray());
         Assert.True(reader.Read());
         Assert.True(double.IsNegativeInfinity(reader.GetDouble()));
     }
@@ -50,7 +50,7 @@ public class RdnSpecialNumberTests
     [Fact]
     public void Reader_NaN_GetSingle()
     {
-        var reader = new Utf8JsonReader("NaN"u8.ToArray());
+        var reader = new Utf8RdnReader("NaN"u8.ToArray());
         Assert.True(reader.Read());
         Assert.True(float.IsNaN(reader.GetSingle()));
     }
@@ -58,7 +58,7 @@ public class RdnSpecialNumberTests
     [Fact]
     public void Reader_Infinity_GetSingle()
     {
-        var reader = new Utf8JsonReader("Infinity"u8.ToArray());
+        var reader = new Utf8RdnReader("Infinity"u8.ToArray());
         Assert.True(reader.Read());
         Assert.True(float.IsPositiveInfinity(reader.GetSingle()));
     }
@@ -66,28 +66,28 @@ public class RdnSpecialNumberTests
     [Fact]
     public void Reader_NegativeInfinity_GetSingle()
     {
-        var reader = new Utf8JsonReader("-Infinity"u8.ToArray());
+        var reader = new Utf8RdnReader("-Infinity"u8.ToArray());
         Assert.True(reader.Read());
         Assert.True(float.IsNegativeInfinity(reader.GetSingle()));
     }
 
     #endregion
 
-    #region 2. Utf8JsonReader — in objects and arrays
+    #region 2. Utf8RdnReader — in objects and arrays
 
     [Fact]
     public void Reader_SpecialNumbers_InObject()
     {
         var bytes = """{"nan": NaN, "inf": Infinity, "negInf": -Infinity}"""u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
 
         Assert.True(reader.Read()); // StartObject
-        Assert.Equal(JsonTokenType.StartObject, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartObject, reader.TokenType);
 
         Assert.True(reader.Read()); // "nan"
         Assert.Equal("nan", reader.GetString());
         Assert.True(reader.Read()); // NaN
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.True(double.IsNaN(reader.GetDouble()));
 
         Assert.True(reader.Read()); // "inf"
@@ -101,14 +101,14 @@ public class RdnSpecialNumberTests
         Assert.True(double.IsNegativeInfinity(reader.GetDouble()));
 
         Assert.True(reader.Read()); // EndObject
-        Assert.Equal(JsonTokenType.EndObject, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndObject, reader.TokenType);
     }
 
     [Fact]
     public void Reader_SpecialNumbers_InArray()
     {
         var bytes = "[NaN, Infinity, -Infinity, 42]"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
 
         Assert.True(reader.Read()); // StartArray
         Assert.True(reader.Read());
@@ -124,13 +124,13 @@ public class RdnSpecialNumberTests
 
     #endregion
 
-    #region 3. Utf8JsonWriter — bare literal output
+    #region 3. Utf8RdnWriter — bare literal output
 
     [Fact]
     public void Writer_Double_NaN()
     {
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        using (var writer = new Utf8RdnWriter(stream))
         {
             writer.WriteNumberValue(double.NaN);
         }
@@ -141,7 +141,7 @@ public class RdnSpecialNumberTests
     public void Writer_Double_Infinity()
     {
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        using (var writer = new Utf8RdnWriter(stream))
         {
             writer.WriteNumberValue(double.PositiveInfinity);
         }
@@ -152,7 +152,7 @@ public class RdnSpecialNumberTests
     public void Writer_Double_NegativeInfinity()
     {
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        using (var writer = new Utf8RdnWriter(stream))
         {
             writer.WriteNumberValue(double.NegativeInfinity);
         }
@@ -163,7 +163,7 @@ public class RdnSpecialNumberTests
     public void Writer_Float_NaN()
     {
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        using (var writer = new Utf8RdnWriter(stream))
         {
             writer.WriteNumberValue(float.NaN);
         }
@@ -174,7 +174,7 @@ public class RdnSpecialNumberTests
     public void Writer_Float_Infinity()
     {
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        using (var writer = new Utf8RdnWriter(stream))
         {
             writer.WriteNumberValue(float.PositiveInfinity);
         }
@@ -185,7 +185,7 @@ public class RdnSpecialNumberTests
     public void Writer_Float_NegativeInfinity()
     {
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        using (var writer = new Utf8RdnWriter(stream))
         {
             writer.WriteNumberValue(float.NegativeInfinity);
         }
@@ -196,7 +196,7 @@ public class RdnSpecialNumberTests
     public void Writer_SpecialNumbers_InObject()
     {
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        using (var writer = new Utf8RdnWriter(stream))
         {
             writer.WriteStartObject();
             writer.WriteNumber("nan", double.NaN);
@@ -210,12 +210,12 @@ public class RdnSpecialNumberTests
 
     #endregion
 
-    #region 4. JsonDocument — parse + GetDouble, WriteTo roundtrip
+    #region 4. RdnDocument — parse + GetDouble, WriteTo roundtrip
 
     [Fact]
     public void Document_SpecialNumbers_GetDouble()
     {
-        using var doc = JsonDocument.Parse("""{"nan": NaN, "inf": Infinity, "negInf": -Infinity}""");
+        using var doc = RdnDocument.Parse("""{"nan": NaN, "inf": Infinity, "negInf": -Infinity}""");
         var root = doc.RootElement;
 
         Assert.True(double.IsNaN(root.GetProperty("nan").GetDouble()));
@@ -227,10 +227,10 @@ public class RdnSpecialNumberTests
     public void Document_SpecialNumbers_WriteTo_Roundtrip()
     {
         var input = """{"nan":NaN,"inf":Infinity,"negInf":-Infinity}""";
-        using var doc = JsonDocument.Parse(input);
+        using var doc = RdnDocument.Parse(input);
 
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        using (var writer = new Utf8RdnWriter(stream))
         {
             doc.WriteTo(writer);
         }
@@ -247,52 +247,52 @@ public class RdnSpecialNumberTests
     public void Reader_NaN_InImplicitSet()
     {
         var bytes = "{NaN, 1}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.True(double.IsNaN(reader.GetDouble()));
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.Equal(1, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     [Fact]
     public void Reader_NaN_InImplicitMap()
     {
         var bytes = "{NaN => 1}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartMap, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartMap, reader.TokenType);
 
         Assert.True(reader.Read()); // NaN (key)
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.True(double.IsNaN(reader.GetDouble()));
 
         Assert.True(reader.Read()); // 1 (value)
-        Assert.Equal(JsonTokenType.Number, reader.TokenType);
+        Assert.Equal(RdnTokenType.Number, reader.TokenType);
         Assert.Equal(1, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndMap, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndMap, reader.TokenType);
     }
 
     [Fact]
     public void Reader_NegativeInfinity_InImplicitSet()
     {
         var bytes = "{-Infinity, 1}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
         Assert.True(double.IsNegativeInfinity(reader.GetDouble()));
@@ -301,17 +301,17 @@ public class RdnSpecialNumberTests
         Assert.Equal(1, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     [Fact]
     public void Reader_Infinity_InImplicitSet()
     {
         var bytes = "{Infinity, 1}"u8.ToArray();
-        var reader = new Utf8JsonReader(bytes);
+        var reader = new Utf8RdnReader(bytes);
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.StartSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.StartSet, reader.TokenType);
 
         Assert.True(reader.Read());
         Assert.True(double.IsPositiveInfinity(reader.GetDouble()));
@@ -320,7 +320,7 @@ public class RdnSpecialNumberTests
         Assert.Equal(1, reader.GetInt32());
 
         Assert.True(reader.Read());
-        Assert.Equal(JsonTokenType.EndSet, reader.TokenType);
+        Assert.Equal(RdnTokenType.EndSet, reader.TokenType);
     }
 
     #endregion
@@ -338,50 +338,50 @@ public class RdnSpecialNumberTests
     public void Reader_InvalidVariants_Throw(string input)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(input);
-        Assert.ThrowsAny<JsonException>(() =>
+        Assert.ThrowsAny<RdnException>(() =>
         {
-            var reader = new Utf8JsonReader(bytes);
+            var reader = new Utf8RdnReader(bytes);
             reader.Read();
         });
     }
 
     #endregion
 
-    #region 7. JsonSerializer — serialize/deserialize
+    #region 7. RdnSerializer — serialize/deserialize
 
     [Fact]
     public void Serializer_Double_NaN_Roundtrip()
     {
-        string rdn = JsonSerializer.Serialize(double.NaN);
+        string rdn = RdnSerializer.Serialize(double.NaN);
         Assert.Equal("NaN", rdn);
-        double result = JsonSerializer.Deserialize<double>(rdn);
+        double result = RdnSerializer.Deserialize<double>(rdn);
         Assert.True(double.IsNaN(result));
     }
 
     [Fact]
     public void Serializer_Double_Infinity_Roundtrip()
     {
-        string rdn = JsonSerializer.Serialize(double.PositiveInfinity);
+        string rdn = RdnSerializer.Serialize(double.PositiveInfinity);
         Assert.Equal("Infinity", rdn);
-        double result = JsonSerializer.Deserialize<double>(rdn);
+        double result = RdnSerializer.Deserialize<double>(rdn);
         Assert.True(double.IsPositiveInfinity(result));
     }
 
     [Fact]
     public void Serializer_Double_NegativeInfinity_Roundtrip()
     {
-        string rdn = JsonSerializer.Serialize(double.NegativeInfinity);
+        string rdn = RdnSerializer.Serialize(double.NegativeInfinity);
         Assert.Equal("-Infinity", rdn);
-        double result = JsonSerializer.Deserialize<double>(rdn);
+        double result = RdnSerializer.Deserialize<double>(rdn);
         Assert.True(double.IsNegativeInfinity(result));
     }
 
     [Fact]
     public void Serializer_Float_NaN_Roundtrip()
     {
-        string rdn = JsonSerializer.Serialize(float.NaN);
+        string rdn = RdnSerializer.Serialize(float.NaN);
         Assert.Equal("NaN", rdn);
-        float result = JsonSerializer.Deserialize<float>(rdn);
+        float result = RdnSerializer.Deserialize<float>(rdn);
         Assert.True(float.IsNaN(result));
     }
 
@@ -389,7 +389,7 @@ public class RdnSpecialNumberTests
     public void Serializer_ObjectWithSpecialNumbers()
     {
         var input = new { nan = double.NaN, inf = double.PositiveInfinity, negInf = double.NegativeInfinity };
-        string rdn = JsonSerializer.Serialize(input);
+        string rdn = RdnSerializer.Serialize(input);
         Assert.Contains("NaN", rdn);
         Assert.Contains("Infinity", rdn);
         Assert.Contains("-Infinity", rdn);
@@ -405,19 +405,19 @@ public class RdnSpecialNumberTests
         var input = """{"nan":NaN,"inf":Infinity,"negInf":-Infinity}""";
 
         // Parse
-        using var doc1 = JsonDocument.Parse(input);
+        using var doc1 = RdnDocument.Parse(input);
         Assert.True(double.IsNaN(doc1.RootElement.GetProperty("nan").GetDouble()));
 
         // Serialize
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        using (var writer = new Utf8RdnWriter(stream))
         {
             doc1.WriteTo(writer);
         }
         var serialized = System.Text.Encoding.UTF8.GetString(stream.ToArray());
 
         // Parse again
-        using var doc2 = JsonDocument.Parse(serialized);
+        using var doc2 = RdnDocument.Parse(serialized);
         Assert.True(double.IsNaN(doc2.RootElement.GetProperty("nan").GetDouble()));
         Assert.True(double.IsPositiveInfinity(doc2.RootElement.GetProperty("inf").GetDouble()));
         Assert.True(double.IsNegativeInfinity(doc2.RootElement.GetProperty("negInf").GetDouble()));
