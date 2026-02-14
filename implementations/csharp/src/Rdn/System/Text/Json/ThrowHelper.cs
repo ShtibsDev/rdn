@@ -464,6 +464,12 @@ namespace Rdn
                 case ExceptionResource.ExpectedFalse:
                     message = SR.Format(SR.ExpectedFalse, characters);
                     break;
+                case ExceptionResource.ExpectedNaN:
+                    message = SR.Format(SR.ExpectedNaN, characters);
+                    break;
+                case ExceptionResource.ExpectedInfinity:
+                    message = SR.Format(SR.ExpectedInfinity, characters);
+                    break;
                 case ExceptionResource.ExpectedNull:
                     message = SR.Format(SR.ExpectedNull, characters);
                     break;
@@ -774,6 +780,8 @@ namespace Rdn
         ExpectedEndAfterSingleJson,
         ExpectedEndOfDigitNotFound,
         ExpectedFalse,
+        ExpectedNaN,
+        ExpectedInfinity,
         ExpectedNextDigitEValueNotFound,
         ExpectedNull,
         ExpectedSeparatorAfterPropertyNameNotFound,

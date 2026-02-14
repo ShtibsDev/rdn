@@ -106,6 +106,8 @@ namespace Rdn
         internal static string ExpectedEndAfterSingleJson => GetResourceString("ExpectedEndAfterSingleJson");
         internal static string ExpectedEndOfDigitNotFound => GetResourceString("ExpectedEndOfDigitNotFound");
         internal static string ExpectedFalse => GetResourceString("ExpectedFalse");
+        internal static string ExpectedNaN => GetResourceString("ExpectedNaN");
+        internal static string ExpectedInfinity => GetResourceString("ExpectedInfinity");
         internal static string ExpectedJsonTokens => GetResourceString("ExpectedJsonTokens");
         internal static string ExpectedNextDigitEValueNotFound => GetResourceString("ExpectedNextDigitEValueNotFound");
         internal static string ExpectedNull => GetResourceString("ExpectedNull");

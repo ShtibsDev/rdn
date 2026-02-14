@@ -1152,6 +1152,12 @@ namespace Rdn
                 return true;
             }
 
+            // Fall back to NaN/Infinity/−Infinity
+            if (JsonReaderHelper.TryGetFloatingPointConstant(span, out value))
+            {
+                return true;
+            }
+
             value = 0;
             return false;
         }
@@ -1179,6 +1185,12 @@ namespace Rdn
                 && span.Length == bytesConsumed)
             {
                 value = tmp;
+                return true;
+            }
+
+            // Fall back to NaN/Infinity/−Infinity
+            if (JsonReaderHelper.TryGetFloatingPointConstant(span, out value))
+            {
                 return true;
             }
 

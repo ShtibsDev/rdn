@@ -186,6 +186,12 @@
   <data name="ExpectedFalse" xml:space="preserve">
     <value>'{0}' is an invalid JSON literal. Expected the literal 'false'.</value>
   </data>
+  <data name="ExpectedNaN" xml:space="preserve">
+    <value>'{0}' is an invalid RDN literal. Expected the literal 'NaN'.</value>
+  </data>
+  <data name="ExpectedInfinity" xml:space="preserve">
+    <value>'{0}' is an invalid RDN literal. Expected the literal 'Infinity' or '-Infinity'.</value>
+  </data>
   <data name="ExpectedJsonTokens" xml:space="preserve">
     <value>The input does not contain any JSON tokens. Expected the input to start with a valid JSON token, when isFinalBlock is true.</value>
   </data>

@@ -376,6 +376,22 @@ namespace Rdn
             {
                 if (JsonHelpers.IsDigit(first) || first == '-')
                 {
+                    if (first == '-')
+                    {
+                        int nextIdx = _consumed + 1;
+                        if (nextIdx < _buffer.Length && _buffer[nextIdx] == (byte)'I')
+                        {
+                            if (!ConsumeLiteralMultiSegment(JsonConstants.NegativeInfinityValue, JsonTokenType.Number))
+                            {
+                                return false;
+                            }
+                            goto DoneReadingFirstTokenMultiSegment;
+                        }
+                        if (nextIdx >= _buffer.Length && !IsLastSpan)
+                        {
+                            return false; // need more data
+                        }
+                    }
                     if (!TryGetNumberMultiSegment(_buffer.Slice(_consumed), out int numberOfBytes))
                     {
                         return false;
@@ -388,6 +404,7 @@ namespace Rdn
                     return false;
                 }
 
+            DoneReadingFirstTokenMultiSegment:
                 _isNotPrimitive = _tokenType is JsonTokenType.StartObject or JsonTokenType.StartArray or JsonTokenType.StartSet or JsonTokenType.StartMap;
                 // Intentionally fall out of the if-block to return true
             }
@@ -438,7 +455,27 @@ namespace Rdn
                 }
                 else if (JsonHelpers.IsDigit(marker) || marker == '-')
                 {
+                    if (marker == '-')
+                    {
+                        int nextIdx = _consumed + 1;
+                        if (nextIdx < _buffer.Length && _buffer[nextIdx] == (byte)'I')
+                        {
+                            return ConsumeLiteralMultiSegment(JsonConstants.NegativeInfinityValue, JsonTokenType.Number);
+                        }
+                        if (nextIdx >= _buffer.Length && !IsLastSpan)
+                        {
+                            return false; // need more data
+                        }
+                    }
                     return ConsumeNumberMultiSegment();
+                }
+                else if (marker == (byte)'N')
+                {
+                    return ConsumeLiteralMultiSegment(JsonConstants.NaNValue, JsonTokenType.Number);
+                }
+                else if (marker == (byte)'I')
+                {
+                    return ConsumeLiteralMultiSegment(JsonConstants.PositiveInfinityValue, JsonTokenType.Number);
                 }
                 else if (marker == 'f')
                 {
@@ -537,12 +574,12 @@ namespace Rdn
             return true;
         }
 
-        // Consumes 'null', or 'true', or 'false'
+        // Consumes 'null', 'true', 'false', 'NaN', 'Infinity', or '-Infinity'
         private bool ConsumeLiteralMultiSegment(ReadOnlySpan<byte> literal, JsonTokenType tokenType)
         {
             ReadOnlySpan<byte> span = _buffer.Slice(_consumed);
             Debug.Assert(span.Length > 0);
-            Debug.Assert(span[0] == 'n' || span[0] == 't' || span[0] == 'f');
+            Debug.Assert(span[0] == 'n' || span[0] == 't' || span[0] == 'f' || span[0] == 'N' || span[0] == 'I' || span[0] == '-');
 
             int consumed = literal.Length;
 
@@ -697,6 +734,13 @@ namespace Rdn
                     break;
                 case (byte)'f':
                     resource = ExceptionResource.ExpectedFalse;
+                    break;
+                case (byte)'N':
+                    resource = ExceptionResource.ExpectedNaN;
+                    break;
+                case (byte)'I':
+                case (byte)'-':
+                    resource = ExceptionResource.ExpectedInfinity;
                     break;
                 default:
                     Debug.Assert(firstByte == 'n');

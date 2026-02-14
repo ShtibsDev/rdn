@@ -193,6 +193,56 @@ writer.WriteEndObject();
 // => {"tags":Set{"a"}}
 ```
 
+## Special Numeric Values (NaN / Infinity)
+
+RDN treats `NaN`, `Infinity`, and `-Infinity` as bare number literals (like `true`/`false`/`null`), not quoted strings.
+
+| Value | Literal |
+|-------|---------|
+| Not a Number | `NaN` |
+| Positive Infinity | `Infinity` |
+| Negative Infinity | `-Infinity` |
+
+```rdn
+{
+  "nan": NaN,
+  "inf": Infinity,
+  "negInf": -Infinity
+}
+```
+
+### Serialize / Deserialize
+
+```csharp
+using Rdn;
+
+// Non-finite doubles serialize as bare literals
+string rdn = JsonSerializer.Serialize(double.NaN);       // => NaN
+string rdn2 = JsonSerializer.Serialize(double.PositiveInfinity); // => Infinity
+
+double nan = JsonSerializer.Deserialize<double>("NaN");   // double.NaN
+double inf = JsonSerializer.Deserialize<double>("Infinity"); // double.PositiveInfinity
+```
+
+### Document API
+
+```csharp
+using var doc = JsonDocument.Parse("{\"nan\": NaN, \"inf\": Infinity}");
+double nan = doc.RootElement.GetProperty("nan").GetDouble();   // double.NaN
+double inf = doc.RootElement.GetProperty("inf").GetDouble();   // double.PositiveInfinity
+```
+
+### Writer
+
+```csharp
+writer.WriteStartObject();
+writer.WriteNumber("nan", double.NaN);              // NaN
+writer.WriteNumber("inf", double.PositiveInfinity);  // Infinity
+writer.WriteNumber("negInf", double.NegativeInfinity); // -Infinity
+writer.WriteEndObject();
+// => {"nan":NaN,"inf":Infinity,"negInf":-Infinity}
+```
+
 ### RdnDuration
 
 `TimeSpan` cannot represent years or months. `RdnDuration` preserves the original ISO 8601 string and offers a best-effort conversion:
@@ -212,10 +262,11 @@ simple.TryToTimeSpan(out TimeSpan ts); // true, ts = 04:30:00
 - [x] DateTime (`@2024-01-15T10:30:00.000Z`)
 - [x] TimeOnly (`@14:30:00`)
 - [x] Duration (`@PT4H30M`)
+- [x] NaN / Infinity / -Infinity
 - [ ] BigInteger
 - [ ] Regex
 - [ ] Binary (`byte[]`)
-- [ ] Map
+- [x] Map
 - [x] Set
 - [ ] Tuple
 - [ ] Conform to the shared test suite in `test-suite/`

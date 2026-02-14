@@ -112,7 +112,7 @@ namespace Rdn
         public const int MinimumDateTimeParseLength = 10; // YYYY-MM-DD
         public const int MaximumEscapedDateTimeOffsetParseLength = MaxExpansionFactorWhileEscaping * MaximumDateTimeOffsetParseLength;
 
-        public const int MaximumLiteralLength = 5; // Must be able to fit null, true, & false.
+        public const int MaximumLiteralLength = 9; // Must be able to fit null, true, false, NaN, Infinity, & -Infinity.
 
         // Encoding Helpers
         public const char HighSurrogateStart = '\ud800';

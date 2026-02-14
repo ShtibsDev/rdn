@@ -30,7 +30,19 @@ namespace Rdn
                 ValidateWritingValue();
             }
 
-            if (_options.Indented)
+            if (!double.IsFinite(value))
+            {
+                ReadOnlySpan<byte> literal = double.IsNaN(value) ? JsonConstants.NaNValue : double.IsPositiveInfinity(value) ? JsonConstants.PositiveInfinityValue : JsonConstants.NegativeInfinityValue;
+                if (_options.Indented)
+                {
+                    WriteNumberValueIndented(literal);
+                }
+                else
+                {
+                    WriteNumberValueMinimized(literal);
+                }
+            }
+            else if (_options.Indented)
             {
                 WriteNumberValueIndented(value);
             }
@@ -152,22 +164,7 @@ namespace Rdn
 
         internal void WriteFloatingPointConstant(double value)
         {
-            if (double.IsNaN(value))
-            {
-                WriteNumberValueAsStringUnescaped(JsonConstants.NaNValue);
-            }
-            else if (double.IsPositiveInfinity(value))
-            {
-                WriteNumberValueAsStringUnescaped(JsonConstants.PositiveInfinityValue);
-            }
-            else if (double.IsNegativeInfinity(value))
-            {
-                WriteNumberValueAsStringUnescaped(JsonConstants.NegativeInfinityValue);
-            }
-            else
-            {
-                WriteNumberValue(value);
-            }
+            WriteNumberValue(value);
         }
     }
 }

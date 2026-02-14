@@ -78,19 +78,13 @@ namespace Rdn
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ValidateDouble(double value)
         {
-            if (!JsonHelpers.IsFinite(value))
-            {
-                ThrowHelper.ThrowArgumentException_ValueNotSupported();
-            }
+            // RDN supports NaN, Infinity, and -Infinity as bare number literals.
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ValidateSingle(float value)
         {
-            if (!JsonHelpers.IsFinite(value))
-            {
-                ThrowHelper.ThrowArgumentException_ValueNotSupported();
-            }
+            // RDN supports NaN, Infinity, and -Infinity as bare number literals.
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -157,6 +151,14 @@ namespace Rdn
             // The Debug.Asserts in this method should change to validated ArgumentExceptions if/when
             // writing a formatted number becomes public API.
             Debug.Assert(!utf8FormattedNumber.IsEmpty);
+
+            // RDN supports NaN, Infinity, and -Infinity as bare number literals.
+            if (utf8FormattedNumber.SequenceEqual(JsonConstants.NaNValue) ||
+                utf8FormattedNumber.SequenceEqual(JsonConstants.PositiveInfinityValue) ||
+                utf8FormattedNumber.SequenceEqual(JsonConstants.NegativeInfinityValue))
+            {
+                return;
+            }
 
             int i = 0;
 

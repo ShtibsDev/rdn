@@ -1211,9 +1211,18 @@ namespace Rdn
 
             byte first = buffer[pos];
 
-            // Numbers: scan digits, -, +, ., e, E
+            // NaN (3), Infinity (8)
+            if (first == (byte)'N') return pos + 3 <= buffer.Length ? pos + 3 : -1;
+            if (first == (byte)'I') return pos + 8 <= buffer.Length ? pos + 8 : -1;
+
+            // Numbers: scan digits, -, +, ., e, E (also check for -Infinity)
             if (JsonHelpers.IsDigit(first) || first == (byte)'-')
             {
+                // Check for -Infinity
+                if (first == (byte)'-' && pos + 1 < buffer.Length && buffer[pos + 1] == (byte)'I')
+                {
+                    return pos + 9 <= buffer.Length ? pos + 9 : -1;
+                }
                 pos++;
                 while (pos < buffer.Length)
                 {
@@ -1505,6 +1514,22 @@ namespace Rdn
 
                 if (JsonHelpers.IsDigit(first) || first == '-')
                 {
+                    if (first == '-')
+                    {
+                        int nextIdx = _consumed + 1;
+                        if (nextIdx < localBuffer.Length && localBuffer[nextIdx] == (byte)'I')
+                        {
+                            if (!ConsumeLiteral(JsonConstants.NegativeInfinityValue, JsonTokenType.Number))
+                            {
+                                return false;
+                            }
+                            goto DoneReadingFirstToken;
+                        }
+                        if (nextIdx >= localBuffer.Length && !IsLastSpan)
+                        {
+                            return false; // need more data
+                        }
+                    }
                     if (!TryGetNumber(localBuffer.Slice(_consumed), out int numberOfBytes))
                     {
                         return false;
@@ -1518,6 +1543,7 @@ namespace Rdn
                     return false;
                 }
 
+            DoneReadingFirstToken:
                 _isNotPrimitive = _tokenType is JsonTokenType.StartObject or JsonTokenType.StartArray or JsonTokenType.StartSet or JsonTokenType.StartMap;
                 // Intentionally fall out of the if-block to return true
             }
@@ -1579,7 +1605,27 @@ namespace Rdn
                 }
                 else if (JsonHelpers.IsDigit(marker) || marker == '-')
                 {
+                    if (marker == '-')
+                    {
+                        int nextIdx = _consumed + 1;
+                        if (nextIdx < _buffer.Length && _buffer[nextIdx] == (byte)'I')
+                        {
+                            return ConsumeLiteral(JsonConstants.NegativeInfinityValue, JsonTokenType.Number);
+                        }
+                        if (nextIdx >= _buffer.Length && !IsLastSpan)
+                        {
+                            return false; // need more data
+                        }
+                    }
                     return ConsumeNumber();
+                }
+                else if (marker == (byte)'N')
+                {
+                    return ConsumeLiteral(JsonConstants.NaNValue, JsonTokenType.Number);
+                }
+                else if (marker == (byte)'I')
+                {
+                    return ConsumeLiteral(JsonConstants.PositiveInfinityValue, JsonTokenType.Number);
                 }
                 else if (marker == 'f')
                 {
@@ -1661,12 +1707,12 @@ namespace Rdn
             return true;
         }
 
-        // Consumes 'null', or 'true', or 'false'
+        // Consumes 'null', 'true', 'false', 'NaN', 'Infinity', or '-Infinity'
         private bool ConsumeLiteral(ReadOnlySpan<byte> literal, JsonTokenType tokenType)
         {
             ReadOnlySpan<byte> span = _buffer.Slice(_consumed);
             Debug.Assert(span.Length > 0);
-            Debug.Assert(span[0] == 'n' || span[0] == 't' || span[0] == 'f');
+            Debug.Assert(span[0] == 'n' || span[0] == 't' || span[0] == 'f' || span[0] == 'N' || span[0] == 'I' || span[0] == '-');
 
             if (!span.StartsWith(literal))
             {
@@ -1725,6 +1771,13 @@ namespace Rdn
                     break;
                 case (byte)'f':
                     resource = ExceptionResource.ExpectedFalse;
+                    break;
+                case (byte)'N':
+                    resource = ExceptionResource.ExpectedNaN;
+                    break;
+                case (byte)'I':
+                case (byte)'-':
+                    resource = ExceptionResource.ExpectedInfinity;
                     break;
                 default:
                     Debug.Assert(firstByte == 'n');
