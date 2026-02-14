@@ -106,6 +106,104 @@ namespace Rdn
         }
 
         /// <summary>
+        /// Consumes an RDN regex literal: /pattern/flags
+        /// ValueSpan is set to "pattern/flags" (between opening / and end of flags).
+        /// </summary>
+        private bool ConsumeRegex()
+        {
+            ReadOnlySpan<byte> buffer = _buffer;
+            int start = _consumed;
+            Debug.Assert(buffer[start] == JsonConstants.Slash);
+
+            int patternStart = start + 1;
+
+            if (patternStart >= buffer.Length)
+            {
+                if (_isFinalBlock)
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, JsonConstants.Slash);
+                }
+                return false;
+            }
+
+            // Empty body // is invalid per grammar (requires 1+ chars)
+            if (buffer[patternStart] == JsonConstants.Slash)
+            {
+                ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, JsonConstants.Slash);
+            }
+
+            // Phase 1: Scan for closing /
+            bool hasEscape = false;
+            int i = patternStart;
+            while (i < buffer.Length)
+            {
+                byte b = buffer[i];
+                if (b == JsonConstants.BackSlash)
+                {
+                    hasEscape = true;
+                    i += 2; // Skip escaped char
+                    if (i > buffer.Length)
+                    {
+                        if (_isFinalBlock)
+                        {
+                            ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, JsonConstants.Slash);
+                        }
+                        return false;
+                    }
+                    continue;
+                }
+                if (b == JsonConstants.Slash)
+                {
+                    break;
+                }
+                if (b == 0) // NUL not allowed
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, b);
+                }
+                i++;
+            }
+
+            if (i >= buffer.Length)
+            {
+                if (_isFinalBlock)
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, JsonConstants.Slash);
+                }
+                return false;
+            }
+
+            // i now points at the closing /
+            int closingSlash = i;
+
+            // Phase 2: Consume flags after closing /
+            int flagStart = closingSlash + 1;
+            int flagEnd = flagStart;
+            while (flagEnd < buffer.Length && RdnCharTables.IsRegexFlag(buffer[flagEnd]))
+            {
+                flagEnd++;
+            }
+
+            // If we're at end of buffer and not final, we may need more data for flags
+            if (flagEnd >= buffer.Length && !_isFinalBlock)
+            {
+                return false;
+            }
+
+            // Phase 3: Set state
+            // ValueSpan = "pattern/flags" (from patternStart to flagEnd, includes the middle /)
+            int valueLength = flagEnd - patternStart;
+            ValueSpan = buffer.Slice(patternStart, valueLength);
+            ValueIsEscaped = hasEscape;
+            _tokenType = JsonTokenType.RdnRegExp;
+            int totalConsumed = flagEnd - start; // opening / + pattern + closing / + flags
+            _consumed += totalConsumed;
+            _bytePositionInLine += totalConsumed;
+            _isNotPrimitive = false;
+
+            return true;
+        }
+
+        /// <summary>
         /// Scans forward from bodyStart to find the end of an RDN literal body using the terminator lookup table.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

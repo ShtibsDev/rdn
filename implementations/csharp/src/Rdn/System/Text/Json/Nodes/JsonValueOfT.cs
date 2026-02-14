@@ -98,6 +98,11 @@ namespace Rdn.Nodes
                 return JsonValueKind.String;
             }
 
+            if (type == typeof(System.Text.RegularExpressions.Regex))
+            {
+                return JsonValueKind.RdnRegExp;
+            }
+
 #if NET
             if (type == typeof(Half) || type == typeof(UInt128) || type == typeof(Int128))
             {

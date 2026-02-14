@@ -94,23 +94,28 @@ namespace Rdn
         RdnDuration = 14,
 
         /// <summary>
+        ///   Indicates that the token type is an RDN RegExp literal (e.g. <c>/^[a-z]+$/gi</c>).
+        /// </summary>
+        RdnRegExp = 15,
+
+        /// <summary>
         ///   Indicates that the token type is the start of an RDN Set.
         /// </summary>
-        StartSet = 15,
+        StartSet = 16,
 
         /// <summary>
         ///   Indicates that the token type is the end of an RDN Set.
         /// </summary>
-        EndSet = 16,
+        EndSet = 17,
 
         /// <summary>
         ///   Indicates that the token type is the start of an RDN Map.
         /// </summary>
-        StartMap = 17,
+        StartMap = 18,
 
         /// <summary>
         ///   Indicates that the token type is the end of an RDN Map.
         /// </summary>
-        EndMap = 18,
+        EndMap = 19,
     }
 }

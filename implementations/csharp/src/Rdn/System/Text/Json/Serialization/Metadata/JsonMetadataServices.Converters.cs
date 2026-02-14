@@ -74,6 +74,13 @@ namespace Rdn.Serialization.Metadata
         private static JsonConverter<RdnDuration>? s_rdnDurationConverter;
 
         /// <summary>
+        /// Returns a <see cref="JsonConverter{T}"/> instance that converts <see cref="System.Text.RegularExpressions.Regex"/> values.
+        /// </summary>
+        /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
+        public static JsonConverter<System.Text.RegularExpressions.Regex> RegexConverter => s_regexConverter ??= new RegexConverter();
+        private static JsonConverter<System.Text.RegularExpressions.Regex>? s_regexConverter;
+
+        /// <summary>
         /// Returns a <see cref="JsonConverter{T}"/> instance that converts <see cref="decimal"/> values.
         /// </summary>
         /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>

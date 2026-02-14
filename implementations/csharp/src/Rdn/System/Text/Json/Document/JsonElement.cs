@@ -1211,6 +1211,39 @@ namespace Rdn
             return _parent.TryGetRdnDuration(_idx, out value);
         }
 
+        /// <summary>
+        /// Gets the source of the element as an RDN RegExp.
+        /// </summary>
+        public string GetRdnRegExpSource()
+        {
+            if (!TryGetRdnRegExp(out string source, out _))
+            {
+                ThrowHelper.ThrowFormatException();
+            }
+            return source;
+        }
+
+        /// <summary>
+        /// Gets the flags of the element as an RDN RegExp.
+        /// </summary>
+        public string GetRdnRegExpFlags()
+        {
+            if (!TryGetRdnRegExp(out _, out string flags))
+            {
+                ThrowHelper.ThrowFormatException();
+            }
+            return flags;
+        }
+
+        /// <summary>
+        /// Attempts to get the source and flags of the element as an RDN RegExp.
+        /// </summary>
+        public bool TryGetRdnRegExp(out string source, out string flags)
+        {
+            CheckValidInstance();
+            return _parent.TryGetRdnRegExp(_idx, out source, out flags);
+        }
+
         internal string GetPropertyName()
         {
             CheckValidInstance();
@@ -1781,6 +1814,11 @@ namespace Rdn
                     {
                         Debug.Assert(_parent != null);
                         return "@" + _parent.GetRawValueAsString(_idx);
+                    }
+                case JsonTokenType.RdnRegExp:
+                    {
+                        Debug.Assert(_parent != null);
+                        return "/" + _parent.GetRawValueAsString(_idx);
                     }
                 case JsonTokenType.Comment:
                 case JsonTokenType.EndArray:

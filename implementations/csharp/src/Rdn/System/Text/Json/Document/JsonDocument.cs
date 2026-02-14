@@ -802,6 +802,47 @@ namespace Rdn
             return true;
         }
 
+        internal bool TryGetRdnRegExp(int index, out string source, out string flags)
+        {
+            CheckNotDisposed();
+
+            DbRow row = _parsedData.Get(index);
+
+            if (row.TokenType != JsonTokenType.RdnRegExp)
+            {
+                source = string.Empty;
+                flags = string.Empty;
+                return false;
+            }
+
+            ReadOnlySpan<byte> data = _utf8Json.Span;
+            ReadOnlySpan<byte> segment = data.Slice(row.Location, row.SizeOrLength);
+
+            // segment is "pattern/flags" — find the last /
+            int lastSlash = segment.LastIndexOf(JsonConstants.Slash);
+            if (lastSlash < 0)
+            {
+                source = string.Empty;
+                flags = string.Empty;
+                return false;
+            }
+
+            ReadOnlySpan<byte> sourceSpan = segment.Slice(0, lastSlash);
+            ReadOnlySpan<byte> flagsSpan = segment.Slice(lastSlash + 1);
+
+            if (row.HasComplexChildren) // HasComplexChildren means ValueIsEscaped for simple values
+            {
+                source = JsonReaderHelper.GetUnescapedString(sourceSpan);
+            }
+            else
+            {
+                source = System.Text.Encoding.UTF8.GetString(sourceSpan);
+            }
+
+            flags = System.Text.Encoding.UTF8.GetString(flagsSpan);
+            return true;
+        }
+
         internal bool TryGetValue(int index, out Guid value)
         {
             CheckNotDisposed();
@@ -891,6 +932,9 @@ namespace Rdn
                 case JsonTokenType.RdnDuration:
                     WriteRdnLiteral(row, writer);
                     return;
+                case JsonTokenType.RdnRegExp:
+                    WriteRdnRegExp(row, writer);
+                    return;
             }
 
             Debug.Fail($"Unexpected encounter with JsonTokenType {row.TokenType}");
@@ -902,6 +946,16 @@ namespace Rdn
             // Write as raw: @ + body
             Span<byte> buffer = stackalloc byte[1 + body.Length];
             buffer[0] = JsonConstants.AtSign;
+            body.CopyTo(buffer.Slice(1));
+            writer.WriteRawValue(buffer, skipInputValidation: true);
+        }
+
+        private void WriteRdnRegExp(DbRow row, Utf8JsonWriter writer)
+        {
+            ReadOnlySpan<byte> body = _utf8Json.Slice(row.Location, row.SizeOrLength).Span;
+            // Write as raw: / + body (body already contains pattern/flags with closing /)
+            Span<byte> buffer = stackalloc byte[1 + body.Length];
+            buffer[0] = JsonConstants.Slash;
             body.CopyTo(buffer.Slice(1));
             writer.WriteRawValue(buffer, skipInputValidation: true);
         }
@@ -963,6 +1017,10 @@ namespace Rdn
                     case JsonTokenType.RdnTimeOnly:
                     case JsonTokenType.RdnDuration:
                         WriteRdnLiteral(row, writer);
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
+                        continue;
+                    case JsonTokenType.RdnRegExp:
+                        WriteRdnRegExp(row, writer);
                         if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         continue;
                     case JsonTokenType.StartObject:
@@ -1271,7 +1329,7 @@ namespace Rdn
                 }
                 else
                 {
-                    Debug.Assert((tokenType >= JsonTokenType.String && tokenType <= JsonTokenType.Null) || tokenType == JsonTokenType.RdnDateTime || tokenType == JsonTokenType.RdnTimeOnly || tokenType == JsonTokenType.RdnDuration);
+                    Debug.Assert((tokenType >= JsonTokenType.String && tokenType <= JsonTokenType.Null) || tokenType == JsonTokenType.RdnDateTime || tokenType == JsonTokenType.RdnTimeOnly || tokenType == JsonTokenType.RdnDuration || tokenType == JsonTokenType.RdnRegExp);
                     numberOfRowsForValues++;
                     numberOfRowsForMembers++;
 
@@ -1298,6 +1356,17 @@ namespace Rdn
                         Debug.Assert(tokenStart < int.MaxValue);
 
                         database.Append(tokenType, tokenStart + 1, reader.ValueSpan.Length);
+                    }
+                    else if (tokenType == JsonTokenType.RdnRegExp)
+                    {
+                        // Store the full /pattern/flags span as the value
+                        // ValueSpan from reader contains pattern/flags (without outer slashes)
+                        database.Append(tokenType, tokenStart + 1, reader.ValueSpan.Length);
+
+                        if (reader.ValueIsEscaped)
+                        {
+                            database.SetHasComplexChildren(database.Length - DbRow.Size);
+                        }
                     }
                     else
                     {

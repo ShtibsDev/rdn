@@ -40,7 +40,7 @@ namespace Rdn.Serialization.Metadata
 
         private static Dictionary<Type, JsonConverter> GetDefaultSimpleConverters()
         {
-            const int NumberOfSimpleConverters = 32;
+            const int NumberOfSimpleConverters = 33;
             var converters = new Dictionary<Type, JsonConverter>(NumberOfSimpleConverters);
 
             // Use a dictionary for simple converters.
@@ -81,6 +81,7 @@ namespace Rdn.Serialization.Metadata
             Add(JsonMetadataServices.UriConverter);
             Add(JsonMetadataServices.VersionConverter);
             Add(JsonMetadataServices.RdnDurationConverter);
+            Add(JsonMetadataServices.RegexConverter);
 
             Debug.Assert(converters.Count <= NumberOfSimpleConverters);
 

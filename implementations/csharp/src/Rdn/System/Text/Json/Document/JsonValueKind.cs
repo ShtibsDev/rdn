@@ -64,6 +64,11 @@ namespace Rdn
         RdnDuration,
 
         /// <summary>
+        ///   Indicates that a value is an RDN RegExp literal.
+        /// </summary>
+        RdnRegExp,
+
+        /// <summary>
         ///   Indicates that a value is an RDN Set.
         /// </summary>
         Set,

@@ -1385,6 +1385,94 @@ namespace Rdn
             return JsonReaderHelper.TryGetValue(span, ValueIsEscaped, out value);
         }
 
+        // --- RDN Regex API ---
+
+        /// <summary>
+        /// Gets the source (pattern) of the current RDN RegExp token.
+        /// </summary>
+        public string GetRdnRegExpSource()
+        {
+            if (TokenType != JsonTokenType.RdnRegExp)
+            {
+                ThrowHelper.ThrowInvalidOperationException_ExpectedString(TokenType);
+            }
+
+            ReadOnlySpan<byte> span = HasValueSequence ? ValueSequence.ToArray() : ValueSpan;
+            // ValueSpan is "pattern/flags" — find the last /
+            int lastSlash = span.LastIndexOf(JsonConstants.Slash);
+            if (lastSlash < 0)
+            {
+                ThrowHelper.ThrowFormatException();
+            }
+
+            ReadOnlySpan<byte> source = span.Slice(0, lastSlash);
+
+            if (ValueIsEscaped)
+            {
+                return JsonReaderHelper.GetUnescapedString(source);
+            }
+
+            return JsonReaderHelper.TranscodeHelper(source);
+        }
+
+        /// <summary>
+        /// Gets the flags of the current RDN RegExp token.
+        /// </summary>
+        public string GetRdnRegExpFlags()
+        {
+            if (TokenType != JsonTokenType.RdnRegExp)
+            {
+                ThrowHelper.ThrowInvalidOperationException_ExpectedString(TokenType);
+            }
+
+            ReadOnlySpan<byte> span = HasValueSequence ? ValueSequence.ToArray() : ValueSpan;
+            int lastSlash = span.LastIndexOf(JsonConstants.Slash);
+            if (lastSlash < 0)
+            {
+                ThrowHelper.ThrowFormatException();
+            }
+
+            ReadOnlySpan<byte> flags = span.Slice(lastSlash + 1);
+            return JsonReaderHelper.TranscodeHelper(flags);
+        }
+
+        /// <summary>
+        /// Tries to get the source and flags of the current RDN RegExp token.
+        /// </summary>
+        public bool TryGetRdnRegExp(out string source, out string flags)
+        {
+            if (TokenType != JsonTokenType.RdnRegExp)
+            {
+                source = string.Empty;
+                flags = string.Empty;
+                return false;
+            }
+
+            ReadOnlySpan<byte> span = HasValueSequence ? ValueSequence.ToArray() : ValueSpan;
+            int lastSlash = span.LastIndexOf(JsonConstants.Slash);
+            if (lastSlash < 0)
+            {
+                source = string.Empty;
+                flags = string.Empty;
+                return false;
+            }
+
+            ReadOnlySpan<byte> sourceSpan = span.Slice(0, lastSlash);
+            ReadOnlySpan<byte> flagsSpan = span.Slice(lastSlash + 1);
+
+            if (ValueIsEscaped)
+            {
+                source = JsonReaderHelper.GetUnescapedString(sourceSpan);
+            }
+            else
+            {
+                source = JsonReaderHelper.TranscodeHelper(sourceSpan);
+            }
+
+            flags = JsonReaderHelper.TranscodeHelper(flagsSpan);
+            return true;
+        }
+
         // --- RDN Date/Time API ---
 
         /// <summary>

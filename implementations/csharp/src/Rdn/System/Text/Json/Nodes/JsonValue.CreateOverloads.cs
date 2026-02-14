@@ -296,5 +296,13 @@ namespace Rdn.Nodes
         /// <param name="options">Options to control the behavior.</param>
         /// <returns>The new instance of the <see cref="JsonValue"/> class that contains the specified value.</returns>
         public static JsonValue? Create(JsonElement? value, JsonNodeOptions? options = null) => value is JsonElement element ? JsonValue.CreateFromElement(ref element, options) : null;
+
+        /// <summary>
+        ///   Initializes a new instance of the <see cref="JsonValue"/> class that contains the specified value.
+        /// </summary>
+        /// <param name="value">The underlying value of the new <see cref="JsonValue"/> instance.</param>
+        /// <param name="options">Options to control the behavior.</param>
+        /// <returns>The new instance of the <see cref="JsonValue"/> class that contains the specified value.</returns>
+        public static JsonValue? Create(System.Text.RegularExpressions.Regex? value, JsonNodeOptions? options = null) => value != null ? new JsonValuePrimitive<System.Text.RegularExpressions.Regex>(value, JsonMetadataServices.RegexConverter, options) : null;
     }
 }

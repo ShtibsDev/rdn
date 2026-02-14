@@ -54,7 +54,7 @@ namespace Rdn
 
             internal DbRow(JsonTokenType jsonTokenType, int location, int sizeOrLength)
             {
-                Debug.Assert(jsonTokenType > JsonTokenType.None && (jsonTokenType <= JsonTokenType.Null || jsonTokenType == JsonTokenType.RdnDateTime || jsonTokenType == JsonTokenType.RdnTimeOnly || jsonTokenType == JsonTokenType.RdnDuration || jsonTokenType == JsonTokenType.StartSet || jsonTokenType == JsonTokenType.EndSet || jsonTokenType == JsonTokenType.StartMap || jsonTokenType == JsonTokenType.EndMap));
+                Debug.Assert(jsonTokenType > JsonTokenType.None && (jsonTokenType <= JsonTokenType.Null || jsonTokenType == JsonTokenType.RdnDateTime || jsonTokenType == JsonTokenType.RdnTimeOnly || jsonTokenType == JsonTokenType.RdnDuration || jsonTokenType == JsonTokenType.RdnRegExp || jsonTokenType == JsonTokenType.StartSet || jsonTokenType == JsonTokenType.EndSet || jsonTokenType == JsonTokenType.StartMap || jsonTokenType == JsonTokenType.EndMap));
                 Debug.Assert((byte)jsonTokenType < 1 << 5);
                 Debug.Assert(location >= 0);
                 Debug.Assert(sizeOrLength >= UnknownSize);
@@ -65,7 +65,7 @@ namespace Rdn
                 _numberOfRowsAndTypeUnion = (int)jsonTokenType << 27;
             }
 
-            internal bool IsSimpleValue => TokenType >= JsonTokenType.PropertyName && TokenType <= JsonTokenType.RdnDuration;
+            internal bool IsSimpleValue => TokenType >= JsonTokenType.PropertyName && TokenType <= JsonTokenType.RdnRegExp;
         }
     }
 }

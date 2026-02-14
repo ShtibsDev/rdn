@@ -72,11 +72,44 @@ namespace Rdn
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         };
 
+        // Valid regex flag characters: d, g, i, m, s, u, v, y
+        private static ReadOnlySpan<byte> RegexFlagTable => new byte[256]
+        {
+            // 0x00-0x0F
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            // 0x10-0x1F
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            // 0x20-0x2F
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            // 0x30-0x3F
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            // 0x40-0x4F
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            // 0x50-0x5F
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            // 0x60-0x6F: d=1(64) g=1(67) i=1(69) m=1(6D)
+            0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0,
+            // 0x70-0x7F: s=1(73) u=1(75) v=1(76) y=1(79)
+            0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+            // 0x80-0xFF
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        };
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsTerminator(byte b) => TerminatorTable[b] != 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsDurationChar(byte b) => DurationCharTable[b] != 0;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsRegexFlag(byte b) => RegexFlagTable[b] != 0;
 
         /// <summary>
         /// Extracts a two-digit decimal value from consecutive ASCII bytes.

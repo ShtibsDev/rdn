@@ -257,6 +257,74 @@ var simple = new RdnDuration("PT4H30M");
 simple.TryToTimeSpan(out TimeSpan ts); // true, ts = 04:30:00
 ```
 
+## RDN Regex Support
+
+RDN regex literals use `/pattern/flags` syntax — parsed natively as `JsonTokenType.RdnRegExp`, with automatic `System.Text.RegularExpressions.Regex` serialization.
+
+| Syntax | Example |
+|--------|---------|
+| `/pattern/flags` | `/^[a-z]+$/gi` |
+| No flags | `/hello/` |
+| Escaped slash | `/a\/b/` |
+
+Valid flags: `d`, `g`, `i`, `m`, `s`, `u`, `v`, `y` (only `i`, `m`, `s` map to C# `RegexOptions`).
+
+```rdn
+{
+  "pattern": /^[a-z]+$/i,
+  "global": /test/gi
+}
+```
+
+### Serialize / Deserialize
+
+```csharp
+using Rdn;
+using System.Text.RegularExpressions;
+
+// Regex serializes as /pattern/flags
+string rdn = JsonSerializer.Serialize(new Regex("test", RegexOptions.IgnoreCase));
+// => /test/i
+
+var regex = JsonSerializer.Deserialize<Regex>("/^[a-z]+$/i");
+// regex.ToString() == "^[a-z]+$"
+// regex.Options.HasFlag(RegexOptions.IgnoreCase) == true
+```
+
+### Document API
+
+```csharp
+using var doc = JsonDocument.Parse("{\"re\": /^[a-z]+$/i}");
+var re = doc.RootElement.GetProperty("re");
+re.ValueKind  // JsonValueKind.RdnRegExp
+string source = re.GetRdnRegExpSource();  // "^[a-z]+$"
+string flags = re.GetRdnRegExpFlags();    // "i"
+```
+
+### Reader
+
+```csharp
+var reader = new Utf8JsonReader(data);
+while (reader.Read())
+{
+    if (reader.TokenType == JsonTokenType.RdnRegExp)
+    {
+        string source = reader.GetRdnRegExpSource();
+        string flags = reader.GetRdnRegExpFlags();
+    }
+}
+```
+
+### Writer
+
+```csharp
+writer.WriteStartObject();
+writer.WritePropertyName("pattern");
+writer.WriteRdnRegExpValue("^[a-z]+$", "gi");
+writer.WriteEndObject();
+// => {"pattern":/^[a-z]+$/gi}
+```
+
 ## Roadmap
 
 - [x] DateTime (`@2024-01-15T10:30:00.000Z`)
@@ -264,7 +332,7 @@ simple.TryToTimeSpan(out TimeSpan ts); // true, ts = 04:30:00
 - [x] Duration (`@PT4H30M`)
 - [x] NaN / Infinity / -Infinity
 - [ ] BigInteger
-- [ ] Regex
+- [x] Regex (`/pattern/flags`)
 - [ ] Binary (`byte[]`)
 - [x] Map
 - [x] Set

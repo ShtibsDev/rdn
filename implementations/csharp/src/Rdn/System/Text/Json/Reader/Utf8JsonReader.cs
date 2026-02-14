@@ -1358,6 +1358,13 @@ namespace Rdn
 
             if (first == JsonConstants.Slash)
             {
+                // In value position, route to ConsumeValue which handles regex/comment disambiguation
+                if (_tokenType is JsonTokenType.StartArray or JsonTokenType.StartSet or JsonTokenType.StartMap or JsonTokenType.PropertyName)
+                {
+                    retVal = ConsumeValue(first);
+                    goto Done;
+                }
+                // In structural position (StartObject, after values), route to comment handling
                 retVal = ConsumeNextTokenOrRollback(first);
                 goto Done;
             }
@@ -1650,6 +1657,59 @@ namespace Rdn
                 else if (marker == JsonConstants.LetterM)
                 {
                     return ConsumeExplicitMap();
+                }
+                else if (marker == JsonConstants.Slash)
+                {
+                    // Peek ahead: if next char is / or *, it may be a comment
+                    int nextIdx = _consumed + 1;
+                    if (nextIdx < _buffer.Length)
+                    {
+                        byte next = _buffer[nextIdx];
+                        if ((next == JsonConstants.Slash || next == JsonConstants.Asterisk) && _readerOptions.CommentHandling != JsonCommentHandling.Disallow)
+                        {
+                            if (_readerOptions.CommentHandling == JsonCommentHandling.Allow)
+                            {
+                                return ConsumeComment();
+                            }
+                            else
+                            {
+                                Debug.Assert(_readerOptions.CommentHandling == JsonCommentHandling.Skip);
+                                if (SkipComment())
+                                {
+                                    if (_consumed >= (uint)_buffer.Length)
+                                    {
+                                        if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet)
+                                        {
+                                            ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.InvalidEndOfJsonNonPrimitive);
+                                        }
+                                        return false;
+                                    }
+
+                                    marker = _buffer[_consumed];
+
+                                    if (marker <= JsonConstants.Space)
+                                    {
+                                        SkipWhiteSpace();
+                                        if (!HasMoreData())
+                                        {
+                                            return false;
+                                        }
+                                        marker = _buffer[_consumed];
+                                    }
+
+                                    TokenStartIndex = _consumed;
+                                    continue;
+                                }
+                                return false;
+                            }
+                        }
+                    }
+                    else if (!_isFinalBlock)
+                    {
+                        return false; // Need more data to distinguish regex from comment
+                    }
+                    // Not a comment → must be regex
+                    return ConsumeRegex();
                 }
                 else
                 {
@@ -2408,8 +2468,13 @@ namespace Rdn
 
                 if (_readerOptions.CommentHandling == JsonCommentHandling.Allow && first == JsonConstants.Slash)
                 {
-                    _trailingCommaBeforeComment = true;
-                    return ConsumeComment() ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
+                    if (_inObject)
+                    {
+                        // In object context: / after comma must be a comment (property names are always quoted)
+                        _trailingCommaBeforeComment = true;
+                        return ConsumeComment() ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
+                    }
+                    // In array/set/map: fall through to ConsumeValue which handles regex/comment disambiguation
                 }
 
                 if (_inObject)
@@ -2535,7 +2600,8 @@ namespace Rdn
                 ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedEndAfterSingleJson, first);
             }
 
-            Debug.Assert(first != JsonConstants.Slash);
+            // Note: first CAN be Slash here for regex values (e.g., after a comment in an array: [/* comment */ /regex/gi])
+            Debug.Assert(first != JsonConstants.Slash || !_inObject);
 
             TokenStartIndex = _consumed;
 
@@ -2622,15 +2688,20 @@ namespace Rdn
 
                 if (first == JsonConstants.Slash)
                 {
-                    _trailingCommaBeforeComment = true;
-                    if (ConsumeComment())
+                    if (_inObject)
                     {
-                        goto Done;
+                        // In object context: / after comma must be a comment (property names are always quoted)
+                        _trailingCommaBeforeComment = true;
+                        if (ConsumeComment())
+                        {
+                            goto Done;
+                        }
+                        else
+                        {
+                            goto RollBack;
+                        }
                     }
-                    else
-                    {
-                        goto RollBack;
-                    }
+                    // In array/set/map: fall through to ConsumeValue which handles regex/comment disambiguation
                 }
 
                 if (_inObject)
@@ -2835,6 +2906,23 @@ namespace Rdn
         {
             while (marker == JsonConstants.Slash)
             {
+                // Peek ahead: only treat as comment if next byte is / or *; otherwise it's a regex
+                int nextIdx = _consumed + 1;
+                if (nextIdx < _buffer.Length)
+                {
+                    byte next = _buffer[nextIdx];
+                    if (next != JsonConstants.Slash && next != JsonConstants.Asterisk)
+                        break;
+                }
+                else if (!_isFinalBlock)
+                {
+                    break; // Need more data
+                }
+                else
+                {
+                    break; // Single trailing slash at end of input — not a valid comment
+                }
+
                 if (SkipComment())
                 {
                     if (!HasMoreData())
@@ -2870,6 +2958,23 @@ namespace Rdn
         {
             while (marker == JsonConstants.Slash)
             {
+                // Peek ahead: only treat as comment if next byte is / or *; otherwise it's a regex
+                int nextIdx = _consumed + 1;
+                if (nextIdx < _buffer.Length)
+                {
+                    byte next = _buffer[nextIdx];
+                    if (next != JsonConstants.Slash && next != JsonConstants.Asterisk)
+                        break;
+                }
+                else if (!_isFinalBlock)
+                {
+                    break; // Need more data
+                }
+                else
+                {
+                    break; // Single trailing slash at end of input — not a valid comment
+                }
+
                 if (SkipComment())
                 {
                     // The next character must be a start of a property name or value.

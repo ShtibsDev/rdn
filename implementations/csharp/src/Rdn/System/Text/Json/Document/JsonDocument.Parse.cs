@@ -558,6 +558,7 @@ namespace Rdn
                     case JsonTokenType.RdnDateTime:
                     case JsonTokenType.RdnTimeOnly:
                     case JsonTokenType.RdnDuration:
+                    case JsonTokenType.RdnRegExp:
                     {
                         if (reader.HasValueSequence)
                         {

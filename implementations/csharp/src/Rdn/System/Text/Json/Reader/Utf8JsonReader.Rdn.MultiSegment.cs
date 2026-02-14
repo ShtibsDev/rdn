@@ -88,6 +88,102 @@ namespace Rdn
             return FinishRdnLiteralMultiSegment(buffer, bodyStart, bodyEnd, JsonTokenType.RdnDateTime);
         }
 
+        /// <summary>
+        /// Multi-segment version of ConsumeRegex.
+        /// For multi-segment input, we require the regex literal to be within one segment (simplification).
+        /// </summary>
+        private bool ConsumeRegexMultiSegment()
+        {
+            ReadOnlySpan<byte> buffer = _buffer;
+            int start = _consumed;
+
+            Debug.Assert(start < buffer.Length);
+            Debug.Assert(buffer[start] == JsonConstants.Slash);
+
+            int patternStart = start + 1;
+
+            if (patternStart >= buffer.Length)
+            {
+                if (!GetNextSpan())
+                {
+                    if (_isFinalBlock)
+                    {
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, JsonConstants.Slash);
+                    }
+                    return false;
+                }
+                buffer = _buffer;
+                patternStart = _consumed;
+            }
+
+            // Empty body // is invalid
+            if (buffer[patternStart] == JsonConstants.Slash)
+            {
+                ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, JsonConstants.Slash);
+            }
+
+            // Scan for closing /
+            bool hasEscape = false;
+            int i = patternStart;
+            while (i < buffer.Length)
+            {
+                byte b = buffer[i];
+                if (b == JsonConstants.BackSlash)
+                {
+                    hasEscape = true;
+                    i += 2;
+                    if (i > buffer.Length && !_isFinalBlock)
+                    {
+                        return false;
+                    }
+                    continue;
+                }
+                if (b == JsonConstants.Slash)
+                {
+                    break;
+                }
+                if (b == 0)
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, b);
+                }
+                i++;
+            }
+
+            if (i >= buffer.Length)
+            {
+                if (_isFinalBlock)
+                {
+                    ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, JsonConstants.Slash);
+                }
+                return false;
+            }
+
+            int closingSlash = i;
+            int flagStart = closingSlash + 1;
+            int flagEnd = flagStart;
+            while (flagEnd < buffer.Length && RdnCharTables.IsRegexFlag(buffer[flagEnd]))
+            {
+                flagEnd++;
+            }
+
+            if (flagEnd >= buffer.Length && !_isFinalBlock)
+            {
+                return false;
+            }
+
+            int valueLength = flagEnd - patternStart;
+            ValueSpan = buffer.Slice(patternStart, valueLength);
+            HasValueSequence = false;
+            ValueIsEscaped = hasEscape;
+            _tokenType = JsonTokenType.RdnRegExp;
+            int totalConsumed = flagEnd - start;
+            _consumed += totalConsumed;
+            _bytePositionInLine += totalConsumed;
+            _isNotPrimitive = false;
+
+            return true;
+        }
+
         private bool ConsumeRdnDurationMultiSegment(ReadOnlySpan<byte> buffer, int bodyStart)
         {
             Debug.Assert(buffer[bodyStart] == JsonConstants.LetterP);
