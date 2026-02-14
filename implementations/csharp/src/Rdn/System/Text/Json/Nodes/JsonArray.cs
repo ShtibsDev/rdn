@@ -101,6 +101,7 @@ namespace Rdn.Nodes
             {
                 case JsonObject:
                 case JsonSet:
+                case JsonMap:
                     return false;
                 case JsonValue value:
                     // JsonValue instances have special comparison semantics, dispatch to their implementation.
@@ -394,6 +395,16 @@ namespace Rdn.Nodes
                         if (Value is JsonObject jsonObject)
                         {
                             return $"JsonObject[{jsonObject.Count}]";
+                        }
+
+                        if (Value is JsonSet jsonSet)
+                        {
+                            return $"JsonSet[{jsonSet.Count}]";
+                        }
+
+                        if (Value is JsonMap jsonMap)
+                        {
+                            return $"JsonMap[{jsonMap.Count}]";
                         }
 
                         JsonArray jsonArray = (JsonArray)Value;

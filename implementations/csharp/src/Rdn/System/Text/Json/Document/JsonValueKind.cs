@@ -67,5 +67,10 @@ namespace Rdn
         ///   Indicates that a value is an RDN Set.
         /// </summary>
         Set,
+
+        /// <summary>
+        ///   Indicates that a value is an RDN Map.
+        /// </summary>
+        Map,
     }
 }

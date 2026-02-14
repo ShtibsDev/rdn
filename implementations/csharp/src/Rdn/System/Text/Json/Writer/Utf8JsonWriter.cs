@@ -45,6 +45,8 @@ namespace Rdn
         private bool _commentAfterNoneOrPropertyName;
         private JsonTokenType _tokenType;
         private BitStack _bitStack;
+        private long _setDepthMask;
+        private long _mapDepthMask;
 
         /// <summary>
         /// This 3-byte array stores the partial string data leftover when writing a string value
@@ -1073,20 +1075,29 @@ namespace Rdn
             {
                 Debug.Assert(token == JsonConstants.CloseBrace);
 
-                if (_enclosingContainer != EnclosingContainerType.Object && _enclosingContainer != EnclosingContainerType.Set)
+                if (_enclosingContainer != EnclosingContainerType.Object && _enclosingContainer != EnclosingContainerType.Set && _enclosingContainer != EnclosingContainerType.Map)
                 {
                     ThrowInvalidOperationException_MismatchedObjectArray(token);
                 }
             }
 
-            EnclosingContainerType container = _bitStack.Pop() ? EnclosingContainerType.Object : EnclosingContainerType.Array;
-            _enclosingContainer = _bitStack.CurrentDepth == 0 ? EnclosingContainerType.None : container;
+            // Clear Set/Map depth mask bits for the depth we're leaving.
+            int poppedDepth = _bitStack.CurrentDepth;
+            if (poppedDepth < 64)
+            {
+                long bit = 1L << poppedDepth;
+                _setDepthMask &= ~bit;
+                _mapDepthMask &= ~bit;
+            }
+
+            _bitStack.Pop();
+            _enclosingContainer = GetEnclosingContainerFromDepth();
         }
 
         private void WriteEndIndented(byte token)
         {
             // Do not format/indent empty JSON object/array/set.
-            if (_tokenType == JsonTokenType.StartObject || _tokenType == JsonTokenType.StartArray || _tokenType == JsonTokenType.StartSet)
+            if (_tokenType == JsonTokenType.StartObject || _tokenType == JsonTokenType.StartArray || _tokenType == JsonTokenType.StartSet || _tokenType == JsonTokenType.StartMap)
             {
                 WriteEndMinimized(token);
             }
@@ -1154,6 +1165,29 @@ namespace Rdn
                 _bitStack.PushTrue();
                 _enclosingContainer = EnclosingContainerType.Object;
             }
+        }
+
+        /// <summary>
+        /// Restores <see cref="_enclosingContainer"/> from the BitStack and depth masks
+        /// at the current depth after a Pop or when peeking at the parent container.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private EnclosingContainerType GetEnclosingContainerFromDepth()
+        {
+            int depth = _bitStack.CurrentDepth;
+            if (depth == 0)
+                return EnclosingContainerType.None;
+
+            if (depth < 64)
+            {
+                long bit = 1L << depth;
+                if ((_mapDepthMask & bit) != 0)
+                    return EnclosingContainerType.Map;
+                if ((_setDepthMask & bit) != 0)
+                    return EnclosingContainerType.Set;
+            }
+
+            return _bitStack.Peek() ? EnclosingContainerType.Object : EnclosingContainerType.Array;
         }
 
         private void Grow(int requiredSize)
@@ -1278,6 +1312,11 @@ namespace Rdn
             /// RDN Set. Like Array but uses brace delimiters and "Set{" prefix.
             /// </summary>
             Set = 0x18,
+
+            /// <summary>
+            /// RDN Map. Like Array but uses brace delimiters, "Map{" prefix, and "=>" arrow separators.
+            /// </summary>
+            Map = 0x1C,
 
             /// <summary>
             /// Partial UTF-8 string. This is a container if viewed as an array of "utf-8 string segment"-typed values. This array can only be one level deep

@@ -80,6 +80,7 @@ namespace Rdn.Nodes
             {
                 case JsonObject:
                 case JsonArray:
+                case JsonMap:
                     return false;
                 case JsonValue value:
                     return value.DeepEqualsCore(this);
@@ -384,6 +385,7 @@ namespace Rdn.Nodes
                         if (Value is JsonValue) return Value.ToJsonString();
                         if (Value is JsonObject jsonObject) return $"JsonObject[{jsonObject.Count}]";
                         if (Value is JsonSet jsonSet) return $"JsonSet[{jsonSet.Count}]";
+                        if (Value is JsonMap jsonMap) return $"JsonMap[{jsonMap.Count}]";
                         JsonArray jsonArray = (JsonArray)Value;
                         return $"JsonArray[{jsonArray.Count}]";
                     }

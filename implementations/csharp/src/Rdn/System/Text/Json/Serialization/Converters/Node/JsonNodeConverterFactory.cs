@@ -12,6 +12,8 @@ namespace Rdn.Serialization.Converters
         private static readonly JsonArrayConverter s_arrayConverter = new JsonArrayConverter();
         private static readonly JsonObjectConverter s_objectConverter = new JsonObjectConverter();
         private static readonly JsonValueConverter s_valueConverter = new JsonValueConverter();
+        private static readonly JsonSetConverter s_setConverter = new JsonSetConverter();
+        private static readonly JsonMapConverter s_mapConverter = new JsonMapConverter();
 
         public override JsonConverter? CreateConverter(Type typeToConvert, JsonSerializerOptions options)
         {
@@ -28,6 +30,16 @@ namespace Rdn.Serialization.Converters
             if (typeof(JsonArray) == typeToConvert)
             {
                 return s_arrayConverter;
+            }
+
+            if (typeof(JsonSet) == typeToConvert)
+            {
+                return s_setConverter;
+            }
+
+            if (typeof(JsonMap) == typeToConvert)
+            {
+                return s_mapConverter;
             }
 
             Debug.Assert(typeof(JsonNode) == typeToConvert);

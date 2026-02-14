@@ -203,6 +203,18 @@ namespace Rdn
                     goto Done;
                 }
             }
+            else if (_tokenType == JsonTokenType.StartMap)
+            {
+                if (first == JsonConstants.CloseBrace)
+                {
+                    EndMap();
+                }
+                else
+                {
+                    retVal = ConsumeValueMultiSegment(first);
+                    goto Done;
+                }
+            }
             else if (_tokenType == JsonTokenType.StartArray)
             {
                 if (first == JsonConstants.CloseBracket)
@@ -250,7 +262,7 @@ namespace Rdn
                 return false;
             }
 
-            if (_tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet)
+            if (_tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet && _tokenType != JsonTokenType.EndMap)
             {
                 ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.InvalidEndOfJsonNonPrimitive);
             }
@@ -376,7 +388,7 @@ namespace Rdn
                     return false;
                 }
 
-                _isNotPrimitive = _tokenType is JsonTokenType.StartObject or JsonTokenType.StartArray or JsonTokenType.StartSet;
+                _isNotPrimitive = _tokenType is JsonTokenType.StartObject or JsonTokenType.StartArray or JsonTokenType.StartSet or JsonTokenType.StartMap;
                 // Intentionally fall out of the if-block to return true
             }
             return true;
@@ -448,6 +460,10 @@ namespace Rdn
                 {
                     return ConsumeExplicitSet();
                 }
+                else if (marker == JsonConstants.LetterM)
+                {
+                    return ConsumeExplicitMap();
+                }
                 else
                 {
                     switch (_readerOptions.CommentHandling)
@@ -475,13 +491,13 @@ namespace Rdn
                                 {
                                     if (_consumed >= (uint)_buffer.Length)
                                     {
-                                        if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet)
+                                        if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet && _tokenType != JsonTokenType.EndMap)
                                         {
                                             ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.InvalidEndOfJsonNonPrimitive);
                                         }
                                         if (!GetNextSpan())
                                         {
-                                            if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet)
+                                            if (_isNotPrimitive && IsLastSpan && _tokenType != JsonTokenType.EndArray && _tokenType != JsonTokenType.EndObject && _tokenType != JsonTokenType.EndSet && _tokenType != JsonTokenType.EndMap)
                                             {
                                                 ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.InvalidEndOfJsonNonPrimitive);
                                             }
@@ -1606,10 +1622,55 @@ namespace Rdn
                 ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedEndAfterSingleJson, marker);
             }
 
+            // Map arrow: after reading a map key, consume => and then read the value
+            if (marker == JsonConstants.Equals && IsCurrentDepthMap() && IsMapExpectingArrow())
+            {
+                if (!ConsumeMapArrow())
+                {
+                    return ConsumeTokenResult.NotEnoughDataRollBackState;
+                }
+                ClearMapArrowExpect();
+
+                // Skip whitespace after =>
+                if (_consumed >= (uint)_buffer.Length)
+                {
+                    if (IsLastSpan)
+                    {
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfPropertyOrValueNotFound);
+                    }
+                    if (!GetNextSpan())
+                    {
+                        if (IsLastSpan)
+                        {
+                            ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfPropertyOrValueNotFound);
+                        }
+                        return ConsumeTokenResult.NotEnoughDataRollBackState;
+                    }
+                }
+                byte first = _buffer[_consumed];
+                if (first <= JsonConstants.Space)
+                {
+                    SkipWhiteSpaceMultiSegment();
+                    if (!HasMoreDataMultiSegment(ExceptionResource.ExpectedStartOfPropertyOrValueNotFound))
+                    {
+                        return ConsumeTokenResult.NotEnoughDataRollBackState;
+                    }
+                    first = _buffer[_consumed];
+                }
+                TokenStartIndex = BytesConsumed;
+                return ConsumeValueMultiSegment(first) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
+            }
+
             if (marker == JsonConstants.ListSeparator)
             {
                 _consumed++;
                 _bytePositionInLine++;
+
+                // After comma in a map, the next value is a key
+                if (IsCurrentDepthMap())
+                {
+                    SetMapArrowExpect();
+                }
 
                 if (_consumed >= (uint)_buffer.Length)
                 {
@@ -1689,6 +1750,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (first == JsonConstants.CloseBrace && IsCurrentDepthMap())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndMap();
+                            return ConsumeTokenResult.Success;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
                     return ConsumeValueMultiSegment(first) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
                 }
             }
@@ -1701,6 +1771,10 @@ namespace Rdn
                 else if (IsCurrentDepthSet())
                 {
                     EndSet();
+                }
+                else if (IsCurrentDepthMap())
+                {
+                    EndMap();
                 }
                 else
                 {
@@ -1725,7 +1799,7 @@ namespace Rdn
 
             if (JsonReaderHelper.IsTokenTypePrimitive(_previousTokenType))
             {
-                _tokenType = _inObject ? JsonTokenType.StartObject : (IsCurrentDepthSet() ? JsonTokenType.StartSet : JsonTokenType.StartArray);
+                _tokenType = _inObject ? JsonTokenType.StartObject : (IsCurrentDepthMap() ? JsonTokenType.StartMap : (IsCurrentDepthSet() ? JsonTokenType.StartSet : JsonTokenType.StartArray));
             }
             else
             {
@@ -1766,16 +1840,67 @@ namespace Rdn
 
             TokenStartIndex = BytesConsumed;
 
+            // Map arrow handling (for comment recovery path)
+            if (first == JsonConstants.Equals && IsCurrentDepthMap() && IsMapExpectingArrow())
+            {
+                if (!ConsumeMapArrow())
+                {
+                    goto RollBack;
+                }
+                ClearMapArrowExpect();
+
+                if (_consumed >= (uint)_buffer.Length)
+                {
+                    if (IsLastSpan)
+                    {
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfPropertyOrValueNotFound);
+                    }
+                    if (!GetNextSpan())
+                    {
+                        if (IsLastSpan)
+                        {
+                            ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfPropertyOrValueNotFound);
+                        }
+                        goto RollBack;
+                    }
+                }
+                first = _buffer[_consumed];
+                if (first <= JsonConstants.Space)
+                {
+                    SkipWhiteSpaceMultiSegment();
+                    if (!HasMoreDataMultiSegment(ExceptionResource.ExpectedStartOfPropertyOrValueNotFound))
+                    {
+                        goto RollBack;
+                    }
+                    first = _buffer[_consumed];
+                }
+                TokenStartIndex = BytesConsumed;
+                if (ConsumeValueMultiSegment(first))
+                {
+                    goto Done;
+                }
+                else
+                {
+                    goto RollBack;
+                }
+            }
+
             if (first == JsonConstants.ListSeparator)
             {
                 // A comma without some JSON value preceding it is invalid
-                if (_previousTokenType <= JsonTokenType.StartObject || _previousTokenType == JsonTokenType.StartArray || _previousTokenType == JsonTokenType.StartSet || _trailingCommaBeforeComment)
+                if (_previousTokenType <= JsonTokenType.StartObject || _previousTokenType == JsonTokenType.StartArray || _previousTokenType == JsonTokenType.StartSet || _previousTokenType == JsonTokenType.StartMap || _trailingCommaBeforeComment)
                 {
                     ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.ExpectedStartOfPropertyOrValueAfterComment, first);
                 }
 
                 _consumed++;
                 _bytePositionInLine++;
+
+                // After comma in a map, the next value is a key
+                if (IsCurrentDepthMap())
+                {
+                    SetMapArrowExpect();
+                }
 
                 if (_consumed >= (uint)_buffer.Length)
                 {
@@ -1870,6 +1995,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (first == JsonConstants.CloseBrace && IsCurrentDepthMap())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndMap();
+                            goto Done;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
 
                     if (ConsumeValueMultiSegment(first))
                     {
@@ -1890,6 +2024,10 @@ namespace Rdn
                 else if (IsCurrentDepthSet())
                 {
                     EndSet();
+                }
+                else if (IsCurrentDepthMap())
+                {
+                    EndMap();
                 }
                 else
                 {
@@ -1944,6 +2082,15 @@ namespace Rdn
                 }
                 goto Done;
             }
+            else if (_tokenType == JsonTokenType.StartMap)
+            {
+                Debug.Assert(first != JsonConstants.CloseBrace);
+                if (!ConsumeValueMultiSegment(first))
+                {
+                    goto RollBack;
+                }
+                goto Done;
+            }
             else if (_tokenType == JsonTokenType.StartArray)
             {
                 Debug.Assert(first != JsonConstants.CloseBracket);
@@ -1963,7 +2110,7 @@ namespace Rdn
             }
             else
             {
-                Debug.Assert(_tokenType is JsonTokenType.EndArray or JsonTokenType.EndObject or JsonTokenType.EndSet);
+                Debug.Assert(_tokenType is JsonTokenType.EndArray or JsonTokenType.EndObject or JsonTokenType.EndSet or JsonTokenType.EndMap);
                 if (_inObject)
                 {
                     Debug.Assert(first != JsonConstants.CloseBrace);
@@ -2131,6 +2278,21 @@ namespace Rdn
                     goto Done;
                 }
             }
+            else if (_tokenType == JsonTokenType.StartMap)
+            {
+                if (marker == JsonConstants.CloseBrace)
+                {
+                    EndMap();
+                }
+                else
+                {
+                    if (!ConsumeValueMultiSegment(marker))
+                    {
+                        goto IncompleteNoRollback;
+                    }
+                    goto Done;
+                }
+            }
             else if (_tokenType == JsonTokenType.StartArray)
             {
                 if (marker == JsonConstants.CloseBracket)
@@ -2246,6 +2408,15 @@ namespace Rdn
                         }
                         ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
                     }
+                    if (marker == JsonConstants.CloseBrace && IsCurrentDepthMap())
+                    {
+                        if (_readerOptions.AllowTrailingCommas)
+                        {
+                            EndMap();
+                            goto Done;
+                        }
+                        ThrowHelper.ThrowJsonReaderException(ref this, ExceptionResource.TrailingCommaNotAllowedBeforeArrayEnd);
+                    }
 
                     return ConsumeValueMultiSegment(marker) ? ConsumeTokenResult.Success : ConsumeTokenResult.NotEnoughDataRollBackState;
                 }
@@ -2259,6 +2430,10 @@ namespace Rdn
                 else if (IsCurrentDepthSet())
                 {
                     EndSet();
+                }
+                else if (IsCurrentDepthMap())
+                {
+                    EndMap();
                 }
                 else
                 {

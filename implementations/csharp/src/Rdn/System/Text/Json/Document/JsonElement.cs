@@ -1337,13 +1337,24 @@ namespace Rdn
 
                 case JsonValueKind.Array:
                 case JsonValueKind.Set:
+                case JsonValueKind.Map:
                     if (element1.GetArrayLength() != element2.GetArrayLength())
                     {
                         return false;
                     }
 
-                    ArrayEnumerator arrayEnumerator2 = kind == JsonValueKind.Set ? element2.EnumerateSet() : element2.EnumerateArray();
-                    foreach (JsonElement e1 in kind == JsonValueKind.Set ? element1.EnumerateSet() : element1.EnumerateArray())
+                    ArrayEnumerator arrayEnumerator2 = kind switch
+                    {
+                        JsonValueKind.Set => element2.EnumerateSet(),
+                        JsonValueKind.Map => element2.EnumerateMap(),
+                        _ => element2.EnumerateArray(),
+                    };
+                    foreach (JsonElement e1 in kind switch
+                    {
+                        JsonValueKind.Set => element1.EnumerateSet(),
+                        JsonValueKind.Map => element1.EnumerateMap(),
+                        _ => element1.EnumerateArray(),
+                    })
                     {
                         bool success = arrayEnumerator2.MoveNext();
                         Debug.Assert(success, "enumerators must have matching length");
@@ -1654,6 +1665,34 @@ namespace Rdn
         }
 
         /// <summary>
+        ///   Get an enumerator to enumerate the entries in the RDN Map represented by this JsonElement.
+        ///   Map entries are stored flat (key, value, key, value...) so this returns an ArrayEnumerator
+        ///   that yields all items sequentially. Consumers should read items in pairs (key, value).
+        /// </summary>
+        /// <returns>
+        ///   An enumerator to enumerate all items (keys and values interleaved) in the RDN Map.
+        /// </returns>
+        /// <exception cref="InvalidOperationException">
+        ///   This value's <see cref="ValueKind"/> is not <see cref="JsonValueKind.Map"/>.
+        /// </exception>
+        /// <exception cref="ObjectDisposedException">
+        ///   The parent <see cref="JsonDocument"/> has been disposed.
+        /// </exception>
+        public ArrayEnumerator EnumerateMap()
+        {
+            CheckValidInstance();
+
+            JsonTokenType tokenType = TokenType;
+
+            if (tokenType != JsonTokenType.StartMap)
+            {
+                ThrowHelper.ThrowJsonElementWrongTypeException(JsonTokenType.StartMap, tokenType);
+            }
+
+            return new ArrayEnumerator(this);
+        }
+
+        /// <summary>
         ///   Get an enumerator to enumerate the properties in the JSON object represented by this JsonElement.
         /// </summary>
         /// <returns>
@@ -1728,6 +1767,7 @@ namespace Rdn
                 case JsonTokenType.StartArray:
                 case JsonTokenType.StartObject:
                 case JsonTokenType.StartSet:
+                case JsonTokenType.StartMap:
                     {
                         // null parent should have hit the None case
                         Debug.Assert(_parent != null);

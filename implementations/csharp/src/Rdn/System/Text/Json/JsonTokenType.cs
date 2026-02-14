@@ -102,5 +102,15 @@ namespace Rdn
         ///   Indicates that the token type is the end of an RDN Set.
         /// </summary>
         EndSet = 16,
+
+        /// <summary>
+        ///   Indicates that the token type is the start of an RDN Map.
+        /// </summary>
+        StartMap = 17,
+
+        /// <summary>
+        ///   Indicates that the token type is the end of an RDN Map.
+        /// </summary>
+        EndMap = 18,
     }
 }

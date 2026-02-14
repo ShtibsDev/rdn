@@ -217,7 +217,7 @@ namespace Rdn
             {
                 // StartArray or StartObject should have length -1, otherwise the length should not be -1.
                 Debug.Assert(
-                    (tokenType == JsonTokenType.StartArray || tokenType == JsonTokenType.StartObject || tokenType == JsonTokenType.StartSet) ==
+                    (tokenType == JsonTokenType.StartArray || tokenType == JsonTokenType.StartObject || tokenType == JsonTokenType.StartSet || tokenType == JsonTokenType.StartMap) ==
                     (length == DbRow.UnknownSize));
 
                 if (Length >= _data.Length - DbRow.Size)
@@ -306,7 +306,7 @@ namespace Rdn
 
             internal int FindIndexOfFirstUnsetSizeOrLength(JsonTokenType lookupType)
             {
-                Debug.Assert(lookupType == JsonTokenType.StartObject || lookupType == JsonTokenType.StartArray || lookupType == JsonTokenType.StartSet);
+                Debug.Assert(lookupType == JsonTokenType.StartObject || lookupType == JsonTokenType.StartArray || lookupType == JsonTokenType.StartSet || lookupType == JsonTokenType.StartMap);
                 return FindOpenElement(lookupType);
             }
 
@@ -367,6 +367,18 @@ namespace Rdn
                     Debug.Assert(
                         end.TokenType == JsonTokenType.EndArray,
                         $"StartArray paired with {end.TokenType}");
+                }
+                else if (start.TokenType == JsonTokenType.StartSet)
+                {
+                    Debug.Assert(
+                        end.TokenType == JsonTokenType.EndSet,
+                        $"StartSet paired with {end.TokenType}");
+                }
+                else if (start.TokenType == JsonTokenType.StartMap)
+                {
+                    Debug.Assert(
+                        end.TokenType == JsonTokenType.EndMap,
+                        $"StartMap paired with {end.TokenType}");
                 }
                 else
                 {

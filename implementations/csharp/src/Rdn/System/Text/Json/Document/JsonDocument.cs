@@ -132,7 +132,7 @@ namespace Rdn
 
             DbRow row = _parsedData.Get(index);
 
-            if (row.TokenType != JsonTokenType.StartArray && row.TokenType != JsonTokenType.StartSet)
+            if (row.TokenType != JsonTokenType.StartArray && row.TokenType != JsonTokenType.StartSet && row.TokenType != JsonTokenType.StartMap)
             {
                 ThrowHelper.ThrowJsonElementWrongTypeException(JsonTokenType.StartArray, row.TokenType);
             }
@@ -157,7 +157,7 @@ namespace Rdn
 
             DbRow row = _parsedData.Get(currentIndex);
 
-            if (row.TokenType != JsonTokenType.StartArray && row.TokenType != JsonTokenType.StartSet)
+            if (row.TokenType != JsonTokenType.StartArray && row.TokenType != JsonTokenType.StartSet && row.TokenType != JsonTokenType.StartMap)
             {
                 ThrowHelper.ThrowJsonElementWrongTypeException(JsonTokenType.StartArray, row.TokenType);
             }
@@ -855,6 +855,10 @@ namespace Rdn
                     writer.WriteStartSet();
                     WriteComplexElement(index, writer);
                     return;
+                case JsonTokenType.StartMap:
+                    writer.WriteStartMap();
+                    WriteComplexElement(index, writer);
+                    return;
                 case JsonTokenType.String:
                     WriteString(row, writer);
                     return;
@@ -893,51 +897,99 @@ namespace Rdn
         private void WriteComplexElement(int index, Utf8JsonWriter writer)
         {
             int endIndex = GetEndIndex(index, true);
+            DbRow startRow = _parsedData.Get(index);
+
+            // Track Map key/value state using bitmasks instead of a heap-allocated Stack.
+            // Bit set at depth N in _mapMask = depth N is a Map container.
+            // Bit set at depth N in _arrowMask = next value at depth N needs a => prefix.
+            long mapMask = 0;
+            long arrowMask = 0;
+            int depth = 0;
+
+            if (startRow.TokenType == JsonTokenType.StartMap)
+            {
+                mapMask = 1L; // depth 0 is a map
+            }
 
             for (int i = index + DbRow.Size; i < endIndex; i += DbRow.Size)
             {
                 DbRow row = _parsedData.Get(i);
+                long depthBit = depth < 64 ? (1L << depth) : 0;
+                bool isMap = (mapMask & depthBit) != 0;
 
-                // All of the types which don't need the value span
+                // Write map arrow before value tokens that are direct children of a Map
+                bool wroteArrow = false;
+                if (isMap && (arrowMask & depthBit) != 0 && row.TokenType != JsonTokenType.EndMap)
+                {
+                    writer.WriteMapArrow();
+                    wroteArrow = true;
+                }
+
                 switch (row.TokenType)
                 {
                     case JsonTokenType.String:
                         WriteString(row, writer);
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         continue;
                     case JsonTokenType.Number:
                         writer.WriteNumberValue(_utf8Json.Slice(row.Location, row.SizeOrLength).Span);
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         continue;
                     case JsonTokenType.True:
                         writer.WriteBooleanValue(value: true);
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         continue;
                     case JsonTokenType.False:
                         writer.WriteBooleanValue(value: false);
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         continue;
                     case JsonTokenType.Null:
                         writer.WriteNullValue();
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         continue;
                     case JsonTokenType.RdnDateTime:
                     case JsonTokenType.RdnTimeOnly:
                     case JsonTokenType.RdnDuration:
                         WriteRdnLiteral(row, writer);
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         continue;
                     case JsonTokenType.StartObject:
                         writer.WriteStartObject();
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
+                        depth++;
                         continue;
                     case JsonTokenType.EndObject:
                         writer.WriteEndObject();
+                        depth--;
                         continue;
                     case JsonTokenType.StartArray:
                         writer.WriteStartArray();
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
+                        depth++;
                         continue;
                     case JsonTokenType.EndArray:
                         writer.WriteEndArray();
+                        depth--;
                         continue;
                     case JsonTokenType.StartSet:
                         writer.WriteStartSet();
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
+                        depth++;
                         continue;
                     case JsonTokenType.EndSet:
                         writer.WriteEndSet();
+                        depth--;
+                        continue;
+                    case JsonTokenType.StartMap:
+                        writer.WriteStartMap();
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
+                        depth++;
+                        if (depth < 64) mapMask |= (1L << depth);
+                        continue;
+                    case JsonTokenType.EndMap:
+                        writer.WriteEndMap();
+                        if (depth < 64) { mapMask &= ~(1L << depth); arrowMask &= ~(1L << depth); }
+                        depth--;
                         continue;
                     case JsonTokenType.PropertyName:
                         WritePropertyName(row, writer);
@@ -1151,6 +1203,42 @@ namespace Rdn
                     arrayItemsOrPropertyCount = row.SizeOrLength;
                     numberOfRowsForValues += row.NumberOfRows;
                 }
+                else if (tokenType == JsonTokenType.StartMap)
+                {
+                    if (inArray)
+                    {
+                        arrayItemsOrPropertyCount++;
+                    }
+
+                    numberOfRowsForMembers++;
+                    database.Append(tokenType, tokenStart, DbRow.UnknownSize);
+                    var row = new StackRow(arrayItemsOrPropertyCount, numberOfRowsForValues + 1);
+                    stack.Push(row);
+                    arrayItemsOrPropertyCount = 0;
+                    numberOfRowsForValues = 0;
+                }
+                else if (tokenType == JsonTokenType.EndMap)
+                {
+                    int rowIndex = database.FindIndexOfFirstUnsetSizeOrLength(JsonTokenType.StartMap);
+
+                    numberOfRowsForValues++;
+                    numberOfRowsForMembers++;
+                    database.SetLength(rowIndex, arrayItemsOrPropertyCount);
+                    database.SetNumberOfRows(rowIndex, numberOfRowsForValues);
+
+                    if (arrayItemsOrPropertyCount + 1 != numberOfRowsForValues)
+                    {
+                        database.SetHasComplexChildren(rowIndex);
+                    }
+
+                    int newRowIndex = database.Length;
+                    database.Append(tokenType, tokenStart, reader.ValueSpan.Length);
+                    database.SetNumberOfRows(newRowIndex, numberOfRowsForValues);
+
+                    StackRow row = stack.Pop();
+                    arrayItemsOrPropertyCount = row.SizeOrLength;
+                    numberOfRowsForValues += row.NumberOfRows;
+                }
                 else if (tokenType == JsonTokenType.PropertyName)
                 {
                     numberOfRowsForValues++;
@@ -1214,7 +1302,7 @@ namespace Rdn
 
         private static void ValidateNoDuplicateProperties(JsonDocument document)
         {
-            if (document.RootElement.ValueKind is JsonValueKind.Array or JsonValueKind.Object or JsonValueKind.Set)
+            if (document.RootElement.ValueKind is JsonValueKind.Array or JsonValueKind.Object or JsonValueKind.Set or JsonValueKind.Map)
             {
                 ValidateDuplicatePropertiesCore(document);
             }
@@ -1222,7 +1310,7 @@ namespace Rdn
 
         private static void ValidateDuplicatePropertiesCore(JsonDocument document)
         {
-            Debug.Assert(document.RootElement.ValueKind is JsonValueKind.Array or JsonValueKind.Object or JsonValueKind.Set);
+            Debug.Assert(document.RootElement.ValueKind is JsonValueKind.Array or JsonValueKind.Object or JsonValueKind.Set or JsonValueKind.Map);
 
             using PropertyNameSet propertyNameSet = new PropertyNameSet();
 
@@ -1266,12 +1354,13 @@ namespace Rdn
                     }
                     case JsonValueKind.Array:
                     case JsonValueKind.Set:
+                    case JsonValueKind.Map:
                     {
                         JsonElement.ArrayEnumerator enumerator = new(curr, databaseIndexOflastProcessedChild ?? -1);
 
                         while (enumerator.MoveNext())
                         {
-                            if (enumerator.Current.ValueKind is JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Set)
+                            if (enumerator.Current.ValueKind is JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Set or JsonValueKind.Map)
                             {
                                 traversalPath.Push(enumerator.Current.MetadataDbIndex);
                                 databaseIndexOflastProcessedChild = null;

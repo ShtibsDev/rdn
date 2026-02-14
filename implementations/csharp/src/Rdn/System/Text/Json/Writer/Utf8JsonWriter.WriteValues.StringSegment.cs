@@ -55,8 +55,7 @@ namespace Rdn
                 WriteStringSegmentEpilogue();
 
                 SetFlagToAddListSeparatorBeforeNextItem();
-                EnclosingContainerType container = _bitStack.Peek() ? EnclosingContainerType.Object : EnclosingContainerType.Array;
-                _enclosingContainer = _bitStack.CurrentDepth == 0 ? EnclosingContainerType.None : container;
+                _enclosingContainer = GetEnclosingContainerFromDepth();
                 _tokenType = JsonTokenType.String;
             }
         }
@@ -223,8 +222,7 @@ namespace Rdn
                 WriteStringSegmentEpilogue();
 
                 SetFlagToAddListSeparatorBeforeNextItem();
-                EnclosingContainerType container = _bitStack.Peek() ? EnclosingContainerType.Object : EnclosingContainerType.Array;
-                _enclosingContainer = _bitStack.CurrentDepth == 0 ? EnclosingContainerType.None : container;
+                _enclosingContainer = GetEnclosingContainerFromDepth();
                 _tokenType = JsonTokenType.String;
             }
         }
@@ -390,8 +388,7 @@ namespace Rdn
                 WriteStringSegmentEpilogue();
 
                 SetFlagToAddListSeparatorBeforeNextItem();
-                EnclosingContainerType container = _bitStack.Peek() ? EnclosingContainerType.Object : EnclosingContainerType.Array;
-                _enclosingContainer = _bitStack.CurrentDepth == 0 ? EnclosingContainerType.None : container;
+                _enclosingContainer = GetEnclosingContainerFromDepth();
                 _tokenType = JsonTokenType.String;
             }
         }
