@@ -19,20 +19,24 @@ namespace Rdn
                 stackalloc byte[RdnConstants.StackallocByteThreshold] :
                 (unescapedArray = ArrayPool<byte>.Shared.Rent(utf8Source.Length));
 
-            Unescape(utf8Source, utf8Unescaped, out int written);
-            Debug.Assert(written > 0);
-
-            utf8Unescaped = utf8Unescaped.Slice(0, written);
-            Debug.Assert(!utf8Unescaped.IsEmpty);
-
-            bool result = TryDecodeBase64InPlace(utf8Unescaped, out bytes!);
-
-            if (unescapedArray != null)
+            try
             {
-                utf8Unescaped.Clear();
-                ArrayPool<byte>.Shared.Return(unescapedArray);
+                Unescape(utf8Source, utf8Unescaped, out int written);
+                Debug.Assert(written > 0);
+
+                utf8Unescaped = utf8Unescaped.Slice(0, written);
+                Debug.Assert(!utf8Unescaped.IsEmpty);
+
+                return TryDecodeBase64InPlace(utf8Unescaped, out bytes!);
             }
-            return result;
+            finally
+            {
+                if (unescapedArray != null)
+                {
+                    utf8Unescaped.Clear();
+                    ArrayPool<byte>.Shared.Return(unescapedArray);
+                }
+            }
         }
 
         // Reject any invalid UTF-8 data rather than silently replacing.
@@ -49,21 +53,24 @@ namespace Rdn
                 stackalloc byte[RdnConstants.StackallocByteThreshold] :
                 (pooledName = ArrayPool<byte>.Shared.Rent(length));
 
-            Unescape(utf8Source, utf8Unescaped, out int written);
-            Debug.Assert(written > 0);
-
-            utf8Unescaped = utf8Unescaped.Slice(0, written);
-            Debug.Assert(!utf8Unescaped.IsEmpty);
-
-            string utf8String = TranscodeHelper(utf8Unescaped);
-
-            if (pooledName != null)
+            try
             {
-                utf8Unescaped.Clear();
-                ArrayPool<byte>.Shared.Return(pooledName);
-            }
+                Unescape(utf8Source, utf8Unescaped, out int written);
+                Debug.Assert(written > 0);
 
-            return utf8String;
+                utf8Unescaped = utf8Unescaped.Slice(0, written);
+                Debug.Assert(!utf8Unescaped.IsEmpty);
+
+                return TranscodeHelper(utf8Unescaped);
+            }
+            finally
+            {
+                if (pooledName != null)
+                {
+                    utf8Unescaped.Clear();
+                    ArrayPool<byte>.Shared.Return(pooledName);
+                }
+            }
         }
 
         public static byte[] GetUnescaped(ReadOnlySpan<byte> utf8Source)
@@ -76,19 +83,24 @@ namespace Rdn
                 stackalloc byte[RdnConstants.StackallocByteThreshold] :
                 (pooledName = ArrayPool<byte>.Shared.Rent(length));
 
-            Unescape(utf8Source, utf8Unescaped, out int written);
-            Debug.Assert(written > 0);
-
-            byte[] propertyName = utf8Unescaped.Slice(0, written).ToArray();
-            Debug.Assert(propertyName.Length is not 0);
-
-            if (pooledName != null)
+            try
             {
-                new Span<byte>(pooledName, 0, written).Clear();
-                ArrayPool<byte>.Shared.Return(pooledName);
-            }
+                Unescape(utf8Source, utf8Unescaped, out int written);
+                Debug.Assert(written > 0);
 
-            return propertyName;
+                byte[] propertyName = utf8Unescaped.Slice(0, written).ToArray();
+                Debug.Assert(propertyName.Length is not 0);
+
+                return propertyName;
+            }
+            finally
+            {
+                if (pooledName != null)
+                {
+                    new Span<byte>(pooledName, 0, pooledName.Length).Clear();
+                    ArrayPool<byte>.Shared.Return(pooledName);
+                }
+            }
         }
 
         public static bool UnescapeAndCompare(ReadOnlySpan<byte> utf8Source, ReadOnlySpan<byte> other)
@@ -101,21 +113,24 @@ namespace Rdn
                 stackalloc byte[RdnConstants.StackallocByteThreshold] :
                 (unescapedArray = ArrayPool<byte>.Shared.Rent(utf8Source.Length));
 
-            Unescape(utf8Source, utf8Unescaped, 0, out int written);
-            Debug.Assert(written > 0);
-
-            utf8Unescaped = utf8Unescaped.Slice(0, written);
-            Debug.Assert(!utf8Unescaped.IsEmpty);
-
-            bool result = other.SequenceEqual(utf8Unescaped);
-
-            if (unescapedArray != null)
+            try
             {
-                utf8Unescaped.Clear();
-                ArrayPool<byte>.Shared.Return(unescapedArray);
-            }
+                Unescape(utf8Source, utf8Unescaped, 0, out int written);
+                Debug.Assert(written > 0);
 
-            return result;
+                utf8Unescaped = utf8Unescaped.Slice(0, written);
+                Debug.Assert(!utf8Unescaped.IsEmpty);
+
+                return other.SequenceEqual(utf8Unescaped);
+            }
+            finally
+            {
+                if (unescapedArray != null)
+                {
+                    utf8Unescaped.Clear();
+                    ArrayPool<byte>.Shared.Return(unescapedArray);
+                }
+            }
         }
 
         public static bool UnescapeAndCompare(ReadOnlySequence<byte> utf8Source, ReadOnlySpan<byte> other)
@@ -136,27 +151,33 @@ namespace Rdn
                 stackalloc byte[RdnConstants.StackallocByteThreshold] :
                 (escapedArray = ArrayPool<byte>.Shared.Rent(length));
 
-            utf8Source.CopyTo(utf8Escaped);
-            utf8Escaped = utf8Escaped.Slice(0, length);
-
-            Unescape(utf8Escaped, utf8Unescaped, 0, out int written);
-            Debug.Assert(written > 0);
-
-            utf8Unescaped = utf8Unescaped.Slice(0, written);
-            Debug.Assert(!utf8Unescaped.IsEmpty);
-
-            bool result = other.SequenceEqual(utf8Unescaped);
-
-            if (unescapedArray != null)
+            try
             {
-                Debug.Assert(escapedArray != null);
-                utf8Unescaped.Clear();
-                ArrayPool<byte>.Shared.Return(unescapedArray);
-                utf8Escaped.Clear();
-                ArrayPool<byte>.Shared.Return(escapedArray);
-            }
+                utf8Source.CopyTo(utf8Escaped);
+                utf8Escaped = utf8Escaped.Slice(0, length);
 
-            return result;
+                Unescape(utf8Escaped, utf8Unescaped, 0, out int written);
+                Debug.Assert(written > 0);
+
+                utf8Unescaped = utf8Unescaped.Slice(0, written);
+                Debug.Assert(!utf8Unescaped.IsEmpty);
+
+                return other.SequenceEqual(utf8Unescaped);
+            }
+            finally
+            {
+                if (unescapedArray != null)
+                {
+                    utf8Unescaped.Clear();
+                    ArrayPool<byte>.Shared.Return(unescapedArray);
+                }
+
+                if (escapedArray != null)
+                {
+                    utf8Escaped.Clear();
+                    ArrayPool<byte>.Shared.Return(escapedArray);
+                }
+            }
         }
 
         public static bool UnescapeAndCompareBothInputs(ReadOnlySpan<byte> utf8Source1, ReadOnlySpan<byte> utf8Source2)
@@ -178,29 +199,32 @@ namespace Rdn
                 stackalloc byte[RdnConstants.StackallocByteThreshold] :
                 (unescapedArray2 = ArrayPool<byte>.Shared.Rent(utf8Source2.Length));
 
-            Unescape(utf8Source1, utf8Unescaped1, index1, out int written);
-            utf8Unescaped1 = utf8Unescaped1.Slice(0, written);
-            Debug.Assert(!utf8Unescaped1.IsEmpty);
-
-            Unescape(utf8Source2, utf8Unescaped2, index2, out written);
-            utf8Unescaped2 = utf8Unescaped2.Slice(0, written);
-            Debug.Assert(!utf8Unescaped2.IsEmpty);
-
-            bool result = utf8Unescaped1.SequenceEqual(utf8Unescaped2);
-
-            if (unescapedArray1 != null)
+            try
             {
-                utf8Unescaped1.Clear();
-                ArrayPool<byte>.Shared.Return(unescapedArray1);
-            }
+                Unescape(utf8Source1, utf8Unescaped1, index1, out int written);
+                utf8Unescaped1 = utf8Unescaped1.Slice(0, written);
+                Debug.Assert(!utf8Unescaped1.IsEmpty);
 
-            if (unescapedArray2 != null)
+                Unescape(utf8Source2, utf8Unescaped2, index2, out written);
+                utf8Unescaped2 = utf8Unescaped2.Slice(0, written);
+                Debug.Assert(!utf8Unescaped2.IsEmpty);
+
+                return utf8Unescaped1.SequenceEqual(utf8Unescaped2);
+            }
+            finally
             {
-                utf8Unescaped2.Clear();
-                ArrayPool<byte>.Shared.Return(unescapedArray2);
-            }
+                if (unescapedArray1 != null)
+                {
+                    utf8Unescaped1.Clear();
+                    ArrayPool<byte>.Shared.Return(unescapedArray1);
+                }
 
-            return result;
+                if (unescapedArray2 != null)
+                {
+                    utf8Unescaped2.Clear();
+                    ArrayPool<byte>.Shared.Return(unescapedArray2);
+                }
+            }
         }
 
         public static bool TryDecodeBase64InPlace(Span<byte> utf8Unescaped, [NotNullWhen(true)] out byte[]? bytes)

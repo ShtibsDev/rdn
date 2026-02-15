@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parse } from "./parser.js";
+import { describe, it, expect, afterEach } from "vitest";
+import { parse, MAX_DEPTH, MAX_BINARY_SIZE, _setMaxBinarySize } from "./parser.js";
 import { timeOnly, duration } from "./types.js";
 
 describe("RDN.parse", () => {
@@ -329,6 +329,150 @@ describe("RDN.parse", () => {
     });
     it("throws on leading zeros", () => {
       expect(() => parse("01")).toThrow(SyntaxError);
+    });
+    it("throws on truncated time hours (readDigits2 EOF)", () => {
+      expect(() => parse("@1")).toThrow(SyntaxError);
+    });
+    it("throws on truncated time minutes (readDigits2 EOF)", () => {
+      expect(() => parse("@12:3")).toThrow(SyntaxError);
+    });
+    it("throws on truncated time seconds (readDigits2 EOF)", () => {
+      expect(() => parse("@12:30:0")).toThrow(SyntaxError);
+    });
+    it("throws on truncated milliseconds (readDigits3 EOF)", () => {
+      expect(() => parse("@12:30:00.1")).toThrow(SyntaxError);
+      expect(() => parse("@12:30:00.12")).toThrow(SyntaxError);
+    });
+    it("throws on truncated date month (readDigits2 EOF)", () => {
+      expect(() => parse("@2024-0")).toThrow(SyntaxError);
+    });
+    it("throws on truncated date day (readDigits2 EOF)", () => {
+      expect(() => parse("@2024-01-1")).toThrow(SyntaxError);
+    });
+    it("throws on truncated datetime hours (readDigits2 EOF)", () => {
+      expect(() => parse("@2024-01-15T1")).toThrow(SyntaxError);
+    });
+    it("throws on truncated datetime milliseconds (readDigits3 EOF)", () => {
+      expect(() => parse("@2024-01-15T10:30:00.1")).toThrow(SyntaxError);
+      expect(() => parse("@2024-01-15T10:30:00.12")).toThrow(SyntaxError);
+    });
+  });
+
+  describe("recursion depth limit", () => {
+    it("throws RangeError for deeply nested arrays", () => {
+      const input = "[".repeat(MAX_DEPTH + 1) + "]".repeat(MAX_DEPTH + 1);
+      expect(() => parse(input)).toThrow(RangeError);
+      expect(() => parse(input)).toThrow(/Maximum nesting depth exceeded/);
+    });
+
+    it("throws RangeError for deeply nested objects", () => {
+      let input = "";
+      for (let i = 0; i < MAX_DEPTH + 1; i++) input += '{"a":';
+      input += "1";
+      for (let i = 0; i < MAX_DEPTH + 1; i++) input += "}";
+      expect(() => parse(input)).toThrow(RangeError);
+    });
+
+    it("throws RangeError for deeply nested implicit maps", () => {
+      let input = "";
+      for (let i = 0; i < MAX_DEPTH + 1; i++) input += '{"k" => ';
+      input += "1";
+      for (let i = 0; i < MAX_DEPTH + 1; i++) input += "}";
+      expect(() => parse(input)).toThrow(RangeError);
+    });
+
+    it("throws RangeError for deeply nested explicit sets", () => {
+      let input = "";
+      for (let i = 0; i < MAX_DEPTH + 1; i++) input += "Set{";
+      input += "1";
+      for (let i = 0; i < MAX_DEPTH + 1; i++) input += "}";
+      expect(() => parse(input)).toThrow(RangeError);
+    });
+
+    it("throws RangeError for deeply nested tuples", () => {
+      const input = "(".repeat(MAX_DEPTH + 1) + "1" + ")".repeat(MAX_DEPTH + 1);
+      expect(() => parse(input)).toThrow(RangeError);
+    });
+
+    it("throws RangeError for mixed nested containers exceeding limit", () => {
+      // Alternating arrays and objects to hit the limit
+      let input = "";
+      for (let i = 0; i < MAX_DEPTH + 1; i++) {
+        input += i % 2 === 0 ? "[" : '{"a":';
+      }
+      input += "1";
+      for (let i = MAX_DEPTH; i >= 0; i--) {
+        input += i % 2 === 0 ? "]" : "}";
+      }
+      expect(() => parse(input)).toThrow(RangeError);
+    });
+
+    it("parses nested arrays at exactly the depth limit", () => {
+      const input = "[".repeat(MAX_DEPTH) + "]".repeat(MAX_DEPTH);
+      expect(() => parse(input)).not.toThrow();
+    });
+
+    it("parses nested objects at exactly the depth limit", () => {
+      let input = "";
+      for (let i = 0; i < MAX_DEPTH; i++) input += '{"a":';
+      input += "1";
+      for (let i = 0; i < MAX_DEPTH; i++) input += "}";
+      expect(() => parse(input)).not.toThrow();
+    });
+
+    it("parses nested tuples at exactly the depth limit", () => {
+      const input = "(".repeat(MAX_DEPTH) + "1" + ")".repeat(MAX_DEPTH);
+      expect(() => parse(input)).not.toThrow();
+    });
+
+    it("resets depth between parse calls", () => {
+      // First call should fail
+      const deep = "[".repeat(MAX_DEPTH + 1) + "]".repeat(MAX_DEPTH + 1);
+      expect(() => parse(deep)).toThrow(RangeError);
+      // Second call with valid input should succeed
+      expect(parse("[1, 2, 3]")).toEqual([1, 2, 3]);
+    });
+  });
+
+  describe("binary size limit", () => {
+    const originalLimit = MAX_BINARY_SIZE;
+
+    afterEach(() => {
+      _setMaxBinarySize(originalLimit);
+    });
+
+    it("rejects base64 binary exceeding MAX_BINARY_SIZE", () => {
+      _setMaxBinarySize(4); // 4 bytes max
+      // "AQIDBAUG" decodes to 6 bytes → exceeds 4
+      expect(() => parse('b"AQIDBAUG"')).toThrow(SyntaxError);
+      expect(() => parse('b"AQIDBAUG"')).toThrow(/Binary data too large/);
+    });
+
+    it("rejects hex binary exceeding MAX_BINARY_SIZE", () => {
+      _setMaxBinarySize(4); // 4 bytes max
+      // "0102030405" = 5 bytes → exceeds 4
+      expect(() => parse('x"0102030405"')).toThrow(SyntaxError);
+      expect(() => parse('x"0102030405"')).toThrow(/Binary data too large/);
+    });
+
+    it("allows base64 binary at exactly MAX_BINARY_SIZE", () => {
+      _setMaxBinarySize(3); // 3 bytes max
+      // "AQID" decodes to exactly 3 bytes
+      const buf = parse('b"AQID"') as Uint8Array;
+      expect(Array.from(buf)).toEqual([1, 2, 3]);
+    });
+
+    it("allows hex binary at exactly MAX_BINARY_SIZE", () => {
+      _setMaxBinarySize(3); // 3 bytes max
+      // "010203" = exactly 3 bytes
+      const buf = parse('x"010203"') as Uint8Array;
+      expect(Array.from(buf)).toEqual([1, 2, 3]);
+    });
+
+    it("still allows small binary data with default limit", () => {
+      // Ensure normal parsing is unaffected
+      const buf = parse('b"SGVsbG8="') as Uint8Array;
+      expect(Array.from(buf)).toEqual([72, 101, 108, 108, 111]);
     });
   });
 });

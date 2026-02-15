@@ -5,15 +5,12 @@ let depth = 0;
 let seen: WeakSet<object> | null = null;
 
 function checkCycle(obj: object): void {
-  if (depth > 10) {
-    if (!seen) seen = new WeakSet();
-    if (seen.has(obj)) throw new TypeError("Converting circular structure to RDN");
-    seen.add(obj);
-  }
+  if (seen!.has(obj)) throw new TypeError("Converting circular structure to RDN");
+  seen!.add(obj);
 }
 
 function removeCycle(obj: object): void {
-  if (seen) seen.delete(obj);
+  seen!.delete(obj);
 }
 
 // ── String escaping ─────────────────────────────────────────────────────
@@ -221,7 +218,7 @@ function stringifyValue(value: RDNValue, replacer: RDNReplacer | undefined, key:
 
 export function stringify(value: RDNValue, replacer?: RDNReplacer): string | undefined {
   depth = 0;
-  seen = null;
+  seen = new WeakSet();
   try {
     return stringifyValue(value, replacer, "");
   } finally {

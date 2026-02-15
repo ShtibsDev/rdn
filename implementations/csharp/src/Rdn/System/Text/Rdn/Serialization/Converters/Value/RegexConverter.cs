@@ -9,13 +9,15 @@ namespace Rdn.Serialization.Converters
 {
     internal sealed class RegexConverter : RdnPrimitiveConverter<Regex>
     {
+        private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(5);
+
         public override Regex Read(ref Utf8RdnReader reader, Type typeToConvert, RdnSerializerOptions options)
         {
             if (reader.TokenType == RdnTokenType.RdnRegExp)
             {
                 string source = reader.GetRdnRegExpSource();
                 string flags = reader.GetRdnRegExpFlags();
-                return new Regex(source, MapFlags(flags));
+                return new Regex(source, MapFlags(flags), RegexTimeout);
             }
 
             if (reader.TokenType == RdnTokenType.String)
@@ -28,7 +30,7 @@ namespace Rdn.Serialization.Converters
                     {
                         string source = str.Substring(1, lastSlash - 1);
                         string flags = str.Substring(lastSlash + 1);
-                        return new Regex(source, MapFlags(flags));
+                        return new Regex(source, MapFlags(flags), RegexTimeout);
                     }
                 }
             }
@@ -56,7 +58,7 @@ namespace Rdn.Serialization.Converters
                     {
                         string source = str.Substring(1, lastSlash - 1);
                         string flags = str.Substring(lastSlash + 1);
-                        return new Regex(source, MapFlags(flags));
+                        return new Regex(source, MapFlags(flags), RegexTimeout);
                     }
                 }
             }

@@ -80,7 +80,8 @@ namespace Rdn
             Debug.Assert(index >= 0, $"Set - Negative - index: {index}, arrayLength: {_array.Length}");
 
             // Maximum possible array length if bitLength was int.MaxValue (i.e. 67_108_864)
-            Debug.Assert(_array.Length <= int.MaxValue / 32 + 1, $"index: {index}, arrayLength: {_array.Length}");
+            if (_array.Length > int.MaxValue / 32 + 1)
+                throw new InvalidOperationException("BitStack array exceeds maximum safe size.");
 
             int elementIndex = Div32Rem(index, out int extraBits);
 
@@ -162,7 +163,8 @@ namespace Rdn
         private void DoubleArray(int minSize)
         {
             Debug.Assert(_array != null);
-            Debug.Assert(_array.Length < int.MaxValue / 2, $"Array too large - arrayLength: {_array.Length}");
+            if (_array.Length >= int.MaxValue / 2)
+                throw new InvalidOperationException("BitStack array too large to double.");
             Debug.Assert(minSize >= 0 && minSize >= _array.Length);
 
             int nextDouble = Math.Max(minSize + 1, _array.Length * 2);

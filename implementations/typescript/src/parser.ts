@@ -6,6 +6,13 @@ import { Token, TOKEN_TABLE, B64_DECODE, HEX_DECODE } from "./tables.js";
 let source: string;
 let pos: number;
 let len: number;
+let depth: number;
+
+export const MAX_DEPTH = 128;
+export let MAX_BINARY_SIZE = 100 * 1024 * 1024; // 100 MB
+
+/** @internal Override the binary size limit (for testing only). */
+export function _setMaxBinarySize(size: number): void { MAX_BINARY_SIZE = size; }
 
 function error(msg: string): never {
   throw new SyntaxError(`${msg} in RDN at position ${pos}`);
@@ -180,6 +187,7 @@ function parseNumber(negative: boolean): RDNValue {
 // ── Date/Time parsing ───────────────────────────────────────────────────
 
 function readDigits2(): number {
+  if (pos + 1 >= len) error("Unexpected end of input");
   const d1 = source.charCodeAt(pos) - 0x30;
   const d2 = source.charCodeAt(pos + 1) - 0x30;
   if (d1 < 0 || d1 > 9 || d2 < 0 || d2 > 9) error("Expected 2-digit number");
@@ -188,6 +196,7 @@ function readDigits2(): number {
 }
 
 function readDigits3(): number {
+  if (pos + 2 >= len) error("Unexpected end of input");
   const d1 = source.charCodeAt(pos) - 0x30;
   const d2 = source.charCodeAt(pos + 1) - 0x30;
   const d3 = source.charCodeAt(pos + 2) - 0x30;
@@ -197,6 +206,7 @@ function readDigits3(): number {
 }
 
 function readDigits4(): number {
+  if (pos + 3 >= len) error("Unexpected end of input");
   const d1 = source.charCodeAt(pos) - 0x30;
   const d2 = source.charCodeAt(pos + 1) - 0x30;
   const d3 = source.charCodeAt(pos + 2) - 0x30;
@@ -386,6 +396,7 @@ function parseBinaryB64(): Uint8Array {
   if (content.length > 1 && content.charCodeAt(content.length - 2) === 0x3D) padding++;
 
   const outLen = (content.length / 4) * 3 - padding;
+  if (outLen > MAX_BINARY_SIZE) error("Binary data too large");
   const out = new Uint8Array(outLen);
 
   let outPos = 0;
@@ -435,6 +446,7 @@ function parseBinaryHex(): Uint8Array {
 
   if (content.length === 0) return new Uint8Array(0);
   if (content.length % 2 !== 0) error("Invalid hex: odd length");
+  if (content.length / 2 > MAX_BINARY_SIZE) error("Binary data too large");
 
   const out = new Uint8Array(content.length / 2);
   for (let i = 0; i < content.length; i += 2) {
@@ -448,11 +460,17 @@ function parseBinaryHex(): Uint8Array {
 
 // ── Collection parsing ──────────────────────────────────────────────────
 
+function enterContainer(): void {
+  if (++depth > MAX_DEPTH) throw new RangeError(`Maximum nesting depth exceeded (${MAX_DEPTH})`);
+}
+
 function parseArray(): RDNValue[] {
+  enterContainer();
   pos++; // skip [
   skipWs();
   if (pos < len && source.charCodeAt(pos) === 0x5D) { // ]
     pos++;
+    depth--;
     return [];
   }
   const arr: RDNValue[] = [];
@@ -465,14 +483,17 @@ function parseArray(): RDNValue[] {
     skipWs();
   }
   expect(0x5D); // ]
+  depth--;
   return arr;
 }
 
 function parseTuple(): RDNValue[] {
+  enterContainer();
   pos++; // skip (
   skipWs();
   if (pos < len && source.charCodeAt(pos) === 0x29) { // )
     pos++;
+    depth--;
     return [];
   }
   const arr: RDNValue[] = [];
@@ -485,15 +506,18 @@ function parseTuple(): RDNValue[] {
     skipWs();
   }
   expect(0x29); // )
+  depth--;
   return arr;
 }
 
 function parseBrace(): RDNValue {
+  enterContainer();
   pos++; // skip {
   skipWs();
   // Empty braces → Object
   if (pos < len && source.charCodeAt(pos) === 0x7D) { // }
     pos++;
+    depth--;
     return {};
   }
 
@@ -527,6 +551,7 @@ function parseBrace(): RDNValue {
   // } → single-element Set
   if (sep === 0x7D) {
     pos++;
+    depth--;
     const set = new Set<RDNValue>();
     set.add(firstValue);
     return set;
@@ -552,6 +577,7 @@ function finishObject(firstKey: string): { [key: string]: RDNValue } {
     skipWs();
   }
   expect(0x7D); // }
+  depth--;
   return obj;
 }
 
@@ -575,6 +601,7 @@ function finishMap(firstKey: RDNValue): Map<RDNValue, RDNValue> {
     skipWs();
   }
   expect(0x7D); // }
+  depth--;
   return map;
 }
 
@@ -592,10 +619,12 @@ function finishSet(firstValue: RDNValue): Set<RDNValue> {
     skipWs();
   }
   expect(0x7D); // }
+  depth--;
   return set;
 }
 
 function parseExplicitMap(): Map<RDNValue, RDNValue> {
+  enterContainer();
   // pos is at 'M', check for 'Map{'
   if (pos + 3 >= len || source.charCodeAt(pos + 1) !== 0x61 || source.charCodeAt(pos + 2) !== 0x70 || source.charCodeAt(pos + 3) !== 0x7B) {
     error("Expected 'Map{'");
@@ -605,6 +634,7 @@ function parseExplicitMap(): Map<RDNValue, RDNValue> {
   const map = new Map<RDNValue, RDNValue>();
   if (pos < len && source.charCodeAt(pos) === 0x7D) { // }
     pos++;
+    depth--;
     return map;
   }
   // Parse first entry
@@ -631,10 +661,12 @@ function parseExplicitMap(): Map<RDNValue, RDNValue> {
     skipWs();
   }
   expect(0x7D); // }
+  depth--;
   return map;
 }
 
 function parseExplicitSet(): Set<RDNValue> {
+  enterContainer();
   // pos is at 'S', check for 'Set{'
   if (pos + 3 >= len || source.charCodeAt(pos + 1) !== 0x65 || source.charCodeAt(pos + 2) !== 0x74 || source.charCodeAt(pos + 3) !== 0x7B) {
     error("Expected 'Set{'");
@@ -644,6 +676,7 @@ function parseExplicitSet(): Set<RDNValue> {
   const set = new Set<RDNValue>();
   if (pos < len && source.charCodeAt(pos) === 0x7D) { // }
     pos++;
+    depth--;
     return set;
   }
   set.add(parseValue());
@@ -655,6 +688,7 @@ function parseExplicitSet(): Set<RDNValue> {
     skipWs();
   }
   expect(0x7D); // }
+  depth--;
   return set;
 }
 
@@ -712,6 +746,7 @@ function parseValue(): RDNValue {
 // ── Reviver ─────────────────────────────────────────────────────────────
 
 function applyReviver(holder: { [key: string]: RDNValue }, key: string, reviver: RDNReviver): RDNValue {
+  if (++depth > MAX_DEPTH) throw new RangeError(`Maximum nesting depth exceeded (${MAX_DEPTH})`);
   let val = holder[key] as RDNValue;
   if (val !== null && typeof val === "object") {
     if (Array.isArray(val)) {
@@ -758,6 +793,7 @@ function applyReviver(holder: { [key: string]: RDNValue }, key: string, reviver:
       }
     }
   }
+  depth--;
   return reviver.call(holder, key, val) as RDNValue;
 }
 
@@ -770,11 +806,13 @@ export function parse(text: string, reviver?: RDNReviver): RDNValue {
   source = text;
   pos = 0;
   len = text.length;
+  depth = 0;
   try {
     const result = parseValue();
     skipWs();
     if (pos < len) error("Unexpected data after value");
     if (reviver) {
+      depth = 0;
       const root: { [key: string]: RDNValue } = { "": result };
       return applyReviver(root, "", reviver);
     }
@@ -783,5 +821,6 @@ export function parse(text: string, reviver?: RDNReviver): RDNValue {
     source = "";
     pos = 0;
     len = 0;
+    depth = 0;
   }
 }

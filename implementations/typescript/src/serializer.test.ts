@@ -166,10 +166,18 @@ describe("RDN.stringify", () => {
   });
 
   describe("cycle detection", () => {
-    it("throws TypeError on circular reference", () => {
-      const obj: Record<string, unknown> = { a: 1 };
-      obj["self"] = obj;
-      // Need to go deep enough to trigger cycle detection (depth > 10)
+    it("throws TypeError on circular object reference at depth 1", () => {
+      const a: any = {};
+      a.self = a;
+      expect(() => stringify(a as never)).toThrow(TypeError);
+    });
+    it("throws TypeError on circular reference through arrays at depth 2", () => {
+      const a: any = {};
+      const arr: any[] = [a];
+      a.list = arr;
+      expect(() => stringify(a as never)).toThrow(TypeError);
+    });
+    it("throws TypeError on deep circular reference", () => {
       let current: Record<string, unknown> = { root: true };
       const root = current;
       for (let i = 0; i < 12; i++) {
