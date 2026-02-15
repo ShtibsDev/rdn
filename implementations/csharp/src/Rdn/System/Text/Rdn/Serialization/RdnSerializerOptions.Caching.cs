@@ -544,6 +544,8 @@ namespace Rdn
                     left._indentSize == right._indentSize &&
                     left._typeInfoResolver == right._typeInfoResolver &&
                     left._allowDuplicateProperties == right._allowDuplicateProperties &&
+                    left._dateTimeFormat == right._dateTimeFormat &&
+                    left._binaryFormat == right._binaryFormat &&
                     CompareLists(left._converters, right._converters);
 
                 static bool CompareLists<TValue>(ConfigurationList<TValue>? left, ConfigurationList<TValue>? right)
@@ -605,6 +607,8 @@ namespace Rdn
                 AddHashCode(ref hc, options._indentSize);
                 AddHashCode(ref hc, options._typeInfoResolver);
                 AddHashCode(ref hc, options._allowDuplicateProperties);
+                AddHashCode(ref hc, options._dateTimeFormat);
+                AddHashCode(ref hc, options._binaryFormat);
                 AddListHashCode(ref hc, options._converters);
 
                 return hc.ToHashCode();

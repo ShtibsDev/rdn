@@ -335,7 +335,7 @@ RDN binary literals use `b"..."` (base64) or `x"..."` (hex) syntax — parsed na
 | `x"<hex>"` | `x"48656C6C6F"` | Hex-encoded binary |
 | `b""` / `x""` | `b""` | Empty binary |
 
-Canonical output is always base64 (`b"..."`). Hex input is decoded and re-encoded as base64 on write.
+Default output is base64 (`b"..."`). Use `BinaryFormat = RdnBinaryFormat.Hex` to output hex (`x"..."`) instead. Both formats are always accepted during parsing.
 
 ```rdn
 {
@@ -395,6 +395,42 @@ writer.WriteRdnBinary("icon", iconBytes);
 writer.WriteEndObject();
 // => {"icon":b"iVBORw0KGgo="}
 ```
+
+## Serialization Options
+
+### DateTimeFormat
+
+Controls how `DateTime` and `DateTimeOffset` values are serialized. Default is `RdnDateTimeFormat.Iso`.
+
+| Value | Output |
+|-------|--------|
+| `Iso` (default) | `@2024-01-15T10:30:00.000Z` |
+| `UnixMilliseconds` | `@1705312200000` |
+
+```csharp
+var options = new RdnSerializerOptions { DateTimeFormat = RdnDateTimeFormat.UnixMilliseconds };
+string rdn = RdnSerializer.Serialize(new { ts = DateTime.UtcNow }, options);
+// => {"ts":@1739577600000}
+```
+
+Both formats are always accepted during deserialization regardless of this setting.
+
+### BinaryFormat
+
+Controls how `byte[]`, `Memory<byte>`, and `ReadOnlyMemory<byte>` values are serialized. Default is `RdnBinaryFormat.Base64`.
+
+| Value | Output |
+|-------|--------|
+| `Base64` (default) | `b"SGVsbG8="` |
+| `Hex` | `x"48656C6C6F"` |
+
+```csharp
+var options = new RdnSerializerOptions { BinaryFormat = RdnBinaryFormat.Hex };
+string rdn = RdnSerializer.Serialize(new { data = new byte[] { 0x48, 0x65, 0x6C } }, options);
+// => {"data":x"48656C"}
+```
+
+Both `b"..."` and `x"..."` formats are always accepted during deserialization regardless of this setting.
 
 ## Differences from System.Text.Json
 

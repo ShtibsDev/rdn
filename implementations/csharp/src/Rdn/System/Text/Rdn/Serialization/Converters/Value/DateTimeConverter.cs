@@ -19,7 +19,14 @@ namespace Rdn.Serialization.Converters
 
         public override void Write(Utf8RdnWriter writer, DateTime value, RdnSerializerOptions options)
         {
-            writer.WriteRdnDateTimeValue(value);
+            if (options.DateTimeFormat == RdnDateTimeFormat.UnixMilliseconds)
+            {
+                writer.WriteRdnUnixTimestampValue(value);
+            }
+            else
+            {
+                writer.WriteRdnDateTimeValue(value);
+            }
         }
 
         internal override DateTime ReadAsPropertyNameCore(ref Utf8RdnReader reader, Type typeToConvert, RdnSerializerOptions options)

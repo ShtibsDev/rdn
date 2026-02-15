@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Buffers;
+using System.Buffers.Text;
 using System.Diagnostics;
 
 namespace Rdn
@@ -488,6 +490,115 @@ namespace Rdn
             output[BytesPending++] = RdnConstants.AtSign;
             int written = RdnWriterHelper.FormatTimeSpanAsIsoDuration(output.Slice(BytesPending), value);
             BytesPending += written;
+        }
+
+        /// <summary>
+        /// Writes a DateTime as an RDN @-prefixed Unix timestamp in milliseconds (e.g. @1705312200000).
+        /// </summary>
+        public void WriteRdnUnixTimestampValue(DateTime value)
+        {
+            if (!_options.SkipValidation)
+            {
+                ValidateWritingValue();
+            }
+
+            DateTime utc = value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime();
+            long millis = (long)(utc - DateTime.UnixEpoch).TotalMilliseconds;
+
+            if (_options.Indented)
+            {
+                WriteRdnUnixTimestampValueIndented(millis);
+            }
+            else
+            {
+                WriteRdnUnixTimestampValueMinimized(millis);
+            }
+
+            SetFlagToAddListSeparatorBeforeNextItem();
+            _tokenType = RdnTokenType.RdnDateTime;
+        }
+
+        /// <summary>
+        /// Writes a DateTimeOffset as an RDN @-prefixed Unix timestamp in milliseconds (e.g. @1705312200000).
+        /// </summary>
+        public void WriteRdnUnixTimestampOffsetValue(DateTimeOffset value)
+        {
+            if (!_options.SkipValidation)
+            {
+                ValidateWritingValue();
+            }
+
+            long millis = value.ToUnixTimeMilliseconds();
+
+            if (_options.Indented)
+            {
+                WriteRdnUnixTimestampValueIndented(millis);
+            }
+            else
+            {
+                WriteRdnUnixTimestampValueMinimized(millis);
+            }
+
+            SetFlagToAddListSeparatorBeforeNextItem();
+            _tokenType = RdnTokenType.RdnDateTime;
+        }
+
+        private void WriteRdnUnixTimestampValueMinimized(long millis)
+        {
+            // @ (1) + up to 20 digits for long + optionally 1 list separator = 22
+            int maxRequired = 22;
+
+            if (_memory.Length - BytesPending < maxRequired)
+            {
+                Grow(maxRequired);
+            }
+
+            Span<byte> output = _memory.Span;
+
+            if (_currentDepth < 0)
+            {
+                output[BytesPending++] = RdnConstants.ListSeparator;
+            }
+
+            output[BytesPending++] = RdnConstants.AtSign;
+            bool result = Utf8Formatter.TryFormat(millis, output.Slice(BytesPending), out int bytesWritten);
+            Debug.Assert(result);
+            BytesPending += bytesWritten;
+        }
+
+        private void WriteRdnUnixTimestampValueIndented(long millis)
+        {
+            int indent = Indentation;
+            Debug.Assert(indent <= _indentLength * _options.MaxDepth);
+
+            int maxRequired = indent + 22 + _newLineLength;
+
+            if (_memory.Length - BytesPending < maxRequired)
+            {
+                Grow(maxRequired);
+            }
+
+            Span<byte> output = _memory.Span;
+
+            if (_currentDepth < 0)
+            {
+                output[BytesPending++] = RdnConstants.ListSeparator;
+            }
+
+            if (_tokenType != RdnTokenType.PropertyName)
+            {
+                if (_tokenType != RdnTokenType.None)
+                {
+                    WriteNewLine(output);
+                }
+                WriteIndentation(output.Slice(BytesPending), indent);
+                BytesPending += indent;
+            }
+
+            output[BytesPending++] = RdnConstants.AtSign;
+            bool result = Utf8Formatter.TryFormat(millis, output.Slice(BytesPending), out int bytesWritten);
+            Debug.Assert(result);
+            BytesPending += bytesWritten;
         }
     }
 }

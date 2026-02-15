@@ -89,6 +89,8 @@ namespace Rdn
         private RdnObjectCreationHandling _preferredObjectCreationHandling;
         private RdnUnknownTypeHandling _unknownTypeHandling;
         private RdnUnmappedMemberHandling _unmappedMemberHandling;
+        private RdnDateTimeFormat _dateTimeFormat;
+        private RdnBinaryFormat _binaryFormat;
 
         private int _defaultBufferSize = BufferSizeDefault;
         private int _maxDepth;
@@ -142,6 +144,8 @@ namespace Rdn
             _preferredObjectCreationHandling = options._preferredObjectCreationHandling;
             _unknownTypeHandling = options._unknownTypeHandling;
             _unmappedMemberHandling = options._unmappedMemberHandling;
+            _dateTimeFormat = options._dateTimeFormat;
+            _binaryFormat = options._binaryFormat;
 
             _defaultBufferSize = options._defaultBufferSize;
             _maxDepth = options._maxDepth;
@@ -872,6 +876,40 @@ namespace Rdn
             {
                 VerifyMutable();
                 _allowDuplicateProperties = value;
+            }
+        }
+
+        /// <summary>
+        /// Specifies how DateTime and DateTimeOffset values are serialized.
+        /// The default is <see cref="RdnDateTimeFormat.Iso"/>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if this property is set after serialization or deserialization has occurred.
+        /// </exception>
+        public RdnDateTimeFormat DateTimeFormat
+        {
+            get => _dateTimeFormat;
+            set
+            {
+                VerifyMutable();
+                _dateTimeFormat = value;
+            }
+        }
+
+        /// <summary>
+        /// Specifies how binary data (byte[], Memory&lt;byte&gt;, ReadOnlyMemory&lt;byte&gt;) is serialized.
+        /// The default is <see cref="RdnBinaryFormat.Base64"/>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if this property is set after serialization or deserialization has occurred.
+        /// </exception>
+        public RdnBinaryFormat BinaryFormat
+        {
+            get => _binaryFormat;
+            set
+            {
+                VerifyMutable();
+                _binaryFormat = value;
             }
         }
 

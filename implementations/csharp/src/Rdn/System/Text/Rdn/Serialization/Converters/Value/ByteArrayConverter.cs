@@ -29,6 +29,10 @@ namespace Rdn.Serialization.Converters
             {
                 writer.WriteNullValue();
             }
+            else if (options.BinaryFormat == RdnBinaryFormat.Hex)
+            {
+                writer.WriteRdnBinaryHexValue(value);
+            }
             else
             {
                 writer.WriteRdnBinaryValue(value);

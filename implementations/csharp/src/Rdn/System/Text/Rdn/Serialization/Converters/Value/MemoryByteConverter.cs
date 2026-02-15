@@ -21,7 +21,14 @@ namespace Rdn.Serialization.Converters
 
         public override void Write(Utf8RdnWriter writer, Memory<byte> value, RdnSerializerOptions options)
         {
-            writer.WriteRdnBinaryValue(value.Span);
+            if (options.BinaryFormat == RdnBinaryFormat.Hex)
+            {
+                writer.WriteRdnBinaryHexValue(value.Span);
+            }
+            else
+            {
+                writer.WriteRdnBinaryValue(value.Span);
+            }
         }
 
         internal override RdnSchema? GetSchema(RdnNumberHandling _) => new() { Type = RdnSchemaType.String };
