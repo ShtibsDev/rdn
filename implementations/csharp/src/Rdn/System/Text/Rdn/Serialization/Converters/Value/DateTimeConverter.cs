@@ -10,11 +10,11 @@ namespace Rdn.Serialization.Converters
     {
         public override DateTime Read(ref Utf8RdnReader reader, Type typeToConvert, RdnSerializerOptions options)
         {
-            if (reader.TokenType == RdnTokenType.RdnDateTime)
+            if (reader.TokenType != RdnTokenType.RdnDateTime)
             {
-                return reader.GetRdnDateTime();
+                ThrowHelper.ThrowRdnException_DeserializeUnableToConvertValue(typeof(DateTime));
             }
-            return reader.GetDateTime();
+            return reader.GetRdnDateTime();
         }
 
         public override void Write(Utf8RdnWriter writer, DateTime value, RdnSerializerOptions options)

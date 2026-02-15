@@ -86,8 +86,7 @@ namespace Rdn
                 (int)(
                 RdnNumberHandling.Strict |
                 RdnNumberHandling.AllowReadingFromString |
-                RdnNumberHandling.WriteAsString |
-                RdnNumberHandling.AllowNamedFloatingPointLiterals));
+                RdnNumberHandling.WriteAsString));
 
         internal static bool IsValidCreationHandlingValue(RdnObjectCreationHandling handling) =>
             handling is RdnObjectCreationHandling.Replace or RdnObjectCreationHandling.Populate;

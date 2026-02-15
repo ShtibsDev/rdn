@@ -10,15 +10,16 @@ namespace Rdn.Serialization.Converters
     {
         public override DateTimeOffset Read(ref Utf8RdnReader reader, Type typeToConvert, RdnSerializerOptions options)
         {
-            if (reader.TokenType == RdnTokenType.RdnDateTime)
+            if (reader.TokenType != RdnTokenType.RdnDateTime)
             {
-                if (reader.TryGetRdnDateTime(out DateTime dt))
-                {
-                    return new DateTimeOffset(dt, TimeSpan.Zero);
-                }
-                ThrowHelper.ThrowFormatException(DataType.DateTimeOffset);
+                ThrowHelper.ThrowRdnException_DeserializeUnableToConvertValue(typeof(DateTimeOffset));
             }
-            return reader.GetDateTimeOffset();
+            if (reader.TryGetRdnDateTime(out DateTime dt))
+            {
+                return new DateTimeOffset(dt, TimeSpan.Zero);
+            }
+            ThrowHelper.ThrowFormatException(DataType.DateTimeOffset);
+            return default;
         }
 
         public override void Write(Utf8RdnWriter writer, DateTimeOffset value, RdnSerializerOptions options)

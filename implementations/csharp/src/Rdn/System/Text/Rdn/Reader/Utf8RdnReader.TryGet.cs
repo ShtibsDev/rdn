@@ -613,18 +613,6 @@ namespace Rdn
             return value;
         }
 
-        internal float GetSingleFloatingPointConstant()
-        {
-            ReadOnlySpan<byte> span = GetUnescapedSpan();
-
-            if (!RdnReaderHelper.TryGetFloatingPointConstant(span, out float value))
-            {
-                ThrowHelper.ThrowFormatException(NumericType.Single);
-            }
-
-            return value;
-        }
-
         /// <summary>
         /// Parses the current RDN token value from the source as a <see cref="double"/>.
         /// Returns the value if the entire UTF-8 encoded token value can be successfully parsed to a <see cref="double"/>
@@ -663,18 +651,6 @@ namespace Rdn
             if (!(Utf8Parser.TryParse(span, out value, out int bytesConsumed)
                   && span.Length == bytesConsumed
                   && RdnHelpers.IsFinite(value)))
-            {
-                ThrowHelper.ThrowFormatException(NumericType.Double);
-            }
-
-            return value;
-        }
-
-        internal double GetDoubleFloatingPointConstant()
-        {
-            ReadOnlySpan<byte> span = GetUnescapedSpan();
-
-            if (!RdnReaderHelper.TryGetFloatingPointConstant(span, out double value))
             {
                 ThrowHelper.ThrowFormatException(NumericType.Double);
             }

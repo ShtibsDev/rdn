@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Rdn.Nodes;
 using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
@@ -48,18 +47,6 @@ namespace Rdn.Serialization.Converters
                         : @"^-?(?:0|[1-9]\d*)(?:\.\d+)?$";
 
                 schemaType |= RdnSchemaType.String;
-            }
-
-            if (isIeeeFloatingPoint && (numberHandling & RdnNumberHandling.AllowNamedFloatingPointLiterals) != 0)
-            {
-                return new RdnSchema
-                {
-                    AnyOf =
-                    [
-                        new RdnSchema { Type = schemaType, Pattern = pattern },
-                        new RdnSchema { Enum = [(RdnNode)"NaN", (RdnNode)"Infinity", (RdnNode)"-Infinity"] },
-                    ]
-                };
             }
 
             return new RdnSchema { Type = schemaType, Pattern = pattern };

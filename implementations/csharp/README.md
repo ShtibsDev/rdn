@@ -396,6 +396,14 @@ writer.WriteEndObject();
 // => {"icon":b"iVBORw0KGgo="}
 ```
 
+## Differences from System.Text.Json
+
+This implementation is a fork of `System.Text.Json` with the following redundant JSON workarounds removed:
+
+- **`AllowNamedFloatingPointLiterals` removed** — RDN has native `NaN`, `Infinity`, and `-Infinity` bare number literals, making the JSON workaround (which wrote them as quoted strings like `"NaN"`) redundant. These values are now always read/written as bare literals through the standard code path.
+
+- **DateTime string fallback removed from serialization converters** — RDN has native `@`-prefixed date/time syntax. The `DateTimeConverter` and `DateTimeOffsetConverter` no longer fall back to parsing ISO strings from `RdnTokenType.String` tokens. Dates in RDN should always arrive as `RdnTokenType.RdnDateTime`. The reader's public `GetDateTime()` / `TryGetDateTime()` methods remain available for manual string parsing.
+
 ## Roadmap
 
 - [x] DateTime (`@2024-01-15T10:30:00.000Z`)

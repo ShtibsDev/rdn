@@ -107,15 +107,6 @@ namespace Rdn.Serialization.Converters
 
                     return ReadCore(ref reader);
                 }
-                else if ((RdnNumberHandling.AllowNamedFloatingPointLiterals & handling) != 0)
-                {
-                    if (!TryGetFloatingPointConstant(ref reader, out Half value))
-                    {
-                        ThrowHelper.ThrowFormatException(NumericType.Half);
-                    }
-
-                    return value;
-                }
             }
 
             if (reader.TokenType != RdnTokenType.Number)
@@ -138,10 +129,6 @@ namespace Rdn.Serialization.Converters
                 int length = written + 2;
                 buffer[length - 1] = Quote;
                 writer.WriteRawValue(buffer.Slice(0, length));
-            }
-            else if ((RdnNumberHandling.AllowNamedFloatingPointLiterals & handling) != 0)
-            {
-                WriteFloatingPointConstant(writer, value);
             }
             else
             {
@@ -187,26 +174,6 @@ namespace Rdn.Serialization.Converters
             }
 
             return RdnReaderHelper.TryGetFloatingPointConstant(buffer.Slice(0, written), out value);
-        }
-
-        private static void WriteFloatingPointConstant(Utf8RdnWriter writer, Half value)
-        {
-            if (Half.IsNaN(value))
-            {
-                writer.WriteNumberValueAsStringUnescaped(RdnConstants.NaNValue);
-            }
-            else if (Half.IsPositiveInfinity(value))
-            {
-                writer.WriteNumberValueAsStringUnescaped(RdnConstants.PositiveInfinityValue);
-            }
-            else if (Half.IsNegativeInfinity(value))
-            {
-                writer.WriteNumberValueAsStringUnescaped(RdnConstants.NegativeInfinityValue);
-            }
-            else
-            {
-                WriteCore(writer, value);
-            }
         }
 
         private static bool TryParse(ReadOnlySpan<byte> buffer, out Half result)

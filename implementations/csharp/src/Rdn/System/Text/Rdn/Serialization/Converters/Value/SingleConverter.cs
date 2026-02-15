@@ -55,10 +55,6 @@ namespace Rdn.Serialization.Converters
                 {
                     return reader.GetSingleWithQuotes();
                 }
-                else if ((RdnNumberHandling.AllowNamedFloatingPointLiterals & handling) != 0)
-                {
-                    return reader.GetSingleFloatingPointConstant();
-                }
             }
 
             return reader.GetSingle();
@@ -69,10 +65,6 @@ namespace Rdn.Serialization.Converters
             if ((RdnNumberHandling.WriteAsString & handling) != 0)
             {
                 writer.WriteNumberValueAsString(value);
-            }
-            else if ((RdnNumberHandling.AllowNamedFloatingPointLiterals & handling) != 0)
-            {
-                writer.WriteFloatingPointConstant(value);
             }
             else
             {

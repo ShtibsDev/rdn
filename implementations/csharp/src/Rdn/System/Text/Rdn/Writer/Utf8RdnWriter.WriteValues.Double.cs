@@ -162,9 +162,5 @@ namespace Rdn
             WriteNumberValueAsStringUnescaped(utf8Number.Slice(0, bytesWritten));
         }
 
-        internal void WriteFloatingPointConstant(double value)
-        {
-            WriteNumberValue(value);
-        }
     }
 }

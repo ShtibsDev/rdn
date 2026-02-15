@@ -316,7 +316,7 @@
     <value>Expected a digit ('0'-'9'), but instead reached end of data.</value>
   </data>
   <data name="SpecialNumberValuesNotSupported" xml:space="preserve">
-    <value>.NET number values such as positive and negative infinity cannot be written as valid RDN. To make it work when using 'RdnSerializer', consider specifying 'RdnNumberHandling.AllowNamedFloatingPointLiterals' (see https://learn.microsoft.com/dotnet/api/system.text.rdn.serialization.rdnnumberhandling).</value>
+    <value>.NET number values such as positive and negative infinity cannot be written as valid RDN. RDN natively supports NaN, Infinity, and -Infinity as bare number literals.</value>
   </data>
   <data name="ValueTooLarge" xml:space="preserve">
     <value>The RDN value of length {0} is too large and not supported.</value>

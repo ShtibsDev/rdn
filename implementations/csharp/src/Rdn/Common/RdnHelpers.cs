@@ -59,7 +59,7 @@ namespace Rdn
         internal static bool RequiresSpecialNumberHandlingOnWrite(RdnNumberHandling? handling)
         {
             return handling != null
-                ? (handling.Value & (RdnNumberHandling.WriteAsString | RdnNumberHandling.AllowNamedFloatingPointLiterals)) != 0
+                ? (handling.Value & RdnNumberHandling.WriteAsString) != 0
                 : false;
         }
 
