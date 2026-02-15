@@ -77,5 +77,10 @@ namespace Rdn
         ///   Indicates that a value is an RDN Map.
         /// </summary>
         Map,
+
+        /// <summary>
+        ///   Indicates that a value is an RDN binary literal.
+        /// </summary>
+        RdnBinary,
     }
 }

@@ -559,6 +559,7 @@ namespace Rdn
                     case RdnTokenType.RdnTimeOnly:
                     case RdnTokenType.RdnDuration:
                     case RdnTokenType.RdnRegExp:
+                    case RdnTokenType.RdnBinary:
                     {
                         if (reader.HasValueSequence)
                         {

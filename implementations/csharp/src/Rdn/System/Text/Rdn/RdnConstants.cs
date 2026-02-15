@@ -33,6 +33,8 @@ namespace Rdn
         public const byte LetterP = (byte)'P';
         public const byte LetterS = (byte)'S';
         public const byte LetterM = (byte)'M';
+        public const byte LetterB = (byte)'b';
+        public const byte LetterX = (byte)'x';
         public const byte Equals = (byte)'=';
         public const byte GreaterThan = (byte)'>';
         public const byte OpenParen = (byte)'(';

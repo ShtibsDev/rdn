@@ -12,12 +12,16 @@ namespace Rdn.Serialization.Converters
 
         public override Memory<byte> Read(ref Utf8RdnReader reader, Type typeToConvert, RdnSerializerOptions options)
         {
-            return reader.TokenType is RdnTokenType.Null ? default : reader.GetBytesFromBase64();
+            if (reader.TokenType is RdnTokenType.Null)
+                return default;
+            if (reader.TokenType == RdnTokenType.RdnBinary)
+                return reader.GetRdnBinary();
+            return reader.GetBytesFromBase64();
         }
 
         public override void Write(Utf8RdnWriter writer, Memory<byte> value, RdnSerializerOptions options)
         {
-            writer.WriteBase64StringValue(value.Span);
+            writer.WriteRdnBinaryValue(value.Span);
         }
 
         internal override RdnSchema? GetSchema(RdnNumberHandling _) => new() { Type = RdnSchemaType.String };

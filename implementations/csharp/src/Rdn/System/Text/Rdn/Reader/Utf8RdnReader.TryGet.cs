@@ -1637,6 +1637,75 @@ namespace Rdn
             value = new RdnDuration(RdnReaderHelper.TranscodeHelper(span));
             return true;
         }
+
+        // --- RDN Binary API ---
+
+        /// <summary>
+        /// Gets the RDN binary value from the current token as a byte array.
+        /// </summary>
+        public byte[] GetRdnBinary()
+        {
+            if (!TryGetRdnBinary(out byte[]? value))
+            {
+                ThrowHelper.ThrowFormatException();
+            }
+            return value!;
+        }
+
+        /// <summary>
+        /// Tries to get the RDN binary value from the current token.
+        /// Decodes base64 (b"...") or hex (x"...") content into a byte array.
+        /// </summary>
+        public bool TryGetRdnBinary([NotNullWhen(true)] out byte[]? value)
+        {
+            if (TokenType != RdnTokenType.RdnBinary)
+            {
+                ThrowHelper.ThrowInvalidOperationException_ExpectedString(TokenType);
+            }
+
+            ReadOnlySpan<byte> span = HasValueSequence ? ValueSequence.ToArray() : ValueSpan;
+
+            if (span.Length == 0)
+            {
+                value = Array.Empty<byte>();
+                return true;
+            }
+
+            // ValueIsEscaped: false = base64, true = hex
+            if (!ValueIsEscaped)
+            {
+                // Base64 decode
+                int maxDecodedLength = Base64.GetMaxDecodedFromUtf8Length(span.Length);
+                byte[] decoded = new byte[maxDecodedLength];
+                OperationStatus status = Base64.DecodeFromUtf8(span, decoded, out _, out int written);
+                if (status != OperationStatus.Done)
+                {
+                    value = null;
+                    return false;
+                }
+                value = decoded.AsSpan(0, written).ToArray();
+                return true;
+            }
+            else
+            {
+                // Hex decode
+                int byteCount = span.Length / 2;
+                byte[] decoded = new byte[byteCount];
+                for (int i = 0; i < byteCount; i++)
+                {
+                    int hi = HexConverter.FromChar(span[i * 2]);
+                    int lo = HexConverter.FromChar(span[i * 2 + 1]);
+                    if (hi == 0xFF || lo == 0xFF)
+                    {
+                        value = null;
+                        return false;
+                    }
+                    decoded[i] = (byte)((hi << 4) | lo);
+                }
+                value = decoded;
+                return true;
+            }
+        }
     }
 }
 

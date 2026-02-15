@@ -126,6 +126,135 @@ namespace Rdn
         }
 
         /// <summary>
+        /// Writes a variable-length non-negative integer directly to the output span.
+        /// Returns the number of bytes written.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int WriteInt(Span<byte> output, int value)
+        {
+            Debug.Assert(value >= 0);
+
+            if (value < 10)
+            {
+                output[0] = (byte)('0' + value);
+                return 1;
+            }
+
+            if (value < 100)
+            {
+                WriteTwoDigit(output, value);
+                return 2;
+            }
+
+            // For larger values, write digits right-to-left, then reverse
+            int start = 0;
+            int pos = 0;
+            int v = value;
+            while (v > 0)
+            {
+                output[pos++] = (byte)('0' + v % 10);
+                v /= 10;
+            }
+            // Reverse the digits
+            int left = start, right = pos - 1;
+            while (left < right)
+            {
+                (output[left], output[right]) = (output[right], output[left]);
+                left++;
+                right--;
+            }
+            return pos;
+        }
+
+        /// <summary>
+        /// Formats a TimeSpan as an ISO 8601 duration directly into a Span&lt;byte&gt; buffer.
+        /// Zero-allocation hot path for the writer.
+        /// Max output: "-P99999999DT23H59M59.999S" = ~26 bytes.
+        /// Returns the number of bytes written.
+        /// </summary>
+        public static int FormatTimeSpanAsIsoDuration(Span<byte> output, TimeSpan value)
+        {
+            Debug.Assert(output.Length >= 26);
+
+            bool negative = value < TimeSpan.Zero;
+            if (negative) value = value.Negate();
+
+            int days = value.Days;
+            int hours = value.Hours;
+            int minutes = value.Minutes;
+            int seconds = value.Seconds;
+            int milliseconds = value.Milliseconds;
+
+            int pos = 0;
+
+            if (negative)
+                output[pos++] = (byte)'-';
+
+            output[pos++] = (byte)'P';
+
+            if (days > 0)
+            {
+                pos += WriteInt(output.Slice(pos), days);
+                output[pos++] = (byte)'D';
+            }
+
+            if (hours > 0 || minutes > 0 || seconds > 0 || milliseconds > 0)
+            {
+                output[pos++] = (byte)'T';
+                if (hours > 0)
+                {
+                    pos += WriteInt(output.Slice(pos), hours);
+                    output[pos++] = (byte)'H';
+                }
+                if (minutes > 0)
+                {
+                    pos += WriteInt(output.Slice(pos), minutes);
+                    output[pos++] = (byte)'M';
+                }
+                if (milliseconds > 0)
+                {
+                    // Write seconds.milliseconds, trimming trailing zeros from the fraction
+                    pos += WriteInt(output.Slice(pos), seconds);
+                    output[pos++] = (byte)'.';
+                    // Write up to 3 fractional digits, trimming trailing zeros
+                    if (milliseconds % 100 == 0)
+                    {
+                        // Only 1 digit needed (e.g. 500 -> .5)
+                        output[pos++] = (byte)('0' + milliseconds / 100);
+                    }
+                    else if (milliseconds % 10 == 0)
+                    {
+                        // 2 digits needed (e.g. 120 -> .12)
+                        WriteTwoDigit(output.Slice(pos), milliseconds / 10);
+                        pos += 2;
+                    }
+                    else
+                    {
+                        // All 3 digits needed (e.g. 123 -> .123)
+                        WriteThreeDigit(output.Slice(pos), milliseconds);
+                        pos += 3;
+                    }
+                    output[pos++] = (byte)'S';
+                }
+                else if (seconds > 0)
+                {
+                    pos += WriteInt(output.Slice(pos), seconds);
+                    output[pos++] = (byte)'S';
+                }
+            }
+
+            // P with no components = zero duration
+            int minLen = negative ? 2 : 1;
+            if (pos == minLen)
+            {
+                output[pos++] = (byte)'0';
+                output[pos++] = (byte)'D';
+            }
+
+            return pos;
+        }
+
+        /// <summary>
         /// Converts a TimeSpan to an ISO 8601 duration string (e.g. "P1DT2H3M4S", "PT30M", "P0D").
         /// </summary>
         public static string FormatTimeSpanAsIsoDuration(TimeSpan value)

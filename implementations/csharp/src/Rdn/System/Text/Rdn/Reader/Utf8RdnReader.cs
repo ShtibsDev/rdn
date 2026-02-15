@@ -1727,6 +1727,14 @@ namespace Rdn
                 {
                     return ConsumeExplicitMap();
                 }
+                else if (marker == RdnConstants.LetterB)
+                {
+                    return ConsumeBinaryB64();
+                }
+                else if (marker == RdnConstants.LetterX)
+                {
+                    return ConsumeBinaryHex();
+                }
                 else if (marker == RdnConstants.Slash)
                 {
                     // Peek ahead: if next char is / or *, it may be a comment

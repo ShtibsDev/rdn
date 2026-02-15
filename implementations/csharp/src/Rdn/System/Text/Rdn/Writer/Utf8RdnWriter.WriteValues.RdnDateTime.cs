@@ -324,6 +324,7 @@ namespace Rdn
 
         /// <summary>
         /// Writes an RdnDuration as an RDN @-prefixed literal: @P... (no quotes).
+        /// Zero-allocation: ISO duration strings are pure ASCII, so each char is written directly as a byte.
         /// </summary>
         public void WriteRdnDurationValue(RdnDuration value)
         {
@@ -333,24 +334,23 @@ namespace Rdn
             }
 
             string iso = value.Iso ?? "P0D";
-            byte[] isoBytes = System.Text.Encoding.UTF8.GetBytes(iso);
 
             if (_options.Indented)
             {
-                WriteRdnDurationValueIndented(isoBytes);
+                WriteRdnDurationValueIndented(iso);
             }
             else
             {
-                WriteRdnDurationValueMinimized(isoBytes);
+                WriteRdnDurationValueMinimized(iso);
             }
 
             SetFlagToAddListSeparatorBeforeNextItem();
             _tokenType = RdnTokenType.RdnDuration;
         }
 
-        private void WriteRdnDurationValueMinimized(byte[] isoBytes)
+        private void WriteRdnDurationValueMinimized(string iso)
         {
-            int maxRequired = 1 + isoBytes.Length + 1; // @ + value + optional separator
+            int maxRequired = 1 + iso.Length + 1; // @ + value + optional separator
 
             if (_memory.Length - BytesPending < maxRequired)
             {
@@ -365,16 +365,20 @@ namespace Rdn
             }
 
             output[BytesPending++] = RdnConstants.AtSign;
-            isoBytes.CopyTo(output.Slice(BytesPending));
-            BytesPending += isoBytes.Length;
+            // ISO duration strings are pure ASCII (P, D, T, H, M, S, '.', '-', 0-9),
+            // so each char maps 1:1 to a UTF-8 byte — no Encoding.UTF8.GetBytes allocation needed.
+            for (int i = 0; i < iso.Length; i++)
+            {
+                output[BytesPending++] = (byte)iso[i];
+            }
         }
 
-        private void WriteRdnDurationValueIndented(byte[] isoBytes)
+        private void WriteRdnDurationValueIndented(string iso)
         {
             int indent = Indentation;
             Debug.Assert(indent <= _indentLength * _options.MaxDepth);
 
-            int maxRequired = indent + 1 + isoBytes.Length + 1 + _newLineLength;
+            int maxRequired = indent + 1 + iso.Length + 1 + _newLineLength;
 
             if (_memory.Length - BytesPending < maxRequired)
             {
@@ -399,17 +403,91 @@ namespace Rdn
             }
 
             output[BytesPending++] = RdnConstants.AtSign;
-            isoBytes.CopyTo(output.Slice(BytesPending));
-            BytesPending += isoBytes.Length;
+            // ISO duration strings are pure ASCII — write each char directly as a byte.
+            for (int i = 0; i < iso.Length; i++)
+            {
+                output[BytesPending++] = (byte)iso[i];
+            }
         }
 
         /// <summary>
         /// Writes a TimeSpan as an RDN @-prefixed ISO 8601 duration literal (e.g. @P1DT2H3M4S).
+        /// Zero-allocation: formats directly into the output buffer.
         /// </summary>
         public void WriteRdnTimeSpanValue(TimeSpan value)
         {
-            string iso = RdnWriterHelper.FormatTimeSpanAsIsoDuration(value);
-            WriteRdnDurationValue(new RdnDuration(iso));
+            if (!_options.SkipValidation)
+            {
+                ValidateWritingValue();
+            }
+
+            if (_options.Indented)
+            {
+                WriteRdnTimeSpanValueIndented(value);
+            }
+            else
+            {
+                WriteRdnTimeSpanValueMinimized(value);
+            }
+
+            SetFlagToAddListSeparatorBeforeNextItem();
+            _tokenType = RdnTokenType.RdnDuration;
+        }
+
+        private void WriteRdnTimeSpanValueMinimized(TimeSpan value)
+        {
+            // @ (1) + max duration ~26 + optionally 1 list separator = 28
+            int maxRequired = 28;
+
+            if (_memory.Length - BytesPending < maxRequired)
+            {
+                Grow(maxRequired);
+            }
+
+            Span<byte> output = _memory.Span;
+
+            if (_currentDepth < 0)
+            {
+                output[BytesPending++] = RdnConstants.ListSeparator;
+            }
+
+            output[BytesPending++] = RdnConstants.AtSign;
+            int written = RdnWriterHelper.FormatTimeSpanAsIsoDuration(output.Slice(BytesPending), value);
+            BytesPending += written;
+        }
+
+        private void WriteRdnTimeSpanValueIndented(TimeSpan value)
+        {
+            int indent = Indentation;
+            Debug.Assert(indent <= _indentLength * _options.MaxDepth);
+
+            int maxRequired = indent + 28 + _newLineLength;
+
+            if (_memory.Length - BytesPending < maxRequired)
+            {
+                Grow(maxRequired);
+            }
+
+            Span<byte> output = _memory.Span;
+
+            if (_currentDepth < 0)
+            {
+                output[BytesPending++] = RdnConstants.ListSeparator;
+            }
+
+            if (_tokenType != RdnTokenType.PropertyName)
+            {
+                if (_tokenType != RdnTokenType.None)
+                {
+                    WriteNewLine(output);
+                }
+                WriteIndentation(output.Slice(BytesPending), indent);
+                BytesPending += indent;
+            }
+
+            output[BytesPending++] = RdnConstants.AtSign;
+            int written = RdnWriterHelper.FormatTimeSpanAsIsoDuration(output.Slice(BytesPending), value);
+            BytesPending += written;
         }
     }
 }

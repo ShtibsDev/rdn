@@ -325,6 +325,77 @@ writer.WriteEndObject();
 // => {"pattern":/^[a-z]+$/gi}
 ```
 
+## RDN Binary Support
+
+RDN binary literals use `b"..."` (base64) or `x"..."` (hex) syntax — parsed natively as `RdnTokenType.RdnBinary`, with automatic `byte[]`, `Memory<byte>`, and `ReadOnlyMemory<byte>` serialization.
+
+| Syntax | Example | Description |
+|--------|---------|-------------|
+| `b"<base64>"` | `b"SGVsbG8="` | Base64-encoded binary |
+| `x"<hex>"` | `x"48656C6C6F"` | Hex-encoded binary |
+| `b""` / `x""` | `b""` | Empty binary |
+
+Canonical output is always base64 (`b"..."`). Hex input is decoded and re-encoded as base64 on write.
+
+```rdn
+{
+  "icon": b"iVBORw0KGgo=",
+  "hash": x"DEADBEEF"
+}
+```
+
+### Serialize / Deserialize
+
+```csharp
+using Rdn.Serialization;
+
+// byte[] serializes as b"..."
+string rdn = RdnSerializer.Serialize(new { Data = new byte[] { 0x48, 0x65, 0x6C } });
+// => {"Data":b"SGVs"}
+
+// Deserialize from base64 or hex binary literals
+var model = RdnSerializer.Deserialize<MyModel>("""{"Data": b"SGVsbG8="}""");
+// model.Data == "Hello"u8.ToArray()
+
+// Also works with hex syntax
+var model2 = RdnSerializer.Deserialize<MyModel>("""{"Data": x"48656C6C6F"}""");
+// model2.Data == "Hello"u8.ToArray()
+
+// Backwards-compatible: plain base64 strings still deserialize to byte[]
+var model3 = RdnSerializer.Deserialize<MyModel>("""{"Data": "SGVsbG8="}""");
+```
+
+### Document API
+
+```csharp
+using var doc = RdnDocument.Parse("""{"data": b"SGVsbG8="}""");
+var el = doc.RootElement.GetProperty("data");
+el.ValueKind  // RdnValueKind.RdnBinary
+byte[] bytes = el.GetRdnBinary();  // "Hello"u8.ToArray()
+```
+
+### Reader
+
+```csharp
+var reader = new Utf8RdnReader(data);
+while (reader.Read())
+{
+    if (reader.TokenType == RdnTokenType.RdnBinary)
+    {
+        byte[] value = reader.GetRdnBinary();
+    }
+}
+```
+
+### Writer
+
+```csharp
+writer.WriteStartObject();
+writer.WriteRdnBinary("icon", iconBytes);
+writer.WriteEndObject();
+// => {"icon":b"iVBORw0KGgo="}
+```
+
 ## Roadmap
 
 - [x] DateTime (`@2024-01-15T10:30:00.000Z`)
@@ -333,7 +404,7 @@ writer.WriteEndObject();
 - [x] NaN / Infinity / -Infinity
 - [ ] BigInteger
 - [x] Regex (`/pattern/flags`)
-- [ ] Binary (`byte[]`)
+- [x] Binary (`byte[]`)
 - [x] Map
 - [x] Set
 - [ ] Tuple

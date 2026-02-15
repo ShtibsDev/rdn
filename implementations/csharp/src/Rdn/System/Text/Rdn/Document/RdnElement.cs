@@ -1236,6 +1236,27 @@ namespace Rdn
         }
 
         /// <summary>
+        /// Gets the value of the element as an RDN binary (byte array).
+        /// </summary>
+        public byte[] GetRdnBinary()
+        {
+            if (!TryGetRdnBinary(out byte[]? value))
+            {
+                ThrowHelper.ThrowFormatException();
+            }
+            return value!;
+        }
+
+        /// <summary>
+        /// Attempts to get the value of the element as an RDN binary (byte array).
+        /// </summary>
+        public bool TryGetRdnBinary([NotNullWhen(true)] out byte[]? value)
+        {
+            CheckValidInstance();
+            return _parent.TryGetRdnBinary(_idx, out value);
+        }
+
+        /// <summary>
         /// Attempts to get the source and flags of the element as an RDN RegExp.
         /// </summary>
         public bool TryGetRdnRegExp(out string source, out string flags)

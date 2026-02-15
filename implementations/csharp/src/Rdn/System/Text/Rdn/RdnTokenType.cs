@@ -117,5 +117,10 @@ namespace Rdn
         ///   Indicates that the token type is the end of an RDN Map.
         /// </summary>
         EndMap = 19,
+
+        /// <summary>
+        ///   Indicates that the token type is an RDN binary literal (e.g. <c>b"SGVsbG8="</c> or <c>x"48656C6C6F"</c>).
+        /// </summary>
+        RdnBinary = 20,
     }
 }

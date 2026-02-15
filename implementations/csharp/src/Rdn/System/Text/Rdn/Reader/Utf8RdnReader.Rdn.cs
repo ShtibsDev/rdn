@@ -204,6 +204,174 @@ namespace Rdn
         }
 
         /// <summary>
+        /// Consumes an RDN base64 binary literal: b"..."
+        /// ValueSpan is set to the content between quotes (the base64 chars).
+        /// ValueIsEscaped is set to false to indicate base64 encoding.
+        /// </summary>
+        private bool ConsumeBinaryB64()
+        {
+            ReadOnlySpan<byte> buffer = _buffer;
+            int start = _consumed;
+            Debug.Assert(buffer[start] == RdnConstants.LetterB);
+
+            int quotePos = start + 1;
+            if (quotePos >= buffer.Length)
+            {
+                if (_isFinalBlock)
+                {
+                    ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, RdnConstants.LetterB);
+                }
+                return false;
+            }
+
+            if (buffer[quotePos] != RdnConstants.Quote)
+            {
+                ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, buffer[quotePos]);
+            }
+
+            int contentStart = quotePos + 1;
+
+            // Scan for closing quote — binary content has no escape sequences
+            int i = contentStart;
+            while (i < buffer.Length && buffer[i] != RdnConstants.Quote)
+            {
+                i++;
+            }
+
+            if (i >= buffer.Length)
+            {
+                if (_isFinalBlock)
+                {
+                    ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, RdnConstants.Quote);
+                }
+                return false;
+            }
+
+            int contentLength = i - contentStart;
+
+            // Validate base64 content
+            ReadOnlySpan<byte> content = buffer.Slice(contentStart, contentLength);
+            for (int j = 0; j < content.Length; j++)
+            {
+                byte c = content[j];
+                bool isValid = (c >= (byte)'A' && c <= (byte)'Z') ||
+                               (c >= (byte)'a' && c <= (byte)'z') ||
+                               (c >= (byte)'0' && c <= (byte)'9') ||
+                               c == (byte)'+' || c == (byte)'/';
+                if (!isValid)
+                {
+                    // Allow trailing padding
+                    if (c == (byte)'=')
+                    {
+                        // Padding must only appear at end
+                        for (int k = j; k < content.Length; k++)
+                        {
+                            if (content[k] != (byte)'=')
+                            {
+                                ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, content[k]);
+                            }
+                        }
+                        break;
+                    }
+                    ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, c);
+                }
+            }
+
+            // Validate: total length (including padding) must be multiple of 4 (if non-empty)
+            if (contentLength > 0 && contentLength % 4 != 0)
+            {
+                ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, RdnConstants.LetterB);
+            }
+
+            int closingQuote = i;
+            int totalConsumed = closingQuote + 1 - start; // b + " + content + "
+
+            ValueSpan = buffer.Slice(contentStart, contentLength);
+            ValueIsEscaped = false; // false = base64
+            _tokenType = RdnTokenType.RdnBinary;
+            _consumed += totalConsumed;
+            _bytePositionInLine += totalConsumed;
+            _isNotPrimitive = false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Consumes an RDN hex binary literal: x"..."
+        /// ValueSpan is set to the content between quotes (the hex chars).
+        /// ValueIsEscaped is set to true to indicate hex encoding.
+        /// </summary>
+        private bool ConsumeBinaryHex()
+        {
+            ReadOnlySpan<byte> buffer = _buffer;
+            int start = _consumed;
+            Debug.Assert(buffer[start] == RdnConstants.LetterX);
+
+            int quotePos = start + 1;
+            if (quotePos >= buffer.Length)
+            {
+                if (_isFinalBlock)
+                {
+                    ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, RdnConstants.LetterX);
+                }
+                return false;
+            }
+
+            if (buffer[quotePos] != RdnConstants.Quote)
+            {
+                ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, buffer[quotePos]);
+            }
+
+            int contentStart = quotePos + 1;
+
+            // Scan for closing quote — binary content has no escape sequences
+            int i = contentStart;
+            while (i < buffer.Length && buffer[i] != RdnConstants.Quote)
+            {
+                i++;
+            }
+
+            if (i >= buffer.Length)
+            {
+                if (_isFinalBlock)
+                {
+                    ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, RdnConstants.Quote);
+                }
+                return false;
+            }
+
+            int contentLength = i - contentStart;
+
+            // Validate hex content: all chars must be hex digits
+            ReadOnlySpan<byte> content = buffer.Slice(contentStart, contentLength);
+            for (int j = 0; j < content.Length; j++)
+            {
+                if (!RdnReaderHelper.IsHexDigit(content[j]))
+                {
+                    ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, content[j]);
+                }
+            }
+
+            // Validate: hex must have even length
+            if (contentLength % 2 != 0)
+            {
+                ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, RdnConstants.LetterX);
+            }
+
+            int closingQuote = i;
+            int totalConsumed = closingQuote + 1 - start; // x + " + content + "
+
+            ValueSpan = buffer.Slice(contentStart, contentLength);
+            ValueIsEscaped = true; // true = hex encoding
+            _tokenType = RdnTokenType.RdnBinary;
+            _consumed += totalConsumed;
+            _bytePositionInLine += totalConsumed;
+            _isNotPrimitive = false;
+
+            return true;
+        }
+
+        /// <summary>
         /// Scans forward from bodyStart to find the end of an RDN literal body using the terminator lookup table.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Buffers;
 using System.Text.RegularExpressions;
 using Rdn.Schema;
 
@@ -67,7 +68,17 @@ namespace Rdn.Serialization.Converters
         {
             string source = value.ToString();
             string flags = MapOptionsToFlags(value.Options);
-            writer.WritePropertyName($"/{source}/{flags}");
+            int totalLength = 1 + source.Length + 1 + flags.Length;
+            char[]? rented = null;
+            Span<char> buf = totalLength <= RdnConstants.StackallocCharThreshold
+                ? stackalloc char[RdnConstants.StackallocCharThreshold]
+                : (rented = ArrayPool<char>.Shared.Rent(totalLength));
+            buf[0] = '/';
+            source.AsSpan().CopyTo(buf.Slice(1));
+            buf[1 + source.Length] = '/';
+            flags.AsSpan().CopyTo(buf.Slice(2 + source.Length));
+            writer.WritePropertyName(new string(buf.Slice(0, totalLength)));
+            if (rented != null) ArrayPool<char>.Shared.Return(rented);
         }
 
         internal override RdnSchema? GetSchema(RdnNumberHandling _) => new() { Type = RdnSchemaType.String, Format = "regex" };
@@ -90,11 +101,12 @@ namespace Rdn.Serialization.Converters
 
         private static string MapOptionsToFlags(RegexOptions options)
         {
-            var flags = new System.Text.StringBuilder(8);
-            if ((options & RegexOptions.IgnoreCase) != 0) flags.Append('i');
-            if ((options & RegexOptions.Multiline) != 0) flags.Append('m');
-            if ((options & RegexOptions.Singleline) != 0) flags.Append('s');
-            return flags.ToString();
+            Span<char> buf = stackalloc char[3];
+            int len = 0;
+            if ((options & RegexOptions.IgnoreCase) != 0) buf[len++] = 'i';
+            if ((options & RegexOptions.Multiline) != 0) buf[len++] = 'm';
+            if ((options & RegexOptions.Singleline) != 0) buf[len++] = 's';
+            return new string(buf.Slice(0, len));
         }
     }
 }

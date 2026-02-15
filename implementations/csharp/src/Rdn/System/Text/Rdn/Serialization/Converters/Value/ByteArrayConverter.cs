@@ -14,6 +14,12 @@ namespace Rdn.Serialization.Converters
                 return null;
             }
 
+            if (reader.TokenType == RdnTokenType.RdnBinary)
+            {
+                return reader.GetRdnBinary();
+            }
+
+            // Fallback: existing base64 string path
             return reader.GetBytesFromBase64();
         }
 
@@ -25,7 +31,7 @@ namespace Rdn.Serialization.Converters
             }
             else
             {
-                writer.WriteBase64StringValue(value);
+                writer.WriteRdnBinaryValue(value);
             }
         }
 

@@ -802,6 +802,63 @@ namespace Rdn
             return true;
         }
 
+        internal bool TryGetRdnBinary(int index, [NotNullWhen(true)] out byte[]? value)
+        {
+            CheckNotDisposed();
+
+            DbRow row = _parsedData.Get(index);
+
+            if (row.TokenType != RdnTokenType.RdnBinary)
+            {
+                value = null;
+                return false;
+            }
+
+            ReadOnlySpan<byte> data = _utf8Rdn.Span;
+            ReadOnlySpan<byte> content = data.Slice(row.Location, row.SizeOrLength);
+            bool isHex = row.HasComplexChildren;
+
+            if (content.Length == 0)
+            {
+                value = Array.Empty<byte>();
+                return true;
+            }
+
+            if (!isHex)
+            {
+                // Base64 decode
+                int maxDecodedLength = Base64.GetMaxDecodedFromUtf8Length(content.Length);
+                byte[] decoded = new byte[maxDecodedLength];
+                OperationStatus status = Base64.DecodeFromUtf8(content, decoded, out _, out int written);
+                if (status != OperationStatus.Done)
+                {
+                    value = null;
+                    return false;
+                }
+                value = decoded.AsSpan(0, written).ToArray();
+                return true;
+            }
+            else
+            {
+                // Hex decode
+                int byteCount = content.Length / 2;
+                byte[] decoded = new byte[byteCount];
+                for (int i = 0; i < byteCount; i++)
+                {
+                    int hi = HexConverter.FromChar(content[i * 2]);
+                    int lo = HexConverter.FromChar(content[i * 2 + 1]);
+                    if (hi == 0xFF || lo == 0xFF)
+                    {
+                        value = null;
+                        return false;
+                    }
+                    decoded[i] = (byte)((hi << 4) | lo);
+                }
+                value = decoded;
+                return true;
+            }
+        }
+
         internal bool TryGetRdnRegExp(int index, out string source, out string flags)
         {
             CheckNotDisposed();
@@ -935,6 +992,9 @@ namespace Rdn
                 case RdnTokenType.RdnRegExp:
                     WriteRdnRegExp(row, writer);
                     return;
+                case RdnTokenType.RdnBinary:
+                    WriteRdnBinary(row, writer);
+                    return;
             }
 
             Debug.Fail($"Unexpected encounter with RdnTokenType {row.TokenType}");
@@ -958,6 +1018,36 @@ namespace Rdn
             buffer[0] = RdnConstants.Slash;
             body.CopyTo(buffer.Slice(1));
             writer.WriteRawValue(buffer, skipInputValidation: true);
+        }
+
+        private void WriteRdnBinary(DbRow row, Utf8RdnWriter writer)
+        {
+            ReadOnlySpan<byte> content = _utf8Rdn.Slice(row.Location, row.SizeOrLength).Span;
+            bool isHex = row.HasComplexChildren;
+
+            if (!isHex)
+            {
+                // Base64: write b"content" directly
+                Span<byte> buffer = stackalloc byte[3 + content.Length]; // b + " + content + "
+                buffer[0] = RdnConstants.LetterB;
+                buffer[1] = RdnConstants.Quote;
+                content.CopyTo(buffer.Slice(2));
+                buffer[2 + content.Length] = RdnConstants.Quote;
+                writer.WriteRawValue(buffer, skipInputValidation: true);
+            }
+            else
+            {
+                // Hex: decode hex to bytes, then write as canonical base64
+                int byteCount = content.Length / 2;
+                byte[] decoded = new byte[byteCount];
+                for (int i = 0; i < byteCount; i++)
+                {
+                    int hi = HexConverter.FromChar(content[i * 2]);
+                    int lo = HexConverter.FromChar(content[i * 2 + 1]);
+                    decoded[i] = (byte)((hi << 4) | lo);
+                }
+                writer.WriteRdnBinaryValue(decoded);
+            }
         }
 
         private void WriteComplexElement(int index, Utf8RdnWriter writer)
@@ -1021,6 +1111,10 @@ namespace Rdn
                         continue;
                     case RdnTokenType.RdnRegExp:
                         WriteRdnRegExp(row, writer);
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
+                        continue;
+                    case RdnTokenType.RdnBinary:
+                        WriteRdnBinary(row, writer);
                         if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         continue;
                     case RdnTokenType.StartObject:
@@ -1329,7 +1423,7 @@ namespace Rdn
                 }
                 else
                 {
-                    Debug.Assert((tokenType >= RdnTokenType.String && tokenType <= RdnTokenType.Null) || tokenType == RdnTokenType.RdnDateTime || tokenType == RdnTokenType.RdnTimeOnly || tokenType == RdnTokenType.RdnDuration || tokenType == RdnTokenType.RdnRegExp);
+                    Debug.Assert((tokenType >= RdnTokenType.String && tokenType <= RdnTokenType.Null) || tokenType == RdnTokenType.RdnDateTime || tokenType == RdnTokenType.RdnTimeOnly || tokenType == RdnTokenType.RdnDuration || tokenType == RdnTokenType.RdnRegExp || tokenType == RdnTokenType.RdnBinary);
                     numberOfRowsForValues++;
                     numberOfRowsForMembers++;
 
@@ -1363,6 +1457,20 @@ namespace Rdn
                         // ValueSpan from reader contains pattern/flags (without outer slashes)
                         database.Append(tokenType, tokenStart + 1, reader.ValueSpan.Length);
 
+                        if (reader.ValueIsEscaped)
+                        {
+                            database.SetHasComplexChildren(database.Length - DbRow.Size);
+                        }
+                    }
+                    else if (tokenType == RdnTokenType.RdnBinary)
+                    {
+                        // Adding 2 to skip the b" or x" prefix will never overflow
+                        Debug.Assert(tokenStart < int.MaxValue - 1);
+
+                        database.Append(tokenType, tokenStart + 2, reader.ValueSpan.Length);
+
+                        // Use HasComplexChildren to store encoding type: true = hex, false = base64
+                        // reader.ValueIsEscaped is repurposed: true = hex, false = base64
                         if (reader.ValueIsEscaped)
                         {
                             database.SetHasComplexChildren(database.Length - DbRow.Size);
