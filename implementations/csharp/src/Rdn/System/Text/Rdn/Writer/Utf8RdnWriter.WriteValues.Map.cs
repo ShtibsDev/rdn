@@ -10,13 +10,13 @@ namespace Rdn
     public sealed partial class Utf8RdnWriter
     {
         private static ReadOnlySpan<byte> MapOpenBrace => "Map{"u8;
-        private static ReadOnlySpan<byte> MapArrowMinimized => "=>"u8;
+        private static ReadOnlySpan<byte> MapArrowMinimized => " => "u8;
         private static ReadOnlySpan<byte> MapArrowIndented => " => "u8;
 
         /// <summary>
         /// Writes the beginning of an RDN Map.
         /// When <paramref name="forceTypeName"/> is <see langword="true"/> or
-        /// <see cref="RdnWriterOptions.AlwaysWriteCollectionTypeNames"/> is set,
+        /// <see cref="RdnWriterOptions.AlwaysWriteMapTypeName"/> is set,
         /// writes <c>Map{</c>; otherwise writes just <c>{</c>.
         /// </summary>
         public void WriteStartMap(bool forceTypeName = false)
@@ -26,7 +26,7 @@ namespace Rdn
                 ThrowInvalidOperationException_DepthTooLarge();
             }
 
-            bool writePrefix = forceTypeName || _options.AlwaysWriteCollectionTypeNames;
+            bool writePrefix = forceTypeName || _options.AlwaysWriteMapTypeName;
 
             if (_options.IndentedOrNotSkipValidation)
             {
@@ -191,14 +191,14 @@ namespace Rdn
 
         private void WriteMapArrowMinimized()
         {
-            if (_memory.Length - BytesPending < 2)
+            if (_memory.Length - BytesPending < 4)
             {
-                Grow(2);
+                Grow(4);
             }
 
             Span<byte> output = _memory.Span;
             MapArrowMinimized.CopyTo(output.Slice(BytesPending));
-            BytesPending += 2;
+            BytesPending += 4;
         }
 
         private void WriteMapArrowIndented()
@@ -284,7 +284,7 @@ namespace Rdn
         private void WriteStartMapByOptions(ReadOnlySpan<char> propertyName)
         {
             ValidateWritingPropertyForMap();
-            bool writePrefix = _options.AlwaysWriteCollectionTypeNames;
+            bool writePrefix = _options.AlwaysWriteMapTypeName;
 
             if (_options.Indented)
             {
@@ -338,7 +338,7 @@ namespace Rdn
         private void WriteStartMapByOptions(ReadOnlySpan<byte> utf8PropertyName)
         {
             ValidateWritingPropertyForMap();
-            bool writePrefix = _options.AlwaysWriteCollectionTypeNames;
+            bool writePrefix = _options.AlwaysWriteMapTypeName;
 
             if (_options.Indented)
             {

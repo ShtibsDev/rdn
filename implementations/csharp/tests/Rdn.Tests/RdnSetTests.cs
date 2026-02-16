@@ -367,6 +367,56 @@ public class RdnSetTests
         Assert.Equal("Set{1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
+    [Fact]
+    public void Writer_AlwaysWriteSetTypeName_ProducesSetPrefix()
+    {
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using var writer = new Utf8RdnWriter(buffer, new RdnWriterOptions { AlwaysWriteSetTypeName = true });
+        writer.WriteStartSet();
+        writer.WriteNumberValue(1);
+        writer.WriteEndSet();
+        writer.Flush();
+
+        Assert.Equal("Set{1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+    }
+
+    [Fact]
+    public void Writer_AlwaysWriteSetTypeName_DoesNotAffectMap()
+    {
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using var writer = new Utf8RdnWriter(buffer, new RdnWriterOptions { AlwaysWriteSetTypeName = true });
+        writer.WriteStartMap();
+        writer.WriteStringValue("a");
+        writer.WriteMapArrow();
+        writer.WriteNumberValue(1);
+        writer.WriteEndMap();
+        writer.Flush();
+
+        // Map should NOT have the Map{ prefix since only AlwaysWriteSetTypeName is set
+        Assert.Equal("{\"a\" => 1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+    }
+
+    [Fact]
+    public void Serializer_AlwaysWriteSetTypeName_ProducesSetPrefix()
+    {
+        var options = new RdnSerializerOptions { AlwaysWriteSetTypeName = true };
+        var set = new HashSet<int> { 1 };
+        string rdn = RdnSerializer.Serialize(set, options);
+
+        Assert.StartsWith("Set{", rdn);
+    }
+
+    [Fact]
+    public void Serializer_AlwaysWriteSetTypeName_DoesNotAffectMap()
+    {
+        var options = new RdnSerializerOptions { AlwaysWriteSetTypeName = true };
+        var dict = new Dictionary<string, int> { ["a"] = 1 };
+        string rdn = RdnSerializer.Serialize(dict, options);
+
+        Assert.DoesNotContain("Map{", rdn);
+        Assert.StartsWith("{", rdn);
+    }
+
     #endregion
 
     #region 4. Serialization roundtrip — HashSet<T>

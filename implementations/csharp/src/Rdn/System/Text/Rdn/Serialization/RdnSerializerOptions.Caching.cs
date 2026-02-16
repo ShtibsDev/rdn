@@ -546,6 +546,8 @@ namespace Rdn
                     left._allowDuplicateProperties == right._allowDuplicateProperties &&
                     left._dateTimeFormat == right._dateTimeFormat &&
                     left._binaryFormat == right._binaryFormat &&
+                    left._alwaysWriteMapTypeName == right._alwaysWriteMapTypeName &&
+                    left._alwaysWriteSetTypeName == right._alwaysWriteSetTypeName &&
                     CompareLists(left._converters, right._converters);
 
                 static bool CompareLists<TValue>(ConfigurationList<TValue>? left, ConfigurationList<TValue>? right)
@@ -609,6 +611,8 @@ namespace Rdn
                 AddHashCode(ref hc, options._allowDuplicateProperties);
                 AddHashCode(ref hc, options._dateTimeFormat);
                 AddHashCode(ref hc, options._binaryFormat);
+                AddHashCode(ref hc, options._alwaysWriteMapTypeName);
+                AddHashCode(ref hc, options._alwaysWriteSetTypeName);
                 AddListHashCode(ref hc, options._converters);
 
                 return hc.ToHashCode();

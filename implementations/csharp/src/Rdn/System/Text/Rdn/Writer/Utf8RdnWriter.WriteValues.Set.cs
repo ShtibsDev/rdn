@@ -14,7 +14,7 @@ namespace Rdn
         /// <summary>
         /// Writes the beginning of an RDN Set.
         /// When <paramref name="forceTypeName"/> is <see langword="true"/> or
-        /// <see cref="RdnWriterOptions.AlwaysWriteCollectionTypeNames"/> is set,
+        /// <see cref="RdnWriterOptions.AlwaysWriteSetTypeName"/> is set,
         /// writes <c>Set{</c>; otherwise writes just <c>{</c>.
         /// </summary>
         public void WriteStartSet(bool forceTypeName = false)
@@ -24,7 +24,7 @@ namespace Rdn
                 ThrowInvalidOperationException_DepthTooLarge();
             }
 
-            bool writePrefix = forceTypeName || _options.AlwaysWriteCollectionTypeNames;
+            bool writePrefix = forceTypeName || _options.AlwaysWriteSetTypeName;
 
             if (_options.IndentedOrNotSkipValidation)
             {
@@ -233,7 +233,7 @@ namespace Rdn
         private void WriteStartSetByOptions(ReadOnlySpan<char> propertyName)
         {
             ValidateWritingPropertyForSet();
-            bool writePrefix = _options.AlwaysWriteCollectionTypeNames;
+            bool writePrefix = _options.AlwaysWriteSetTypeName;
 
             if (_options.Indented)
             {
@@ -287,7 +287,7 @@ namespace Rdn
         private void WriteStartSetByOptions(ReadOnlySpan<byte> utf8PropertyName)
         {
             ValidateWritingPropertyForSet();
-            bool writePrefix = _options.AlwaysWriteCollectionTypeNames;
+            bool writePrefix = _options.AlwaysWriteSetTypeName;
 
             if (_options.Indented)
             {

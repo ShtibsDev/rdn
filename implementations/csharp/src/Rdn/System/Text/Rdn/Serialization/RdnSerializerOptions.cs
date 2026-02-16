@@ -91,6 +91,8 @@ namespace Rdn
         private RdnUnmappedMemberHandling _unmappedMemberHandling;
         private RdnDateTimeFormat _dateTimeFormat;
         private RdnBinaryFormat _binaryFormat;
+        private bool _alwaysWriteMapTypeName;
+        private bool _alwaysWriteSetTypeName;
 
         private int _defaultBufferSize = BufferSizeDefault;
         private int _maxDepth;
@@ -146,6 +148,8 @@ namespace Rdn
             _unmappedMemberHandling = options._unmappedMemberHandling;
             _dateTimeFormat = options._dateTimeFormat;
             _binaryFormat = options._binaryFormat;
+            _alwaysWriteMapTypeName = options._alwaysWriteMapTypeName;
+            _alwaysWriteSetTypeName = options._alwaysWriteSetTypeName;
 
             _defaultBufferSize = options._defaultBufferSize;
             _maxDepth = options._maxDepth;
@@ -914,6 +918,44 @@ namespace Rdn
         }
 
         /// <summary>
+        /// When <see langword="true"/>, the serializer always emits the <c>Map{</c> prefix
+        /// for non-empty Maps. When <see langword="false"/> (the default), non-empty Maps
+        /// are written with just <c>{</c> since the <c>=&gt;</c> syntax is unambiguous.
+        /// Empty Maps always emit the prefix (<c>Map{}</c>) to disambiguate from <c>{}</c>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if this property is set after serialization or deserialization has occurred.
+        /// </exception>
+        public bool AlwaysWriteMapTypeName
+        {
+            get => _alwaysWriteMapTypeName;
+            set
+            {
+                VerifyMutable();
+                _alwaysWriteMapTypeName = value;
+            }
+        }
+
+        /// <summary>
+        /// When <see langword="true"/>, the serializer always emits the <c>Set{</c> prefix
+        /// for non-empty Sets. When <see langword="false"/> (the default), non-empty Sets
+        /// are written with just <c>{</c> since the content syntax (bare values) is unambiguous.
+        /// Empty Sets always emit the prefix (<c>Set{}</c>) to disambiguate from <c>{}</c>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if this property is set after serialization or deserialization has occurred.
+        /// </exception>
+        public bool AlwaysWriteSetTypeName
+        {
+            get => _alwaysWriteSetTypeName;
+            set
+            {
+                VerifyMutable();
+                _alwaysWriteSetTypeName = value;
+            }
+        }
+
+        /// <summary>
         /// Returns true if options uses compatible built-in resolvers or a combination of compatible built-in resolvers.
         /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
@@ -1135,6 +1177,8 @@ namespace Rdn
                 IndentSize = IndentSize,
                 MaxDepth = EffectiveMaxDepth,
                 NewLine = NewLine,
+                AlwaysWriteMapTypeName = AlwaysWriteMapTypeName,
+                AlwaysWriteSetTypeName = AlwaysWriteSetTypeName,
 #if !DEBUG
                 SkipValidation = true
 #endif

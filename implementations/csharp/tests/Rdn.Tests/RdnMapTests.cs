@@ -326,7 +326,7 @@ public class RdnMapTests
         writer.WriteEndMap();
         writer.Flush();
 
-        Assert.Equal("{\"a\"=>1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+        Assert.Equal("{\"a\" => 1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     [Fact]
@@ -344,7 +344,7 @@ public class RdnMapTests
         writer.WriteEndMap();
         writer.Flush();
 
-        Assert.Equal("{\"a\"=>1,\"b\"=>2}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+        Assert.Equal("{\"a\" => 1,\"b\" => 2}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     [Fact]
@@ -361,7 +361,7 @@ public class RdnMapTests
         writer.WriteEndObject();
         writer.Flush();
 
-        Assert.Equal("{\"data\":{\"x\"=>1}}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+        Assert.Equal("{\"data\":{\"x\" => 1}}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     [Fact]
@@ -396,7 +396,57 @@ public class RdnMapTests
         writer.WriteEndMap();
         writer.Flush();
 
-        Assert.Equal("Map{\"a\"=>1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+        Assert.Equal("Map{\"a\" => 1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+    }
+
+    [Fact]
+    public void Writer_AlwaysWriteMapTypeName_ProducesMapPrefix()
+    {
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using var writer = new Utf8RdnWriter(buffer, new RdnWriterOptions { AlwaysWriteMapTypeName = true });
+        writer.WriteStartMap();
+        writer.WriteStringValue("a");
+        writer.WriteMapArrow();
+        writer.WriteNumberValue(1);
+        writer.WriteEndMap();
+        writer.Flush();
+
+        Assert.Equal("Map{\"a\" => 1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+    }
+
+    [Fact]
+    public void Writer_AlwaysWriteMapTypeName_DoesNotAffectSet()
+    {
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using var writer = new Utf8RdnWriter(buffer, new RdnWriterOptions { AlwaysWriteMapTypeName = true });
+        writer.WriteStartSet();
+        writer.WriteNumberValue(1);
+        writer.WriteEndSet();
+        writer.Flush();
+
+        // Set should NOT have the Set{ prefix since only AlwaysWriteMapTypeName is set
+        Assert.Equal("{1}", System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+    }
+
+    [Fact]
+    public void Serializer_AlwaysWriteMapTypeName_ProducesMapPrefix()
+    {
+        var options = new RdnSerializerOptions { AlwaysWriteMapTypeName = true };
+        var dict = new Dictionary<string, int> { ["a"] = 1 };
+        string rdn = RdnSerializer.Serialize(dict, options);
+
+        Assert.StartsWith("Map{", rdn);
+    }
+
+    [Fact]
+    public void Serializer_AlwaysWriteMapTypeName_DoesNotAffectSet()
+    {
+        var options = new RdnSerializerOptions { AlwaysWriteMapTypeName = true };
+        var set = new HashSet<int> { 1, 2 };
+        string rdn = RdnSerializer.Serialize(set, options);
+
+        Assert.DoesNotContain("Set{", rdn);
+        Assert.StartsWith("{", rdn);
     }
 
     #endregion
@@ -453,7 +503,7 @@ public class RdnMapTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("{\"a\"=>1,\"b\"=>2}", output);
+        Assert.Equal("{\"a\" => 1,\"b\" => 2}", output);
     }
 
     [Fact]
@@ -498,7 +548,7 @@ public class RdnMapTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("{\"inner\"=>{1=>2}}", output);
+        Assert.Equal("{\"inner\" => {1 => 2}}", output);
     }
 
     #endregion
@@ -536,7 +586,7 @@ public class RdnMapTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("{\"x\"=>10,\"y\"=>20}", output);
+        Assert.Equal("{\"x\" => 10,\"y\" => 20}", output);
     }
 
     [Fact]
@@ -736,7 +786,7 @@ public class RdnMapTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("{\"data\":{\"a\"=>1}}", output);
+        Assert.Equal("{\"data\":{\"a\" => 1}}", output);
     }
 
     [Fact]
@@ -749,7 +799,7 @@ public class RdnMapTests
         writer.Flush();
 
         var output = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-        Assert.Equal("{\"arr\"=>[1,2,3]}", output);
+        Assert.Equal("{\"arr\" => [1,2,3]}", output);
     }
 
     #endregion

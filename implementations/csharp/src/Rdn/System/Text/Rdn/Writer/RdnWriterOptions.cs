@@ -161,34 +161,65 @@ namespace Rdn
         }
 
         /// <summary>
-        /// When <see langword="true"/>, the writer always emits <c>Map{</c> and <c>Set{</c> prefixes
-        /// for non-empty collections. When <see langword="false"/> (the default), non-empty Maps and Sets
-        /// are written with just <c>{</c> since the content syntax (<c>=&gt;</c> or bare values) is unambiguous.
-        /// Empty collections always emit the prefix (<c>Map{}</c> / <c>Set{}</c>) to disambiguate from <c>{}</c>.
+        /// When <see langword="true"/>, the writer always emits the <c>Map{</c> prefix
+        /// for non-empty Maps. When <see langword="false"/> (the default), non-empty Maps
+        /// are written with just <c>{</c> since the <c>=&gt;</c> syntax is unambiguous.
+        /// Empty Maps always emit the prefix (<c>Map{}</c>) to disambiguate from <c>{}</c>.
         /// </summary>
-        public bool AlwaysWriteCollectionTypeNames
+        public bool AlwaysWriteMapTypeName
         {
-            get
-            {
-                return (_optionsMask & AlwaysWriteCollectionTypeNamesBit) != 0;
-            }
+            get => (_optionsMask & AlwaysWriteMapTypeNameBit) != 0;
             set
             {
                 if (value)
-                    _optionsMask |= AlwaysWriteCollectionTypeNamesBit;
+                    _optionsMask |= AlwaysWriteMapTypeNameBit;
                 else
-                    _optionsMask &= ~AlwaysWriteCollectionTypeNamesBit;
+                    _optionsMask &= ~AlwaysWriteMapTypeNameBit;
+            }
+        }
+
+        /// <summary>
+        /// When <see langword="true"/>, the writer always emits the <c>Set{</c> prefix
+        /// for non-empty Sets. When <see langword="false"/> (the default), non-empty Sets
+        /// are written with just <c>{</c> since the content syntax (bare values) is unambiguous.
+        /// Empty Sets always emit the prefix (<c>Set{}</c>) to disambiguate from <c>{}</c>.
+        /// </summary>
+        public bool AlwaysWriteSetTypeName
+        {
+            get => (_optionsMask & AlwaysWriteSetTypeNameBit) != 0;
+            set
+            {
+                if (value)
+                    _optionsMask |= AlwaysWriteSetTypeNameBit;
+                else
+                    _optionsMask &= ~AlwaysWriteSetTypeNameBit;
+            }
+        }
+
+        /// <summary>
+        /// Convenience property that gets or sets both <see cref="AlwaysWriteMapTypeName"/> and
+        /// <see cref="AlwaysWriteSetTypeName"/> together. The getter returns <see langword="true"/>
+        /// only when both are set.
+        /// </summary>
+        public bool AlwaysWriteCollectionTypeNames
+        {
+            get => AlwaysWriteMapTypeName && AlwaysWriteSetTypeName;
+            set
+            {
+                AlwaysWriteMapTypeName = value;
+                AlwaysWriteSetTypeName = value;
             }
         }
 
         internal bool IndentedOrNotSkipValidation => (_optionsMask & (IndentBit | SkipValidationBit)) != SkipValidationBit;  // Equivalent to: Indented || !SkipValidation;
 
-        private const int OptionsBitCount = 5;
+        private const int OptionsBitCount = 6;
         private const int IndentBit = 1;
         private const int SkipValidationBit = 2;
         private const int NewLineBit = 4;
         private const int IndentCharacterBit = 8;
-        private const int AlwaysWriteCollectionTypeNamesBit = 16;
+        private const int AlwaysWriteMapTypeNameBit = 16;
+        private const int AlwaysWriteSetTypeNameBit = 32;
         private const int IndentSizeMask = RdnConstants.MaximumIndentSize << OptionsBitCount;
     }
 }
