@@ -6,6 +6,7 @@ using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using System.Threading;
 
 namespace Rdn
@@ -859,6 +860,31 @@ namespace Rdn
             }
         }
 
+        internal bool TryGetBigInteger(int index, out BigInteger value)
+        {
+            CheckNotDisposed();
+
+            DbRow row = _parsedData.Get(index);
+
+            if (row.TokenType != RdnTokenType.RdnBigInteger)
+            {
+                value = default;
+                return false;
+            }
+
+            ReadOnlySpan<byte> data = _utf8Rdn.Span;
+            ReadOnlySpan<byte> segment = data.Slice(row.Location, row.SizeOrLength);
+
+            string digitStr = System.Text.Encoding.UTF8.GetString(segment);
+            if (BigInteger.TryParse(digitStr, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out value))
+            {
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
         internal bool TryGetRdnRegExp(int index, out string source, out string flags)
         {
             CheckNotDisposed();
@@ -995,6 +1021,9 @@ namespace Rdn
                 case RdnTokenType.RdnBinary:
                     WriteRdnBinary(row, writer);
                     return;
+                case RdnTokenType.RdnBigInteger:
+                    WriteRdnBigInteger(row, writer);
+                    return;
             }
 
             Debug.Fail($"Unexpected encounter with RdnTokenType {row.TokenType}");
@@ -1048,6 +1077,16 @@ namespace Rdn
                 }
                 writer.WriteRdnBinaryValue(decoded);
             }
+        }
+
+        private void WriteRdnBigInteger(DbRow row, Utf8RdnWriter writer)
+        {
+            ReadOnlySpan<byte> content = _utf8Rdn.Slice(row.Location, row.SizeOrLength).Span;
+            // Write as raw: digits + n
+            Span<byte> buffer = stackalloc byte[content.Length + 1];
+            content.CopyTo(buffer);
+            buffer[content.Length] = (byte)'n';
+            writer.WriteRawValue(buffer, skipInputValidation: true);
         }
 
         private void WriteComplexElement(int index, Utf8RdnWriter writer)
@@ -1115,6 +1154,10 @@ namespace Rdn
                         continue;
                     case RdnTokenType.RdnBinary:
                         WriteRdnBinary(row, writer);
+                        if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
+                        continue;
+                    case RdnTokenType.RdnBigInteger:
+                        WriteRdnBigInteger(row, writer);
                         if (isMap) { if (wroteArrow) arrowMask &= ~depthBit; else arrowMask |= depthBit; }
                         continue;
                     case RdnTokenType.StartObject:
@@ -1423,7 +1466,7 @@ namespace Rdn
                 }
                 else
                 {
-                    Debug.Assert((tokenType >= RdnTokenType.String && tokenType <= RdnTokenType.Null) || tokenType == RdnTokenType.RdnDateTime || tokenType == RdnTokenType.RdnTimeOnly || tokenType == RdnTokenType.RdnDuration || tokenType == RdnTokenType.RdnRegExp || tokenType == RdnTokenType.RdnBinary);
+                    Debug.Assert((tokenType >= RdnTokenType.String && tokenType <= RdnTokenType.Null) || tokenType == RdnTokenType.RdnDateTime || tokenType == RdnTokenType.RdnTimeOnly || tokenType == RdnTokenType.RdnDuration || tokenType == RdnTokenType.RdnRegExp || tokenType == RdnTokenType.RdnBinary || tokenType == RdnTokenType.RdnBigInteger);
                     numberOfRowsForValues++;
                     numberOfRowsForMembers++;
 
@@ -1475,6 +1518,11 @@ namespace Rdn
                         {
                             database.SetHasComplexChildren(database.Length - DbRow.Size);
                         }
+                    }
+                    else if (tokenType == RdnTokenType.RdnBigInteger)
+                    {
+                        // ValueSpan contains just the digits (without the 'n' suffix)
+                        database.Append(tokenType, tokenStart, reader.ValueSpan.Length);
                     }
                     else
                     {

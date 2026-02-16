@@ -42,7 +42,7 @@ namespace Rdn.Serialization.Metadata
 
         private static Dictionary<Type, RdnConverter> GetDefaultSimpleConverters()
         {
-            const int NumberOfSimpleConverters = 33;
+            const int NumberOfSimpleConverters = 34;
             var converters = new Dictionary<Type, RdnConverter>(NumberOfSimpleConverters);
 
             // Use a dictionary for simple converters.
@@ -84,6 +84,7 @@ namespace Rdn.Serialization.Metadata
             Add(RdnMetadataServices.VersionConverter);
             Add(RdnMetadataServices.RdnDurationConverter);
             Add(RdnMetadataServices.RegexConverter);
+            Add(RdnMetadataServices.BigIntegerConverter);
 
             Debug.Assert(converters.Count <= NumberOfSimpleConverters);
 

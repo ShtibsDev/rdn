@@ -5,6 +5,7 @@ using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -1257,6 +1258,27 @@ namespace Rdn
         }
 
         /// <summary>
+        /// Gets the value of the element as an RDN BigInteger.
+        /// </summary>
+        public BigInteger GetBigInteger()
+        {
+            if (!TryGetBigInteger(out BigInteger value))
+            {
+                ThrowHelper.ThrowFormatException();
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Attempts to get the value of the element as an RDN BigInteger.
+        /// </summary>
+        public bool TryGetBigInteger(out BigInteger value)
+        {
+            CheckValidInstance();
+            return _parent.TryGetBigInteger(_idx, out value);
+        }
+
+        /// <summary>
         /// Attempts to get the source and flags of the element as an RDN RegExp.
         /// </summary>
         public bool TryGetRdnRegExp(out string source, out string flags)
@@ -1373,6 +1395,14 @@ namespace Rdn
 
                 case RdnValueKind.Number:
                     return RdnHelpers.AreEqualRdnNumbers(element1.GetRawValue().Span, element2.GetRawValue().Span);
+
+                case RdnValueKind.RdnBigInteger:
+                case RdnValueKind.RdnDateTime:
+                case RdnValueKind.RdnTimeOnly:
+                case RdnValueKind.RdnDuration:
+                case RdnValueKind.RdnRegExp:
+                case RdnValueKind.RdnBinary:
+                    return element1.GetRawValue().Span.SequenceEqual(element2.GetRawValue().Span);
 
                 case RdnValueKind.String:
                     if (element2.ValueIsEscaped)
@@ -1826,6 +1856,11 @@ namespace Rdn
                         // null parent should have hit the None case
                         Debug.Assert(_parent != null);
                         return _parent.GetRawValueAsString(_idx);
+                    }
+                case RdnTokenType.RdnBigInteger:
+                    {
+                        Debug.Assert(_parent != null);
+                        return _parent.GetRawValueAsString(_idx) + "n";
                     }
                 case RdnTokenType.String:
                     return GetString()!;

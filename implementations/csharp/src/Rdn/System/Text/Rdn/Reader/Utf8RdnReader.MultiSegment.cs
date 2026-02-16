@@ -408,11 +408,11 @@ namespace Rdn
                             return false; // need more data
                         }
                     }
-                    if (!TryGetNumberMultiSegment(_buffer.Slice(_consumed), out int numberOfBytes))
+                    if (!TryGetNumberMultiSegment(_buffer.Slice(_consumed), out int numberOfBytes, out bool isBigInteger2))
                     {
                         return false;
                     }
-                    _tokenType = RdnTokenType.Number;
+                    _tokenType = isBigInteger2 ? RdnTokenType.RdnBigInteger : RdnTokenType.Number;
                     _consumed += numberOfBytes;
                 }
                 else if (!ConsumeValueMultiSegment(first))
@@ -843,12 +843,12 @@ namespace Rdn
 
         private bool ConsumeNumberMultiSegment()
         {
-            if (!TryGetNumberMultiSegment(_buffer.Slice(_consumed), out int consumed))
+            if (!TryGetNumberMultiSegment(_buffer.Slice(_consumed), out int consumed, out bool isBigInteger))
             {
                 return false;
             }
 
-            _tokenType = RdnTokenType.Number;
+            _tokenType = isBigInteger ? RdnTokenType.RdnBigInteger : RdnTokenType.Number;
             _consumed += consumed;
 
             if (_consumed >= (uint)_buffer.Length)
@@ -1287,7 +1287,7 @@ namespace Rdn
         }
 
         // https://tools.ietf.org/html/rfc7159#section-6
-        private bool TryGetNumberMultiSegment(ReadOnlySpan<byte> data, out int consumed)
+        private bool TryGetNumberMultiSegment(ReadOnlySpan<byte> data, out int consumed, out bool isBigInteger)
         {
             // TODO: https://github.com/dotnet/runtime/issues/27837
             Debug.Assert(data.Length > 0);
@@ -1295,6 +1295,7 @@ namespace Rdn
             PartialStateForRollback rollBackState = CaptureState();
 
             consumed = 0;
+            isBigInteger = false;
             int i = 0;
 
             ConsumeNumberResult signResult = ConsumeNegativeSignMultiSegment(ref data, ref i, rollBackState);
@@ -1324,6 +1325,26 @@ namespace Rdn
 
                 Debug.Assert(result == ConsumeNumberResult.OperationIncomplete);
                 nextByte = data[i];
+
+                // BigInteger: 0n
+                if (nextByte == (byte)'n')
+                {
+                    isBigInteger = true;
+                    if (HasValueSequence)
+                    {
+                        SequencePosition start = rollBackState.GetStartPosition();
+                        SequencePosition end = new SequencePosition(_currentPosition.GetObject(), _currentPosition.GetInteger() + i);
+                        ValueSequence = _sequence.Slice(start, end);
+                        consumed = i + 1;
+                    }
+                    else
+                    {
+                        ValueSpan = data.Slice(0, i);
+                        consumed = i + 1;
+                    }
+                    _bytePositionInLine++;
+                    return true;
+                }
             }
             else
             {
@@ -1340,6 +1361,27 @@ namespace Rdn
 
                 Debug.Assert(result == ConsumeNumberResult.OperationIncomplete);
                 nextByte = data[i];
+
+                // BigInteger: <digits>n
+                if (nextByte == (byte)'n')
+                {
+                    isBigInteger = true;
+                    if (HasValueSequence)
+                    {
+                        SequencePosition start = rollBackState.GetStartPosition();
+                        SequencePosition end = new SequencePosition(_currentPosition.GetObject(), _currentPosition.GetInteger() + i);
+                        ValueSequence = _sequence.Slice(start, end);
+                        consumed = i + 1;
+                    }
+                    else
+                    {
+                        ValueSpan = data.Slice(0, i);
+                        consumed = i + 1;
+                    }
+                    _bytePositionInLine++;
+                    return true;
+                }
+
                 if (nextByte != '.' && nextByte != 'E' && nextByte != 'e')
                 {
                     RollBackState(rollBackState, isError: true);
@@ -1507,7 +1549,7 @@ namespace Rdn
                 }
             }
             nextByte = data[i];
-            if (nextByte != '.' && nextByte != 'E' && nextByte != 'e')
+            if (nextByte != '.' && nextByte != 'E' && nextByte != 'e' && nextByte != 'n')
             {
                 RollBackState(rollBackState, isError: true);
                 ThrowHelper.ThrowRdnReaderException(ref this,

@@ -122,5 +122,10 @@ namespace Rdn
         ///   Indicates that the token type is an RDN binary literal (e.g. <c>b"SGVsbG8="</c> or <c>x"48656C6C6F"</c>).
         /// </summary>
         RdnBinary = 20,
+
+        /// <summary>
+        ///   Indicates that the token type is an RDN BigInteger literal (e.g. <c>42n</c>).
+        /// </summary>
+        RdnBigInteger = 21,
     }
 }

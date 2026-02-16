@@ -560,6 +560,7 @@ namespace Rdn
                     case RdnTokenType.RdnDuration:
                     case RdnTokenType.RdnRegExp:
                     case RdnTokenType.RdnBinary:
+                    case RdnTokenType.RdnBigInteger:
                     {
                         if (reader.HasValueSequence)
                         {

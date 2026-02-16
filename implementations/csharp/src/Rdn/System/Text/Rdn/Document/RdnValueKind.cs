@@ -82,5 +82,10 @@ namespace Rdn
         ///   Indicates that a value is an RDN binary literal.
         /// </summary>
         RdnBinary,
+
+        /// <summary>
+        ///   Indicates that a value is an RDN BigInteger literal.
+        /// </summary>
+        RdnBigInteger,
     }
 }

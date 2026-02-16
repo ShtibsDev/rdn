@@ -5,6 +5,7 @@ using System.Buffers;
 using System.Buffers.Text;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Rdn
@@ -1681,6 +1682,43 @@ namespace Rdn
                 value = decoded;
                 return true;
             }
+        }
+
+        // --- RDN BigInteger API ---
+
+        /// <summary>
+        /// Gets the RDN BigInteger value from the current token.
+        /// </summary>
+        public BigInteger GetBigInteger()
+        {
+            if (!TryGetBigInteger(out BigInteger value))
+            {
+                ThrowHelper.ThrowFormatException();
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Tries to get the RDN BigInteger value from the current token.
+        /// </summary>
+        public bool TryGetBigInteger(out BigInteger value)
+        {
+            if (TokenType != RdnTokenType.RdnBigInteger)
+            {
+                ThrowHelper.ThrowInvalidOperationException_ExpectedNumber(TokenType);
+            }
+
+            ReadOnlySpan<byte> span = HasValueSequence ? ValueSequence.ToArray() : ValueSpan;
+
+            // ValueSpan contains the digit string (without 'n' suffix), e.g. "42" or "-123"
+            string digitStr = System.Text.Encoding.UTF8.GetString(span);
+            if (BigInteger.TryParse(digitStr, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out value))
+            {
+                return true;
+            }
+
+            value = default;
+            return false;
         }
     }
 }

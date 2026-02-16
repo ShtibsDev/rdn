@@ -3,6 +3,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 
 namespace Rdn.Nodes
 {
@@ -101,6 +102,11 @@ namespace Rdn.Nodes
             if (type == typeof(System.Text.RegularExpressions.Regex))
             {
                 return RdnValueKind.RdnRegExp;
+            }
+
+            if (type == typeof(BigInteger))
+            {
+                return RdnValueKind.RdnBigInteger;
             }
 
 #if NET

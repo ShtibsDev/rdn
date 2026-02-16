@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using Rdn.Serialization.Metadata;
 
 namespace Rdn.Nodes
@@ -280,6 +281,22 @@ namespace Rdn.Nodes
         /// <returns>The new instance of the <see cref="RdnValue"/> class that contains the specified value.</returns>
         [CLSCompliantAttribute(false)]
         public static RdnValue? Create(ulong? value, RdnNodeOptions? options = null) => value.HasValue ? new RdnValuePrimitive<ulong>(value.Value, RdnMetadataServices.UInt64Converter, options) : null;
+
+        /// <summary>
+        ///   Initializes a new instance of the <see cref="RdnValue"/> class that contains the specified value.
+        /// </summary>
+        /// <param name="value">The underlying value of the new <see cref="RdnValue"/> instance.</param>
+        /// <param name="options">Options to control the behavior.</param>
+        /// <returns>The new instance of the <see cref="RdnValue"/> class that contains the specified value.</returns>
+        public static RdnValue Create(BigInteger value, RdnNodeOptions? options = null) => new RdnValuePrimitive<BigInteger>(value, RdnMetadataServices.BigIntegerConverter, options);
+
+        /// <summary>
+        ///   Initializes a new instance of the <see cref="RdnValue"/> class that contains the specified value.
+        /// </summary>
+        /// <param name="value">The underlying value of the new <see cref="RdnValue"/> instance.</param>
+        /// <param name="options">Options to control the behavior.</param>
+        /// <returns>The new instance of the <see cref="RdnValue"/> class that contains the specified value.</returns>
+        public static RdnValue? Create(BigInteger? value, RdnNodeOptions? options = null) => value.HasValue ? new RdnValuePrimitive<BigInteger>(value.Value, RdnMetadataServices.BigIntegerConverter, options) : null;
 
         /// <summary>
         ///   Initializes a new instance of the <see cref="RdnValue"/> class that contains the specified value.

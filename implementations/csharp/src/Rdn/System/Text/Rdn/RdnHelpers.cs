@@ -309,6 +309,17 @@ namespace Rdn
         {
             Debug.Assert(left.Length > 0 && right.Length > 0);
 
+            // Handle special float literals: NaN, Infinity, -Infinity
+            // These are stored as raw text in the number token and cannot be parsed as decimal numbers.
+            byte leftStart = left[0];
+            byte rightStart = right[0];
+            bool leftIsSpecial = leftStart == 'N' || leftStart == 'I' || (leftStart == '-' && left.Length > 1 && left[1] == 'I');
+            bool rightIsSpecial = rightStart == 'N' || rightStart == 'I' || (rightStart == '-' && right.Length > 1 && right[1] == 'I');
+            if (leftIsSpecial || rightIsSpecial)
+            {
+                return left.SequenceEqual(right);
+            }
+
             ParseNumber(left,
                 out bool leftIsNegative,
                 out ReadOnlySpan<byte> leftIntegral,

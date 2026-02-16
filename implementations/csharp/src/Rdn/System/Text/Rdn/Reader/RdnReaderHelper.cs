@@ -145,6 +145,8 @@ namespace Rdn
                     return (RdnValueKind)((byte)tokenType - 4);
                 case RdnTokenType.RdnBinary:
                     return RdnValueKind.RdnBinary;
+                case RdnTokenType.RdnBigInteger:
+                    return RdnValueKind.RdnBigInteger;
                 default:
                     Debug.Fail($"No mapping for token type {tokenType}");
                     return RdnValueKind.Undefined;
@@ -154,7 +156,7 @@ namespace Rdn
         // Returns true if the TokenType is a primitive "value", i.e. String, Number, True, False, and Null
         // Otherwise, return false.
         public static bool IsTokenTypePrimitive(RdnTokenType tokenType) =>
-            (tokenType - RdnTokenType.String) <= (RdnTokenType.RdnRegExp - RdnTokenType.String) || tokenType == RdnTokenType.RdnBinary;
+            (tokenType - RdnTokenType.String) <= (RdnTokenType.RdnRegExp - RdnTokenType.String) || tokenType == RdnTokenType.RdnBinary || tokenType == RdnTokenType.RdnBigInteger;
 
         // A hex digit is valid if it is in the range: [0..9] | [A..F] | [a..f]
         // Otherwise, return false.

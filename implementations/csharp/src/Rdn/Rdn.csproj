@@ -1,13 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Rdn</RootNamespace>
     <NoWarn>$(NoWarn);CS8969</NoWarn>
+    <PackageId>Rdn</PackageId>
+    <Description>A .NET implementation of RDN (Rich Data Notation) — a JSON superset with native dates, durations, regex, binary, Maps, Sets, and special numerics. Fork of System.Text.Json with familiar API.</Description>
+    <PackageTags>rdn;json;serialization;datetime;binary;map;set;regex;duration</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Update="Resources\Strings.resx">

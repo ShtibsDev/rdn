@@ -1,12 +1,12 @@
 # Rdn for .NET
 
-A .NET implementation of [RDN (Rich Data Notation)](../../spec/rdn-spec.md) — a strict superset of JSON that adds native representations for dates, durations, regular expressions, binary data, Maps, Sets, and special numeric values.
+A .NET implementation of [RDN (Rich Data Notation)](../../spec/rdn-spec.md) — a strict superset of JSON that adds native representations for dates, durations, regular expressions, binary data, BigIntegers, Maps, Sets, and special numeric values.
 
 Built as a fork of `System.Text.Json`, the API is intentionally familiar: if you know `System.Text.Json`, you already know how to use `Rdn`.
 
 ## Why RDN?
 
-JSON lacks native types for dates, binary data, and other common programming constructs. This forces workarounds — ISO strings for dates, base64 strings for bytes, numbers-as-strings for BigInts — that lose type information and require manual parsing on both ends.
+JSON lacks native types for dates, binary data, BigIntegers, and other common programming constructs. This forces workarounds — ISO strings for dates, base64 strings for bytes, numbers-as-strings for BigInts — that lose type information and require manual parsing on both ends.
 
 RDN closes these gaps while remaining a strict JSON superset. Every valid JSON document is already valid RDN. The new types have unambiguous literal syntax that requires no schema, no string conventions, and no guessing.
 
@@ -17,7 +17,8 @@ RDN closes these gaps while remaining a strict JSON superset. Every valid JSON d
   "duration": "PT2H30M",
   "thumbnail": "SGVsbG8gV29ybGQ=",
   "tags": ["alpha", "beta"],
-  "score": "Infinity"
+  "score": "Infinity",
+  "totalSupply": "99999999999999999999999999"
 }
 ```
 
@@ -28,7 +29,8 @@ RDN closes these gaps while remaining a strict JSON superset. Every valid JSON d
   "duration": @PT2H30M,
   "thumbnail": b"SGVsbG8gV29ybGQ=",
   "tags": Set{"alpha", "beta"},
-  "score": Infinity
+  "score": Infinity,
+  "totalSupply": 99999999999999999999999999n
 }
 ```
 
@@ -36,11 +38,22 @@ RDN closes these gaps while remaining a strict JSON superset. Every valid JSON d
 
 - .NET 9.0+
 
+## Installation
+
+```bash
+dotnet add package Rdn
+dotnet add package Rdn.AspNetCore  # for ASP.NET Core
+```
+
 ## Project Structure
 
 ```
 implementations/csharp/
 ├── Rdn.sln
+├── Directory.Build.props     # Centralized build properties & NuGet metadata
+├── icon.png                  # 128x128 package icon for NuGet gallery
+├── global.json               # Pins .NET SDK version (9.0, latestFeature roll-forward)
+├── .editorconfig              # Code style & naming conventions
 ├── src/
 │   ├── Rdn/                  # Core serialization library
 │   ├── Rdn.Encodings.Web/    # Web-safe text encoding
@@ -184,6 +197,29 @@ RdnSerializer.Serialize(model, options);
 
 Both formats are always accepted during deserialization. Works with `byte[]`, `Memory<byte>`, and `ReadOnlyMemory<byte>`. Backwards-compatible: plain base64 strings (`"SGVsbG8="`) still deserialize into `byte[]`.
 
+### BigInteger
+
+Arbitrary-precision integers use the `n` suffix — matching JavaScript BigInt syntax.
+
+```csharp
+using System.Numerics;
+
+// Serialize: BigInteger values get the 'n' suffix
+var model = new { TotalSupply = BigInteger.Parse("99999999999999999999999999999999999999") };
+RdnSerializer.Serialize(model);
+// {"TotalSupply":99999999999999999999999999999999999999n}
+
+// Deserialize: both BigInteger literals and regular numbers work
+var result = RdnSerializer.Deserialize<BigIntegerModel>("""{"Value": 42n}""");
+var result2 = RdnSerializer.Deserialize<BigIntegerModel>("""{"Value": 42}""");
+
+// Negative BigIntegers
+RdnSerializer.Serialize(new { V = new BigInteger(-42) });
+// {"V":-42n}
+```
+
+Only integers are valid — `42.5n` is not valid RDN. Negative values like `-42n` are supported.
+
 ### Sets
 
 ```csharp
@@ -302,6 +338,7 @@ root.GetProperty("t").ValueKind      // RdnValueKind.RdnTimeOnly
 root.GetProperty("d").ValueKind      // RdnValueKind.RdnDuration
 root.GetProperty("re").ValueKind     // RdnValueKind.RdnRegExp
 root.GetProperty("bin").ValueKind    // RdnValueKind.RdnBinary
+root.GetProperty("count").ValueKind  // RdnValueKind.RdnBigInteger
 root.GetProperty("tags").ValueKind   // RdnValueKind.Set
 root.GetProperty("map").ValueKind    // RdnValueKind.Map
 
@@ -313,6 +350,7 @@ root.GetProperty("d").GetRdnDuration();
 root.GetProperty("re").GetRdnRegExpSource();
 root.GetProperty("re").GetRdnRegExpFlags();
 root.GetProperty("bin").GetRdnBinary();
+root.GetProperty("count").GetBigInteger();
 ```
 
 ### Mutable DOM: RdnNode
@@ -358,6 +396,8 @@ using (var writer = new Utf8RdnWriter(stream))
     writer.WriteRdnRegExpValue("^[a-z]+$", "gi");
     writer.WritePropertyName("data");
     writer.WriteRdnBinaryValue(new byte[] { 0xFF, 0x00 });
+    writer.WritePropertyName("count");
+    writer.WriteBigIntegerValue(new BigInteger(42));
     writer.WriteStartSet("tags");
     writer.WriteStringValue("alpha");
     writer.WriteEndSet();
@@ -385,6 +425,9 @@ while (reader.Read())
             break;
         case RdnTokenType.RdnBinary:
             byte[] data = reader.GetRdnBinary();
+            break;
+        case RdnTokenType.RdnBigInteger:
+            BigInteger bigInt = reader.GetBigInteger();
             break;
         case RdnTokenType.StartSet: // ...
         case RdnTokenType.StartMap: // ...
@@ -545,7 +588,7 @@ This implementation is a fork of `System.Text.Json` with the following changes:
 - **All `Json*` identifiers renamed to `Rdn*`** — `JsonSerializer` → `RdnSerializer`, `Utf8JsonReader` → `Utf8RdnReader`, `JsonDocument` → `RdnDocument`, etc.
 - **`AllowNamedFloatingPointLiterals` removed** — RDN has native `NaN`, `Infinity`, and `-Infinity` bare number literals. These are always read/written through the standard code path.
 - **DateTime string fallback removed** — RDN has native `@`-prefixed date/time syntax. The converters no longer fall back to parsing ISO strings from `RdnTokenType.String` tokens.
-- **New token types** — `RdnDateTime`, `RdnTimeOnly`, `RdnDuration`, `RdnRegExp`, `RdnBinary`, `StartSet`/`EndSet`, `StartMap`/`EndMap`.
+- **New token types** — `RdnDateTime`, `RdnTimeOnly`, `RdnDuration`, `RdnRegExp`, `RdnBinary`, `RdnBigInteger`, `StartSet`/`EndSet`, `StartMap`/`EndMap`.
 - **New serialization options** — `DateTimeFormat`, `BinaryFormat`, `AlwaysWriteMapTypeName`, and `AlwaysWriteSetTypeName` for controlling output format of RDN-specific types.
 
 ## Build & Test
@@ -575,6 +618,8 @@ dotnet run --project benchmarks/Rdn.Benchmarks -c Release
 - [x] Map (`{key => value}`)
 - [x] Set (`Set{1, 2, 3}`)
 - [x] ASP.NET Core formatters (`application/rdn`)
-- [ ] BigInteger (`42n`)
+- [x] BigInteger (`42n`)
 - [ ] Tuple (`(1, 2, 3)`)
-- [ ] Conformance with the shared test suite in `test-suite/`
+- [x] Conformance with the shared test suite in `test-suite/`
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.

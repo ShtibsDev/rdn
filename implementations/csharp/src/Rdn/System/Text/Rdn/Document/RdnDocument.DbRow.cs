@@ -54,7 +54,7 @@ namespace Rdn
 
             internal DbRow(RdnTokenType rdnTokenType, int location, int sizeOrLength)
             {
-                Debug.Assert(rdnTokenType > RdnTokenType.None && (rdnTokenType <= RdnTokenType.Null || rdnTokenType == RdnTokenType.RdnDateTime || rdnTokenType == RdnTokenType.RdnTimeOnly || rdnTokenType == RdnTokenType.RdnDuration || rdnTokenType == RdnTokenType.RdnRegExp || rdnTokenType == RdnTokenType.StartSet || rdnTokenType == RdnTokenType.EndSet || rdnTokenType == RdnTokenType.StartMap || rdnTokenType == RdnTokenType.EndMap || rdnTokenType == RdnTokenType.RdnBinary));
+                Debug.Assert(rdnTokenType > RdnTokenType.None && (rdnTokenType <= RdnTokenType.Null || rdnTokenType == RdnTokenType.RdnDateTime || rdnTokenType == RdnTokenType.RdnTimeOnly || rdnTokenType == RdnTokenType.RdnDuration || rdnTokenType == RdnTokenType.RdnRegExp || rdnTokenType == RdnTokenType.StartSet || rdnTokenType == RdnTokenType.EndSet || rdnTokenType == RdnTokenType.StartMap || rdnTokenType == RdnTokenType.EndMap || rdnTokenType == RdnTokenType.RdnBinary || rdnTokenType == RdnTokenType.RdnBigInteger));
                 Debug.Assert((byte)rdnTokenType < 1 << 5);
                 Debug.Assert(location >= 0);
                 Debug.Assert(sizeOrLength >= UnknownSize);
@@ -65,7 +65,7 @@ namespace Rdn
                 _numberOfRowsAndTypeUnion = (int)rdnTokenType << 27;
             }
 
-            internal bool IsSimpleValue => (TokenType >= RdnTokenType.PropertyName && TokenType <= RdnTokenType.RdnRegExp) || TokenType == RdnTokenType.RdnBinary;
+            internal bool IsSimpleValue => (TokenType >= RdnTokenType.PropertyName && TokenType <= RdnTokenType.RdnRegExp) || TokenType == RdnTokenType.RdnBinary || TokenType == RdnTokenType.RdnBigInteger;
         }
     }
 }

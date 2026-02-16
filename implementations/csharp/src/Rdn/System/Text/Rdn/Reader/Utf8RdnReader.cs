@@ -1602,11 +1602,11 @@ namespace Rdn
                             return false; // need more data
                         }
                     }
-                    if (!TryGetNumber(localBuffer.Slice(_consumed), out int numberOfBytes))
+                    if (!TryGetNumber(localBuffer.Slice(_consumed), out int numberOfBytes, out bool isBigInteger2))
                     {
                         return false;
                     }
-                    _tokenType = RdnTokenType.Number;
+                    _tokenType = isBigInteger2 ? RdnTokenType.RdnBigInteger : RdnTokenType.Number;
                     _consumed += numberOfBytes;
                     _bytePositionInLine += numberOfBytes;
                 }
@@ -1926,12 +1926,12 @@ namespace Rdn
 
         private bool ConsumeNumber()
         {
-            if (!TryGetNumber(_buffer.Slice(_consumed), out int consumed))
+            if (!TryGetNumber(_buffer.Slice(_consumed), out int consumed, out bool isBigInteger))
             {
                 return false;
             }
 
-            _tokenType = RdnTokenType.Number;
+            _tokenType = isBigInteger ? RdnTokenType.RdnBigInteger : RdnTokenType.Number;
             _consumed += consumed;
             _bytePositionInLine += consumed;
 
@@ -2144,13 +2144,15 @@ namespace Rdn
         }
 
         // https://tools.ietf.org/html/rfc7159#section-6
-        private bool TryGetNumber(ReadOnlySpan<byte> data, out int consumed)
+        private bool TryGetNumber(ReadOnlySpan<byte> data, out int consumed, out bool isBigInteger)
         {
             // TODO: https://github.com/dotnet/runtime/issues/27837
             Debug.Assert(data.Length > 0);
 
             consumed = 0;
+            isBigInteger = false;
             int i = 0;
+            bool hasDecimalOrExponent = false;
 
             ConsumeNumberResult signResult = ConsumeNegativeSign(ref data, ref i);
             if (signResult == ConsumeNumberResult.NeedMoreData)
@@ -2177,6 +2179,16 @@ namespace Rdn
 
                 Debug.Assert(result == ConsumeNumberResult.OperationIncomplete);
                 nextByte = data[i];
+
+                // BigInteger: 0n
+                if (nextByte == (byte)'n')
+                {
+                    isBigInteger = true;
+                    // ValueSpan = digits only (without 'n'), consumed includes 'n'
+                    ValueSpan = data.Slice(0, i);
+                    consumed = i + 1; // skip the 'n'
+                    return true;
+                }
             }
             else
             {
@@ -2193,6 +2205,16 @@ namespace Rdn
 
                 Debug.Assert(result == ConsumeNumberResult.OperationIncomplete);
                 nextByte = data[i];
+
+                // BigInteger: <digits>n
+                if (nextByte == (byte)'n')
+                {
+                    isBigInteger = true;
+                    ValueSpan = data.Slice(0, i);
+                    consumed = i + 1; // skip the 'n'
+                    return true;
+                }
+
                 if (nextByte != '.' && nextByte != 'E' && nextByte != 'e')
                 {
                     _bytePositionInLine += i;
@@ -2201,6 +2223,7 @@ namespace Rdn
             }
 
             Debug.Assert(nextByte == '.' || nextByte == 'E' || nextByte == 'e');
+            hasDecimalOrExponent = true;
 
             if (nextByte == '.')
             {
@@ -2312,7 +2335,7 @@ namespace Rdn
                 }
             }
             nextByte = data[i];
-            if (nextByte != '.' && nextByte != 'E' && nextByte != 'e')
+            if (nextByte != '.' && nextByte != 'E' && nextByte != 'e' && nextByte != 'n')
             {
                 _bytePositionInLine += i;
                 ThrowHelper.ThrowRdnReaderException(ref this,

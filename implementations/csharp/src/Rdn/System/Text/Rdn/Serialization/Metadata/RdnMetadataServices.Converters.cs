@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Numerics;
 using Rdn.Nodes;
 using Rdn.Serialization.Converters;
 
@@ -79,6 +80,13 @@ namespace Rdn.Serialization.Metadata
         /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
         public static RdnConverter<System.Text.RegularExpressions.Regex> RegexConverter => s_regexConverter ??= new RegexConverter();
         private static RdnConverter<System.Text.RegularExpressions.Regex>? s_regexConverter;
+
+        /// <summary>
+        /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="BigInteger"/> values.
+        /// </summary>
+        /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
+        public static RdnConverter<BigInteger> BigIntegerConverter => s_bigIntegerConverter ??= new BigIntegerConverter();
+        private static RdnConverter<BigInteger>? s_bigIntegerConverter;
 
         /// <summary>
         /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="decimal"/> values.
