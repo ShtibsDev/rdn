@@ -11,18 +11,20 @@ JSON lacks native types for dates, binary data, BigIntegers, and other common pr
 RDN closes these gaps while remaining a strict JSON superset. Every valid JSON document is already valid RDN. The new types have unambiguous literal syntax that requires no schema, no string conventions, and no guessing.
 
 **JSON:**
+
 ```json
 {
-  "created": "2024-01-15T10:30:00.000Z",
-  "duration": "PT2H30M",
-  "thumbnail": "SGVsbG8gV29ybGQ=",
-  "tags": ["alpha", "beta"],
-  "score": "Infinity",
-  "totalSupply": "99999999999999999999999999"
+	"created": "2024-01-15T10:30:00.000Z",
+	"duration": "PT2H30M",
+	"thumbnail": "SGVsbG8gV29ybGQ=",
+	"tags": ["alpha", "beta"],
+	"score": "Infinity",
+	"totalSupply": "99999999999999999999999999"
 }
 ```
 
 **RDN:**
+
 ```
 {
   "created": @2024-01-15T10:30:00.000Z,
@@ -48,7 +50,7 @@ dotnet add package Rdn.AspNetCore  # for ASP.NET Core
 ## Project Structure
 
 ```
-implementations/csharp/
+packages/rdn-dotnet/
 ├── Rdn.sln
 ├── Directory.Build.props     # Centralized build properties & NuGet metadata
 ├── icon.png                  # 128x128 package icon for NuGet gallery
@@ -440,40 +442,40 @@ while (reader.Read())
 
 ### RDN-Specific Options
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `DateTimeFormat` | `RdnDateTimeFormat` | `Iso` | `Iso` writes `@2024-01-15T10:30:00.000Z`, `UnixMilliseconds` writes `@1705312200000`. Both always accepted on read. |
-| `BinaryFormat` | `RdnBinaryFormat` | `Base64` | `Base64` writes `b"..."`, `Hex` writes `x"..."`. Both always accepted on read. |
-| `AlwaysWriteMapTypeName` | `bool` | `false` | Always emit `Map{` prefix for non-empty Maps. Empty Maps always emit `Map{}` regardless. |
-| `AlwaysWriteSetTypeName` | `bool` | `false` | Always emit `Set{` prefix for non-empty Sets. Empty Sets always emit `Set{}` regardless. |
+| Property                 | Type                | Default  | Description                                                                                                         |
+| ------------------------ | ------------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| `DateTimeFormat`         | `RdnDateTimeFormat` | `Iso`    | `Iso` writes `@2024-01-15T10:30:00.000Z`, `UnixMilliseconds` writes `@1705312200000`. Both always accepted on read. |
+| `BinaryFormat`           | `RdnBinaryFormat`   | `Base64` | `Base64` writes `b"..."`, `Hex` writes `x"..."`. Both always accepted on read.                                      |
+| `AlwaysWriteMapTypeName` | `bool`              | `false`  | Always emit `Map{` prefix for non-empty Maps. Empty Maps always emit `Map{}` regardless.                            |
+| `AlwaysWriteSetTypeName` | `bool`              | `false`  | Always emit `Set{` prefix for non-empty Sets. Empty Sets always emit `Set{}` regardless.                            |
 
 ### Standard Options
 
 All familiar `System.Text.Json` options carry over:
 
-| Property | Type | Default |
-|----------|------|---------|
-| `PropertyNamingPolicy` | `RdnNamingPolicy?` | `null` (preserve names) |
-| `PropertyNameCaseInsensitive` | `bool` | `false` |
-| `WriteIndented` | `bool` | `false` |
-| `IndentCharacter` | `char` | ` ` (space) |
-| `IndentSize` | `int` | `2` |
-| `MaxDepth` | `int` | `0` (means 64) |
-| `NumberHandling` | `RdnNumberHandling` | `Strict` |
-| `DefaultIgnoreCondition` | `RdnIgnoreCondition` | `Never` |
-| `IgnoreReadOnlyProperties` | `bool` | `false` |
-| `IgnoreReadOnlyFields` | `bool` | `false` |
-| `IncludeFields` | `bool` | `false` |
-| `ReferenceHandler` | `ReferenceHandler?` | `null` |
-| `UnmappedMemberHandling` | `RdnUnmappedMemberHandling` | `Skip` |
-| `PreferredObjectCreationHandling` | `RdnObjectCreationHandling` | `Replace` |
-| `AllowTrailingCommas` | `bool` | `false` |
-| `AllowDuplicateProperties` | `bool` | `true` |
-| `DefaultBufferSize` | `int` | `16384` |
-| `Encoder` | `JavaScriptEncoder?` | `null` |
-| `NewLine` | `string` | `Environment.NewLine` |
-| `RespectNullableAnnotations` | `bool` | `false` |
-| `RespectRequiredConstructorParameters` | `bool` | `false` |
+| Property                               | Type                        | Default                 |
+| -------------------------------------- | --------------------------- | ----------------------- |
+| `PropertyNamingPolicy`                 | `RdnNamingPolicy?`          | `null` (preserve names) |
+| `PropertyNameCaseInsensitive`          | `bool`                      | `false`                 |
+| `WriteIndented`                        | `bool`                      | `false`                 |
+| `IndentCharacter`                      | `char`                      | ` ` (space)             |
+| `IndentSize`                           | `int`                       | `2`                     |
+| `MaxDepth`                             | `int`                       | `0` (means 64)          |
+| `NumberHandling`                       | `RdnNumberHandling`         | `Strict`                |
+| `DefaultIgnoreCondition`               | `RdnIgnoreCondition`        | `Never`                 |
+| `IgnoreReadOnlyProperties`             | `bool`                      | `false`                 |
+| `IgnoreReadOnlyFields`                 | `bool`                      | `false`                 |
+| `IncludeFields`                        | `bool`                      | `false`                 |
+| `ReferenceHandler`                     | `ReferenceHandler?`         | `null`                  |
+| `UnmappedMemberHandling`               | `RdnUnmappedMemberHandling` | `Skip`                  |
+| `PreferredObjectCreationHandling`      | `RdnObjectCreationHandling` | `Replace`               |
+| `AllowTrailingCommas`                  | `bool`                      | `false`                 |
+| `AllowDuplicateProperties`             | `bool`                      | `true`                  |
+| `DefaultBufferSize`                    | `int`                       | `16384`                 |
+| `Encoder`                              | `JavaScriptEncoder?`        | `null`                  |
+| `NewLine`                              | `string`                    | `Environment.NewLine`   |
+| `RespectNullableAnnotations`           | `bool`                      | `false`                 |
+| `RespectRequiredConstructorParameters` | `bool`                      | `false`                 |
 
 ## Attributes
 
@@ -575,11 +577,11 @@ public class EventsController : ControllerBase
 `{` can start an Object, Map, or Set. The parser looks ahead after the first value:
 
 | After first value | Interpretation |
-|---|---|
-| `:` | Object |
-| `=>` | Map |
-| `,` or `}` | Set |
-| Empty `{}` | Object |
+| ----------------- | -------------- |
+| `:`               | Object         |
+| `=>`              | Map            |
+| `,` or `}`        | Set            |
+| Empty `{}`        | Object         |
 
 ## Differences from System.Text.Json
 
@@ -594,7 +596,7 @@ This implementation is a fork of `System.Text.Json` with the following changes:
 ## Build & Test
 
 ```bash
-cd implementations/csharp
+cd packages/rdn-dotnet
 
 # Build everything
 dotnet build Rdn.sln

@@ -23,11 +23,11 @@ __pycache__/
 venv/
 
 # Go
-implementations/go/bin/
+packages/rdn-go/bin/
 
 # C#
-implementations/csharp/bin/
-implementations/csharp/obj/
+packages/rdn-dotnet/bin/
+packages/rdn-dotnet/obj/
 BenchmarkDotNet.Artifacts/
 
 # IDE
