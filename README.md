@@ -68,12 +68,12 @@ rdn/
 │   ├── valid/                # .rdn + .expected.json pairs
 │   ├── invalid/              # Files that must fail parsing
 │   └── roundtrip/            # Parse → serialize → parse identity tests
-├── implementations/
-│   ├── typescript/           # Reference implementation (vitest, ESM, strict TS)
-│   ├── rust/                 # With WASM feature flag, criterion benchmarks
-│   ├── python/               # Placeholder
-│   ├── go/                   # Placeholder
-│   └── csharp/               # Placeholder
+├── packages/
+│   ├── rdn-js/               # TypeScript reference implementation (vitest, ESM, strict TS)
+│   ├── rdn-rust/             # Rust with WASM feature flag, criterion benchmarks
+│   ├── rdn-dotnet/           # C# / .NET 8 with ASP.NET Core formatters & NuGet packaging
+│   ├── rdn-go/               # Go (placeholder)
+│   └── rdn-python/           # Python (placeholder)
 ├── v8-integration/           # Docs, patches, and d8 benchmarks for the V8 fork
 │   ├── README.md
 │   ├── patches/
@@ -83,7 +83,8 @@ rdn/
 │   ├── rdn-cli/              # CLI: validate, fmt, convert json↔rdn
 │   ├── vscode-extension/     # VS Code language support
 │   └── playground/           # Web playground (Rust WASM)
-└── docs/                     # Documentation site
+├── assets/                   # Branding assets (SVG, WEBP)
+└── docs/                     # Documentation
 ```
 
 ## Getting Started
@@ -91,7 +92,7 @@ rdn/
 ### TypeScript (Reference Implementation)
 
 ```bash
-cd implementations/typescript
+cd packages/rdn-js
 npm install
 npm test
 ```
@@ -99,9 +100,17 @@ npm test
 ### Rust
 
 ```bash
-cd implementations/rust
+cd packages/rdn-rust
 cargo test
 cargo bench
+```
+
+### C# (.NET 8)
+
+```bash
+cd packages/rdn-dotnet
+dotnet build Rdn.sln
+dotnet test
 ```
 
 ### Running the Conformance Test Suite

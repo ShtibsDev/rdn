@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Rdn.Encodings.Web</RootNamespace>
+    <NoWarn>$(NoWarn);CS3011</NoWarn>
+    <PackageId>Rdn.Encodings.Web</PackageId>
+    <Description>Web-safe text encoding for the Rdn serialization library.</Description>
+    <PackageTags>rdn;encoding;web</PackageTags>
+  </PropertyGroup>
+
+</Project>

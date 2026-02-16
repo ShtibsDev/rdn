@@ -1,0 +1,583 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using Rdn.Reflection;
+using System.Threading;
+
+namespace Rdn.Serialization.Metadata
+{
+    public partial class DefaultRdnTypeInfoResolver
+    {
+        internal static MemberAccessor MemberAccessor
+        {
+            [RequiresUnreferencedCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+            [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+            get
+            {
+                return s_memberAccessor ?? Initialize();
+                static MemberAccessor Initialize()
+                {
+                    MemberAccessor value =
+#if NET
+                        // if dynamic code isn't supported, fallback to reflection
+                        RuntimeFeature.IsDynamicCodeSupported ?
+                            new ReflectionEmitCachingMemberAccessor() :
+                            new ReflectionMemberAccessor();
+#elif NETFRAMEWORK
+                            new ReflectionEmitCachingMemberAccessor();
+#else
+                            new ReflectionMemberAccessor();
+#endif
+                    return Interlocked.CompareExchange(ref s_memberAccessor, value, null) ?? value;
+                }
+            }
+        }
+
+        internal static void ClearMemberAccessorCaches() => s_memberAccessor?.Clear();
+        private static MemberAccessor? s_memberAccessor;
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        private static RdnTypeInfo CreateTypeInfoCore(Type type, RdnConverter converter, RdnSerializerOptions options)
+        {
+            RdnTypeInfo typeInfo = RdnTypeInfo.CreateRdnTypeInfo(type, converter, options);
+
+            if (GetNumberHandlingForType(typeInfo.Type) is { } numberHandling)
+            {
+                typeInfo.NumberHandling = numberHandling;
+            }
+
+            if (GetObjectCreationHandlingForType(typeInfo.Type) is { } creationHandling)
+            {
+                typeInfo.PreferredPropertyObjectCreationHandling = creationHandling;
+            }
+
+            if (GetUnmappedMemberHandling(typeInfo.Type) is { } unmappedMemberHandling)
+            {
+                typeInfo.UnmappedMemberHandling = unmappedMemberHandling;
+            }
+
+            typeInfo.PopulatePolymorphismMetadata();
+            typeInfo.MapInterfaceTypesToCallbacks();
+
+            Func<object>? createObject = DetermineCreateObjectDelegate(type, converter);
+            typeInfo.SetCreateObjectIfCompatible(createObject);
+            typeInfo.CreateObjectForExtensionDataProperty = createObject;
+
+            if (typeInfo is { Kind: RdnTypeInfoKind.Object, IsNullable: false })
+            {
+                NullabilityInfoContext nullabilityCtx = new();
+
+                if (converter.ConstructorIsParameterized)
+                {
+                    // NB parameter metadata must be populated *before* property metadata
+                    // so that properties can be linked to their associated parameters.
+                    PopulateParameterInfoValues(typeInfo, nullabilityCtx);
+                }
+
+                PopulateProperties(typeInfo, nullabilityCtx);
+
+                typeInfo.ConstructorAttributeProvider = typeInfo.Converter.ConstructorInfo;
+            }
+
+            // Plug in any converter configuration -- should be run last.
+            converter.ConfigureRdnTypeInfo(typeInfo, options);
+            converter.ConfigureRdnTypeInfoUsingReflection(typeInfo, options);
+            return typeInfo;
+        }
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        private static void PopulateProperties(RdnTypeInfo typeInfo, NullabilityInfoContext nullabilityCtx)
+        {
+            Debug.Assert(!typeInfo.IsReadOnly);
+            Debug.Assert(typeInfo.Kind is RdnTypeInfoKind.Object);
+
+            // SetsRequiredMembersAttribute means that all required members are assigned by constructor and therefore there is no enforcement
+            bool constructorHasSetsRequiredMembersAttribute =
+                typeInfo.Converter.ConstructorInfo?.HasSetsRequiredMembersAttribute() ?? false;
+
+            RdnTypeInfo.PropertyHierarchyResolutionState state = new(typeInfo.Options);
+
+            // Walk the type hierarchy starting from the current type up to the base type(s)
+            foreach (Type currentType in typeInfo.Type.GetSortedTypeHierarchy())
+            {
+                if (currentType == RdnTypeInfo.ObjectType ||
+                    currentType == typeof(ValueType))
+                {
+                    // Don't process any members for typeof(object) or System.ValueType
+                    break;
+                }
+
+                AddMembersDeclaredBySuperType(
+                    typeInfo,
+                    currentType,
+                    nullabilityCtx,
+                    constructorHasSetsRequiredMembersAttribute,
+                    ref state);
+            }
+
+            if (state.IsPropertyOrderSpecified)
+            {
+                typeInfo.PropertyList.SortProperties();
+            }
+        }
+
+        private const BindingFlags AllInstanceMembers =
+            BindingFlags.Instance |
+            BindingFlags.Public |
+            BindingFlags.NonPublic |
+            BindingFlags.DeclaredOnly;
+
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        private static void AddMembersDeclaredBySuperType(
+            RdnTypeInfo typeInfo,
+            Type currentType,
+            NullabilityInfoContext nullabilityCtx,
+            bool constructorHasSetsRequiredMembersAttribute,
+            ref RdnTypeInfo.PropertyHierarchyResolutionState state)
+        {
+            Debug.Assert(!typeInfo.IsReadOnly);
+            Debug.Assert(currentType.IsAssignableFrom(typeInfo.Type));
+
+            // Compiler adds RequiredMemberAttribute to type if any of the members are marked with 'required' keyword.
+            bool shouldCheckMembersForRequiredMemberAttribute =
+                !constructorHasSetsRequiredMembersAttribute && currentType.HasRequiredMemberAttribute();
+
+            foreach (PropertyInfo propertyInfo in currentType.GetProperties(AllInstanceMembers))
+            {
+                // Ignore indexers and virtual properties that have overrides that were [RdnIgnore]d.
+                if (propertyInfo.GetIndexParameters().Length > 0 ||
+                    PropertyIsOverriddenAndIgnored(propertyInfo, state.IgnoredProperties))
+                {
+                    continue;
+                }
+
+                bool hasRdnIncludeAttribute = propertyInfo.GetCustomAttribute<RdnIncludeAttribute>(inherit: false) != null;
+
+                // Only include properties that either have a public getter or a public setter or have the RdnIncludeAttribute set.
+                if (propertyInfo.GetMethod?.IsPublic == true ||
+                    propertyInfo.SetMethod?.IsPublic == true ||
+                    hasRdnIncludeAttribute)
+                {
+                    AddMember(
+                        typeInfo,
+                        typeToConvert: propertyInfo.PropertyType,
+                        memberInfo: propertyInfo,
+                        nullabilityCtx,
+                        shouldCheckMembersForRequiredMemberAttribute,
+                        hasRdnIncludeAttribute,
+                        ref state);
+                }
+            }
+
+            foreach (FieldInfo fieldInfo in currentType.GetFields(AllInstanceMembers))
+            {
+                bool hasRdnIncludeAttribute = fieldInfo.GetCustomAttribute<RdnIncludeAttribute>(inherit: false) != null;
+                if (hasRdnIncludeAttribute || (fieldInfo.IsPublic && typeInfo.Options.IncludeFields))
+                {
+                    AddMember(
+                        typeInfo,
+                        typeToConvert: fieldInfo.FieldType,
+                        memberInfo: fieldInfo,
+                        nullabilityCtx,
+                        shouldCheckMembersForRequiredMemberAttribute,
+                        hasRdnIncludeAttribute,
+                        ref state);
+                }
+            }
+        }
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        private static void AddMember(
+            RdnTypeInfo typeInfo,
+            Type typeToConvert,
+            MemberInfo memberInfo,
+            NullabilityInfoContext nullabilityCtx,
+            bool shouldCheckForRequiredKeyword,
+            bool hasRdnIncludeAttribute,
+            ref RdnTypeInfo.PropertyHierarchyResolutionState state)
+        {
+            RdnPropertyInfo? rdnPropertyInfo = CreatePropertyInfo(typeInfo, typeToConvert, memberInfo, nullabilityCtx, typeInfo.Options, shouldCheckForRequiredKeyword, hasRdnIncludeAttribute);
+            if (rdnPropertyInfo == null)
+            {
+                // ignored invalid property
+                return;
+            }
+
+            Debug.Assert(rdnPropertyInfo.Name != null);
+            typeInfo.PropertyList.AddPropertyWithConflictResolution(rdnPropertyInfo, ref state);
+        }
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        private static RdnPropertyInfo? CreatePropertyInfo(
+            RdnTypeInfo typeInfo,
+            Type typeToConvert,
+            MemberInfo memberInfo,
+            NullabilityInfoContext nullabilityCtx,
+            RdnSerializerOptions options,
+            bool shouldCheckForRequiredKeyword,
+            bool hasRdnIncludeAttribute)
+        {
+            RdnIgnoreCondition? ignoreCondition = memberInfo.GetCustomAttribute<RdnIgnoreAttribute>(inherit: false)?.Condition;
+
+            if (RdnTypeInfo.IsInvalidForSerialization(typeToConvert))
+            {
+                if (ignoreCondition == RdnIgnoreCondition.Always)
+                    return null;
+
+                ThrowHelper.ThrowInvalidOperationException_CannotSerializeInvalidType(typeToConvert, memberInfo.DeclaringType, memberInfo);
+            }
+
+            // Resolve any custom converters on the attribute level.
+            RdnConverter? customConverter;
+            try
+            {
+                customConverter = GetCustomConverterForMember(typeToConvert, memberInfo, options);
+            }
+            catch (InvalidOperationException) when (ignoreCondition == RdnIgnoreCondition.Always)
+            {
+                // skip property altogether if attribute is invalid and the property is ignored
+                return null;
+            }
+
+            RdnPropertyInfo rdnPropertyInfo = typeInfo.CreatePropertyUsingReflection(typeToConvert, declaringType: memberInfo.DeclaringType);
+            PopulatePropertyInfo(rdnPropertyInfo, memberInfo, customConverter, ignoreCondition, nullabilityCtx, shouldCheckForRequiredKeyword, hasRdnIncludeAttribute);
+            return rdnPropertyInfo;
+        }
+
+        private static RdnNumberHandling? GetNumberHandlingForType(Type type)
+        {
+            RdnNumberHandlingAttribute? numberHandlingAttribute = type.GetUniqueCustomAttribute<RdnNumberHandlingAttribute>(inherit: false);
+            return numberHandlingAttribute?.Handling;
+        }
+
+        private static RdnObjectCreationHandling? GetObjectCreationHandlingForType(Type type)
+        {
+            RdnObjectCreationHandlingAttribute? creationHandlingAttribute = type.GetUniqueCustomAttribute<RdnObjectCreationHandlingAttribute>(inherit: false);
+            return creationHandlingAttribute?.Handling;
+        }
+
+        private static RdnUnmappedMemberHandling? GetUnmappedMemberHandling(Type type)
+        {
+            RdnUnmappedMemberHandlingAttribute? numberHandlingAttribute = type.GetUniqueCustomAttribute<RdnUnmappedMemberHandlingAttribute>(inherit: false);
+            return numberHandlingAttribute?.UnmappedMemberHandling;
+        }
+
+        private static bool PropertyIsOverriddenAndIgnored(PropertyInfo propertyInfo, Dictionary<string, RdnPropertyInfo>? ignoredMembers)
+        {
+            return propertyInfo.IsVirtual() &&
+                ignoredMembers?.TryGetValue(propertyInfo.Name, out RdnPropertyInfo? ignoredMember) == true &&
+                ignoredMember.IsVirtual &&
+                propertyInfo.PropertyType == ignoredMember.PropertyType;
+        }
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        private static void PopulateParameterInfoValues(RdnTypeInfo typeInfo, NullabilityInfoContext nullabilityCtx)
+        {
+            Debug.Assert(typeInfo.Converter.ConstructorInfo != null);
+            ParameterInfo[] parameters = typeInfo.Converter.ConstructorInfo.GetParameters();
+            int parameterCount = parameters.Length;
+            RdnParameterInfoValues[] rdnParameters = new RdnParameterInfoValues[parameterCount];
+
+            for (int i = 0; i < parameterCount; i++)
+            {
+                ParameterInfo reflectionInfo = parameters[i];
+
+                // Trimmed parameter names are reported as null in CoreCLR or "" in Mono.
+                if (string.IsNullOrEmpty(reflectionInfo.Name))
+                {
+                    Debug.Assert(typeInfo.Converter.ConstructorInfo.DeclaringType != null);
+                    ThrowHelper.ThrowNotSupportedException_ConstructorContainsNullParameterNames(typeInfo.Converter.ConstructorInfo.DeclaringType);
+                }
+
+                RdnParameterInfoValues rdnInfo = new()
+                {
+                    Name = reflectionInfo.Name,
+                    ParameterType = reflectionInfo.ParameterType,
+                    Position = reflectionInfo.Position,
+                    HasDefaultValue = reflectionInfo.HasDefaultValue,
+                    DefaultValue = reflectionInfo.GetDefaultValue(),
+                    IsNullable = DetermineParameterNullability(reflectionInfo, nullabilityCtx) is not NullabilityState.NotNull,
+                };
+
+                rdnParameters[i] = rdnInfo;
+            }
+
+            typeInfo.PopulateParameterInfoValues(rdnParameters);
+        }
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        private static void PopulatePropertyInfo(
+            RdnPropertyInfo rdnPropertyInfo,
+            MemberInfo memberInfo,
+            RdnConverter? customConverter,
+            RdnIgnoreCondition? ignoreCondition,
+            NullabilityInfoContext nullabilityCtx,
+            bool shouldCheckForRequiredKeyword,
+            bool hasRdnIncludeAttribute)
+        {
+            Debug.Assert(rdnPropertyInfo.AttributeProvider == null);
+
+            switch (rdnPropertyInfo.AttributeProvider = memberInfo)
+            {
+                case PropertyInfo propertyInfo:
+                    rdnPropertyInfo.MemberName = propertyInfo.Name;
+                    rdnPropertyInfo.IsVirtual = propertyInfo.IsVirtual();
+                    rdnPropertyInfo.MemberType = MemberTypes.Property;
+                    break;
+                case FieldInfo fieldInfo:
+                    rdnPropertyInfo.MemberName = fieldInfo.Name;
+                    rdnPropertyInfo.MemberType = MemberTypes.Field;
+                    break;
+                default:
+                    Debug.Fail("Only FieldInfo and PropertyInfo members are supported.");
+                    break;
+            }
+
+            rdnPropertyInfo.CustomConverter = customConverter;
+            DeterminePropertyPolicies(rdnPropertyInfo, memberInfo);
+            DeterminePropertyName(rdnPropertyInfo, memberInfo);
+            DeterminePropertyIsRequired(rdnPropertyInfo, memberInfo, shouldCheckForRequiredKeyword);
+            DeterminePropertyNullability(rdnPropertyInfo, memberInfo, nullabilityCtx);
+
+            if (ignoreCondition != RdnIgnoreCondition.Always)
+            {
+                rdnPropertyInfo.DetermineReflectionPropertyAccessors(memberInfo, useNonPublicAccessors: hasRdnIncludeAttribute);
+            }
+
+            rdnPropertyInfo.IgnoreCondition = ignoreCondition;
+            rdnPropertyInfo.IsExtensionData = memberInfo.GetCustomAttribute<RdnExtensionDataAttribute>(inherit: false) != null;
+        }
+
+        private static void DeterminePropertyPolicies(RdnPropertyInfo propertyInfo, MemberInfo memberInfo)
+        {
+            RdnPropertyOrderAttribute? orderAttr = memberInfo.GetCustomAttribute<RdnPropertyOrderAttribute>(inherit: false);
+            propertyInfo.Order = orderAttr?.Order ?? 0;
+
+            RdnNumberHandlingAttribute? numberHandlingAttr = memberInfo.GetCustomAttribute<RdnNumberHandlingAttribute>(inherit: false);
+            propertyInfo.NumberHandling = numberHandlingAttr?.Handling;
+
+            RdnObjectCreationHandlingAttribute? objectCreationHandlingAttr = memberInfo.GetCustomAttribute<RdnObjectCreationHandlingAttribute>(inherit: false);
+            propertyInfo.ObjectCreationHandling = objectCreationHandlingAttr?.Handling;
+        }
+
+        private static void DeterminePropertyName(RdnPropertyInfo propertyInfo, MemberInfo memberInfo)
+        {
+            RdnPropertyNameAttribute? nameAttribute = memberInfo.GetCustomAttribute<RdnPropertyNameAttribute>(inherit: false);
+            string? name;
+            if (nameAttribute != null)
+            {
+                name = nameAttribute.Name;
+            }
+            else if (propertyInfo.Options.PropertyNamingPolicy != null)
+            {
+                name = propertyInfo.Options.PropertyNamingPolicy.ConvertName(memberInfo.Name);
+            }
+            else
+            {
+                name = memberInfo.Name;
+            }
+
+            if (name == null)
+            {
+                ThrowHelper.ThrowInvalidOperationException_SerializerPropertyNameNull(propertyInfo);
+            }
+
+            propertyInfo.Name = name;
+        }
+
+        private static void DeterminePropertyIsRequired(RdnPropertyInfo propertyInfo, MemberInfo memberInfo, bool shouldCheckForRequiredKeyword)
+        {
+            propertyInfo.IsRequired =
+                memberInfo.GetCustomAttribute<RdnRequiredAttribute>(inherit: false) != null
+                || (shouldCheckForRequiredKeyword && memberInfo.HasRequiredMemberAttribute());
+        }
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        internal static void DeterminePropertyAccessors<T>(RdnPropertyInfo<T> rdnPropertyInfo, MemberInfo memberInfo, bool useNonPublicAccessors)
+        {
+            Debug.Assert(memberInfo is FieldInfo or PropertyInfo);
+
+            switch (memberInfo)
+            {
+                case PropertyInfo propertyInfo:
+                    MethodInfo? getMethod = propertyInfo.GetMethod;
+                    if (getMethod != null && (getMethod.IsPublic || useNonPublicAccessors))
+                    {
+                        rdnPropertyInfo.Get = MemberAccessor.CreatePropertyGetter<T>(propertyInfo);
+                    }
+
+                    MethodInfo? setMethod = propertyInfo.SetMethod;
+                    if (setMethod != null && (setMethod.IsPublic || useNonPublicAccessors))
+                    {
+                        rdnPropertyInfo.Set = MemberAccessor.CreatePropertySetter<T>(propertyInfo);
+                    }
+
+                    break;
+
+                case FieldInfo fieldInfo:
+                    Debug.Assert(fieldInfo.IsPublic || useNonPublicAccessors);
+
+                    rdnPropertyInfo.Get = MemberAccessor.CreateFieldGetter<T>(fieldInfo);
+
+                    if (!fieldInfo.IsInitOnly)
+                    {
+                        rdnPropertyInfo.Set = MemberAccessor.CreateFieldSetter<T>(fieldInfo);
+                    }
+
+                    break;
+
+                default:
+                    Debug.Fail($"Invalid MemberInfo type: {memberInfo.MemberType}");
+                    break;
+            }
+        }
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        private static Func<object>? DetermineCreateObjectDelegate(Type type, RdnConverter converter)
+        {
+            ConstructorInfo? defaultCtor = null;
+
+            if (converter.ConstructorInfo != null && !converter.ConstructorIsParameterized)
+            {
+                // A parameterless constructor has been resolved by the converter
+                // (e.g. it might be a non-public ctor with RdnConstructorAttribute).
+                defaultCtor = converter.ConstructorInfo;
+            }
+
+            // Fall back to resolving any public constructors on the type.
+            defaultCtor ??= type.GetConstructor(BindingFlags.Public | BindingFlags.Instance, binder: null, Type.EmptyTypes, modifiers: null);
+
+            return MemberAccessor.CreateParameterlessConstructor(type, defaultCtor);
+        }
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        private static void DeterminePropertyNullability(RdnPropertyInfo propertyInfo, MemberInfo memberInfo, NullabilityInfoContext nullabilityCtx)
+        {
+            if (!propertyInfo.PropertyTypeCanBeNull)
+            {
+                return;
+            }
+
+            NullabilityInfo nullabilityInfo;
+            if (propertyInfo.MemberType is MemberTypes.Property)
+            {
+                nullabilityInfo = nullabilityCtx.Create((PropertyInfo)memberInfo);
+            }
+            else
+            {
+                Debug.Assert(propertyInfo.MemberType is MemberTypes.Field);
+                nullabilityInfo = nullabilityCtx.Create((FieldInfo)memberInfo);
+            }
+
+            propertyInfo.IsGetNullable = nullabilityInfo.ReadState is not NullabilityState.NotNull;
+            propertyInfo.IsSetNullable = nullabilityInfo.WriteState is not NullabilityState.NotNull;
+        }
+
+        [RequiresUnreferencedCode(RdnSerializer.SerializationUnreferencedCodeMessage)]
+        [RequiresDynamicCode(RdnSerializer.SerializationRequiresDynamicCodeMessage)]
+        private static NullabilityState DetermineParameterNullability(ParameterInfo parameterInfo, NullabilityInfoContext nullabilityCtx)
+        {
+            if (!parameterInfo.ParameterType.IsNullableType())
+            {
+                return NullabilityState.NotNull;
+            }
+#if NET8_0
+            // Workaround for https://github.com/dotnet/runtime/issues/92487
+            // The fix has been incorporated into .NET 9 (and the polyfilled implementations in netfx).
+            // Should be removed once .NET 8 support is dropped.
+            if (parameterInfo.GetGenericParameterDefinition() is { ParameterType: { IsGenericParameter: true } typeParam })
+            {
+                // Step 1. Look for nullable annotations on the type parameter.
+                if (GetNullableFlags(typeParam) is byte[] flags)
+                {
+                    return TranslateByte(flags[0]);
+                }
+
+                // Step 2. Look for nullable annotations on the generic method declaration.
+                if (typeParam.DeclaringMethod != null && GetNullableContextFlag(typeParam.DeclaringMethod) is byte flag)
+                {
+                    return TranslateByte(flag);
+                }
+
+                // Step 3. Look for nullable annotations on the generic type declaration.
+                if (GetNullableContextFlag(typeParam.DeclaringType!) is byte flag2)
+                {
+                    return TranslateByte(flag2);
+                }
+
+                // Default to nullable.
+                return NullabilityState.Nullable;
+
+                static byte[]? GetNullableFlags(MemberInfo member)
+                {
+                    foreach (CustomAttributeData attr in member.GetCustomAttributesData())
+                    {
+                        Type attrType = attr.AttributeType;
+                        if (attrType.Name == "NullableAttribute" && attrType.Namespace == "System.Runtime.CompilerServices")
+                        {
+                            foreach (CustomAttributeTypedArgument ctorArg in attr.ConstructorArguments)
+                            {
+                                switch (ctorArg.Value)
+                                {
+                                    case byte flag:
+                                        return [flag];
+                                    case byte[] flags:
+                                        return flags;
+                                }
+                            }
+                        }
+                    }
+
+                    return null;
+                }
+
+                static byte? GetNullableContextFlag(MemberInfo member)
+                {
+                    foreach (CustomAttributeData attr in member.GetCustomAttributesData())
+                    {
+                        Type attrType = attr.AttributeType;
+                        if (attrType.Name == "NullableContextAttribute" && attrType.Namespace == "System.Runtime.CompilerServices")
+                        {
+                            foreach (CustomAttributeTypedArgument ctorArg in attr.ConstructorArguments)
+                            {
+                                if (ctorArg.Value is byte flag)
+                                {
+                                    return flag;
+                                }
+                            }
+                        }
+                    }
+
+                    return null;
+                }
+
+                static NullabilityState TranslateByte(byte b) =>
+                    b switch
+                    {
+                        1 => NullabilityState.NotNull,
+                        2 => NullabilityState.Nullable,
+                        _ => NullabilityState.Unknown
+                    };
+            }
+#endif
+            NullabilityInfo nullability = nullabilityCtx.Create(parameterInfo);
+            return nullability.WriteState;
+        }
+    }
+}
