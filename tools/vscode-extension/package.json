@@ -171,6 +171,7 @@
     }
   },
   "scripts": {
+    "build": "node esbuild.js",
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "package": "node esbuild.js --production && vsce package",

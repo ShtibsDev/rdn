@@ -1,0 +1,22 @@
+{
+  "name": "rdn-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.7.0",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "changeset": "changeset",
+    "version-packages": "changeset version && node scripts/sync-dotnet-version.mjs",
+    "release": "turbo run build && changeset publish",
+    "pre:enter": "changeset pre enter",
+    "pre:exit": "changeset pre exit"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.0",
+    "turbo": "^2.5.0"
+  }
+}

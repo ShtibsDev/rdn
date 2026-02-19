@@ -30,6 +30,12 @@ packages/rdn-dotnet/bin/
 packages/rdn-dotnet/obj/
 BenchmarkDotNet.Artifacts/
 
+# Turborepo
+.turbo/
+
+# VS Code Extension packaging
+*.vsix
+
 # IDE
 .idea/
 .vscode/

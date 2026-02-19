@@ -10,14 +10,32 @@ This is a monorepo containing the specification, multi-language implementations,
 
 ## Build & Test Commands
 
-### TypeScript (reference implementation)
+### All JS/TS Packages (pnpm + Turborepo)
 ```bash
-cd implementations/typescript
-npm install
-npm test              # vitest run
-npm run test:watch    # vitest (watch mode)
-npm run build         # tsc
-npm run lint          # tsc --noEmit
+pnpm install              # install all dependencies (from repo root)
+pnpm build                # turbo run build (all JS/TS packages)
+pnpm test                 # turbo run test
+pnpm lint                 # turbo run lint (tsc --noEmit)
+```
+
+### Individual JS/TS Packages
+```bash
+pnpm --filter @rdn/typescript test       # run tests for rdn-js only
+pnpm --filter prettier-plugin-rdn build  # build prettier plugin only
+pnpm --filter rdn build                  # build vscode extension only
+```
+
+### Changesets (versioning & changelogs)
+```bash
+pnpm changeset            # create a new changeset
+pnpm version-packages     # bump versions from pending changesets
+pnpm release              # build + publish to npm
+
+# Pre-releases (alpha, beta, rc)
+pnpm pre:enter alpha      # enter pre-release mode → versions become x.y.z-alpha.0
+pnpm changeset            # create changesets as normal
+pnpm version-packages     # bumps to e.g. 0.2.0-alpha.0
+pnpm pre:exit             # exit pre-release mode → next version-packages produces stable release
 ```
 
 ### Rust
@@ -28,11 +46,13 @@ cargo bench                    # criterion benchmarks
 cargo build --features wasm    # WASM build with wasm-bindgen
 ```
 
-### C# (.NET 8)
+### C# (.NET 9)
 ```bash
-dotnet build rdn.sln
+cd packages/rdn-dotnet
+dotnet build Rdn.sln
 dotnet test
 ```
+The C# version is managed by Changesets via `packages/rdn-dotnet/package.json`. Running `pnpm version-packages` syncs the version to `Directory.Build.props` automatically.
 
 ### Go / Python (placeholders)
 ```bash
@@ -55,7 +75,7 @@ All implementations must pass the shared language-agnostic test suite:
 
 Extended types in expected JSON use a tagged convention: `{"$type": "TypeName", "value": ...}` (e.g., `{"$type": "Date", "value": "2024-01-15T00:00:00.000Z"}`).
 
-### TypeScript Implementation (`implementations/typescript/`)
+### TypeScript Implementation (`packages/rdn-js/`)
 - ESM-only, strict TypeScript, zero runtime dependencies
 - Entry: `src/index.ts` → exports `parse`, `stringify`, types, helpers
 - Key types in `src/types.ts`: `RDNValue` (union of all value types), `RDNTimeOnly`, `RDNDuration`

@@ -1,0 +1,59 @@
+name: VS Code Extension Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish Extension
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/vscode-extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".node-version"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - run: npx vsce package
+      - run: npx vsce publish ${{ inputs.bump }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Read published version
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Create git tag
+        run: |
+          git tag "rdn-vscode@${{ steps.version.outputs.version }}"
+          git push origin "rdn-vscode@${{ steps.version.outputs.version }}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "rdn-vscode@${{ steps.version.outputs.version }}" \
+            --title "rdn-vscode@${{ steps.version.outputs.version }}" \
+            --notes "Published to [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rdn.rdn)" \
+            ${{ contains(steps.version.outputs.version, '-') && '--prerelease' || '' }}

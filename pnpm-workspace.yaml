@@ -1,0 +1,5 @@
+packages:
+  - "packages/rdn-js"
+  - "packages/rdn-dotnet"
+  - "tools/prettier-plugin-rdn"
+  - "tools/vscode-extension"

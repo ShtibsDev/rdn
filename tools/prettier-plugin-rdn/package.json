@@ -25,6 +25,7 @@
     "formatter"
   ],
   "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/ShtibsDev/rdn", "directory": "tools/prettier-plugin-rdn" },
   "peerDependencies": {
     "prettier": "^3.0.0"
   },

@@ -1,0 +1,6 @@
+{
+  "name": "rdn-dotnet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RDN (Rich Data Notation) .NET implementation — version managed by Changesets for NuGet publishing"
+}

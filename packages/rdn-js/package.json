@@ -26,6 +26,8 @@
     "serializer"
   ],
   "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/ShtibsDev/rdn", "directory": "packages/rdn-js" },
+  "publishConfig": { "access": "public" },
   "devDependencies": {
     "@types/node": "^25.2.3",
     "typescript": "^5.7.0",
