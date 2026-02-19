@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Prettier config with RDN plugin options",
+  "allOf": [
+    { "$ref": "https://json.schemastore.org/prettierrc" },
+    {
+      "properties": {
+        "useExplicitMapKeyword": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep the explicit Map keyword on non-empty maps (e.g. Map{ k => v }). When false, non-empty maps are formatted as implicit ({ k => v })."
+        },
+        "useExplicitSetKeyword": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep the explicit Set keyword on non-empty sets (e.g. Set{ 1, 2 }). When false, non-empty sets are formatted as implicit ({ 1, 2 })."
+        },
+        "sortKeys": {
+          "type": "boolean",
+          "default": false,
+          "description": "Sort object keys alphabetically (ascending). Applies recursively to all nested objects."
+        }
+      }
+    }
+  ]
+}
