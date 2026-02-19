@@ -35,6 +35,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: .
 
+      - run: node esbuild.js --production
       - run: npx @vscode/vsce package
       - run: npx @vscode/vsce publish ${{ inputs.bump }}
         env:
