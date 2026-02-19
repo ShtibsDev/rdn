@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2022",
+    "outDir": "./out",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true,
+    "paths": {
+      "@rdn/parser": ["../../packages/rdn-js/src/parser.ts"],
+      "@rdn/cst-parser": ["../../tools/prettier-plugin-rdn/src/parser.ts"],
+      "@rdn/cst-types": ["../../tools/prettier-plugin-rdn/src/cst.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../packages/rdn-js/src/**/*.ts", "../../tools/prettier-plugin-rdn/src/**/*.ts"],
+  "exclude": ["node_modules", "../../packages/rdn-js/src/**/*.test.ts", "../../tools/prettier-plugin-rdn/src/**/*.test.ts"]
+}

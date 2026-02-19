@@ -1,0 +1,186 @@
+{
+  "name": "rdn",
+  "displayName": "RDN (Rich Data Notation)",
+  "description": "Syntax highlighting, diagnostics, and smart completions for RDN files — a JSON superset with dates, BigInts, regex, binary, Maps, Sets, tuples, and more.",
+  "version": "0.2.0",
+  "publisher": "rdn",
+  "license": "MIT",
+  "icon": "assets/rdn.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ShtibsDev/rdn",
+    "directory": "tools/vscode-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/ShtibsDev/rdn/issues"
+  },
+  "keywords": ["rdn", "rich data notation", "json", "data format", "syntax highlighting"],
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Linters"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "rdn",
+        "aliases": [
+          "RDN",
+          "Rich Data Notation"
+        ],
+        "extensions": [
+          ".rdn"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./assets/rdn-icon.svg",
+          "dark": "./assets/rdn-icon.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rdn",
+        "scopeName": "source.rdn",
+        "path": "./syntaxes/rdn.tmLanguage.json"
+      },
+      {
+        "scopeName": "markdown.rdn.codeblock",
+        "path": "./syntaxes/rdn.markdown.tmLanguage.json",
+        "injectTo": ["text.html.markdown"],
+        "embeddedLanguages": { "meta.embedded.block.rdn": "rdn" }
+      }
+    ],
+    "configuration": {
+      "title": "RDN",
+      "properties": {
+        "rdn.useExplicitMapKeyword": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep the explicit Map keyword on non-empty maps (e.g. Map{ k => v }). When false, non-empty maps are formatted as implicit ({ k => v })."
+        },
+        "rdn.useExplicitSetKeyword": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep the explicit Set keyword on non-empty sets (e.g. Set{ 1, 2 }). When false, non-empty sets are formatted as implicit ({ 1, 2 })."
+        },
+        "rdn.hover.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable hover information for RDN-specific literals."
+        },
+        "rdn.hover.dateTime.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hover info for DateTime, date-only, and Unix timestamp literals."
+        },
+        "rdn.hover.dateTime.fullFormat": {
+          "type": "string",
+          "default": "YYYY-MM-DD HH:mm:ss.SSS [UTC]",
+          "description": "Date format for full ISO 8601 DateTime values (e.g. @2024-01-15T10:30:00.000Z). Supports tokens: YYYY, MM, DD, HH, mm, ss, SSS, etc."
+        },
+        "rdn.hover.dateTime.dateOnlyFormat": {
+          "type": "string",
+          "default": "MMMM D, YYYY",
+          "description": "Date format for date-only values (e.g. @2024-01-15)."
+        },
+        "rdn.hover.dateTime.noMillisFormat": {
+          "type": "string",
+          "default": "YYYY-MM-DD HH:mm:ss [UTC]",
+          "description": "Date format for DateTime values without milliseconds."
+        },
+        "rdn.hover.dateTime.unixFormat": {
+          "type": "string",
+          "default": "YYYY-MM-DD HH:mm:ss [UTC]",
+          "description": "Date format for Unix timestamp hover display."
+        },
+        "rdn.hover.timeOnly.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hover info for TimeOnly literals (@14:30:00)."
+        },
+        "rdn.hover.timeOnly.format": {
+          "type": "string",
+          "default": "HH:mm:ss",
+          "description": "Time format for TimeOnly hover display."
+        },
+        "rdn.hover.duration.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hover info for Duration literals (@P1Y2M3DT4H5M6S)."
+        },
+        "rdn.hover.bigint.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hover info for BigInt literals (42n)."
+        },
+        "rdn.hover.bigint.showBitLength": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the bit length of BigInt values in hover."
+        },
+        "rdn.hover.binary.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hover info for binary literals (b\"...\" and x\"...\")."
+        },
+        "rdn.hover.binary.showPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show ASCII preview of binary data when all bytes are printable."
+        },
+        "rdn.hover.regexp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hover info for RegExp literals."
+        },
+        "rdn.hover.specialNumbers.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hover info for NaN, Infinity, and -Infinity."
+        },
+        "rdn.hover.collections.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hover info for Map, Set, and Tuple collections."
+        },
+        "rdn.hover.diagnostics.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show diagnostic hints in hover tooltips (e.g. BigInt fits in Number, odd hex digits, ambiguous Unix timestamps)."
+        }
+      }
+    },
+    "markdown.previewScripts": ["./preview/rdn-preview.js"],
+    "markdown.previewStyles": ["./preview/rdn-preview.css"],
+    "commands": [
+      {
+        "command": "rdn.sortDocument",
+        "title": "Sort Document Keys",
+        "category": "RDN"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "rdn.sortDocument", "when": "editorLangId == rdn" }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "node esbuild.js --production && vsce package",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
+  }
+}

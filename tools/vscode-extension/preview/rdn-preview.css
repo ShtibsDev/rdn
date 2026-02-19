@@ -1,0 +1,90 @@
+/* RDN syntax highlighting for Markdown preview */
+
+/* --- Dark theme --- */
+body.vscode-dark .rdn-string   { color: #ce9178; }
+body.vscode-dark .rdn-key      { color: #9cdcfe; }
+body.vscode-dark .rdn-number   { color: #b5cea8; }
+body.vscode-dark .rdn-bigint   { color: #b5cea8; }
+body.vscode-dark .rdn-constant { color: #569cd6; }
+body.vscode-dark .rdn-null     { color: #569cd6; }
+body.vscode-dark .rdn-special  { color: #b5cea8; }
+body.vscode-dark .rdn-keyword  { color: #c586c0; }
+body.vscode-dark .rdn-arrow    { color: #d4d4d4; }
+body.vscode-dark .rdn-binary   { color: #d7ba7d; }
+body.vscode-dark .rdn-regexp   { color: #d16969; }
+
+/* datetime components */
+body.vscode-dark .rdn-at       { color: #c586c0; }
+body.vscode-dark .rdn-date     { color: #b5cea8; }
+body.vscode-dark .rdn-time     { color: #b5cea8; }
+body.vscode-dark .rdn-ms       { color: #7a9e7a; }
+body.vscode-dark .rdn-dt-t     { color: #c586c0; }
+body.vscode-dark .rdn-dt-z     { color: #c586c0; }
+
+/* duration components */
+body.vscode-dark .rdn-dur-p       { color: #c586c0; }
+body.vscode-dark .rdn-dur-t       { color: #c586c0; }
+body.vscode-dark .rdn-dur-year    { color: #569cd6; }
+body.vscode-dark .rdn-dur-month   { color: #4ec9b0; }
+body.vscode-dark .rdn-dur-day     { color: #d7ba7d; }
+body.vscode-dark .rdn-dur-hour    { color: #569cd6; }
+body.vscode-dark .rdn-dur-minute  { color: #4ec9b0; }
+body.vscode-dark .rdn-dur-second  { color: #d7ba7d; }
+
+/* --- Light theme --- */
+body.vscode-light .rdn-string   { color: #a31515; }
+body.vscode-light .rdn-key      { color: #0451a5; }
+body.vscode-light .rdn-number   { color: #098658; }
+body.vscode-light .rdn-bigint   { color: #098658; }
+body.vscode-light .rdn-constant { color: #0000ff; }
+body.vscode-light .rdn-null     { color: #0000ff; }
+body.vscode-light .rdn-special  { color: #098658; }
+body.vscode-light .rdn-keyword  { color: #af00db; }
+body.vscode-light .rdn-arrow    { color: #000000; }
+body.vscode-light .rdn-binary   { color: #795e26; }
+body.vscode-light .rdn-regexp   { color: #811f3f; }
+
+/* datetime components */
+body.vscode-light .rdn-at       { color: #af00db; }
+body.vscode-light .rdn-date     { color: #098658; }
+body.vscode-light .rdn-time     { color: #098658; }
+body.vscode-light .rdn-ms       { color: #4e7a4e; }
+body.vscode-light .rdn-dt-t     { color: #af00db; }
+body.vscode-light .rdn-dt-z     { color: #af00db; }
+
+/* duration components */
+body.vscode-light .rdn-dur-p       { color: #af00db; }
+body.vscode-light .rdn-dur-t       { color: #af00db; }
+body.vscode-light .rdn-dur-year    { color: #0000ff; }
+body.vscode-light .rdn-dur-month   { color: #267f99; }
+body.vscode-light .rdn-dur-day     { color: #795e26; }
+body.vscode-light .rdn-dur-hour    { color: #0000ff; }
+body.vscode-light .rdn-dur-minute  { color: #267f99; }
+body.vscode-light .rdn-dur-second  { color: #795e26; }
+
+/* --- High contrast --- */
+body.vscode-high-contrast .rdn-string   { color: #ce9178; }
+body.vscode-high-contrast .rdn-key      { color: #9cdcfe; }
+body.vscode-high-contrast .rdn-number   { color: #b5cea8; }
+body.vscode-high-contrast .rdn-bigint   { color: #b5cea8; }
+body.vscode-high-contrast .rdn-constant { color: #569cd6; }
+body.vscode-high-contrast .rdn-null     { color: #569cd6; }
+body.vscode-high-contrast .rdn-special  { color: #b5cea8; }
+body.vscode-high-contrast .rdn-keyword  { color: #c586c0; }
+body.vscode-high-contrast .rdn-arrow    { color: #d4d4d4; }
+body.vscode-high-contrast .rdn-binary   { color: #d7ba7d; }
+body.vscode-high-contrast .rdn-regexp   { color: #d16969; }
+body.vscode-high-contrast .rdn-at       { color: #c586c0; }
+body.vscode-high-contrast .rdn-date     { color: #b5cea8; }
+body.vscode-high-contrast .rdn-time     { color: #b5cea8; }
+body.vscode-high-contrast .rdn-ms       { color: #7a9e7a; }
+body.vscode-high-contrast .rdn-dt-t     { color: #c586c0; }
+body.vscode-high-contrast .rdn-dt-z     { color: #c586c0; }
+body.vscode-high-contrast .rdn-dur-p       { color: #c586c0; }
+body.vscode-high-contrast .rdn-dur-t       { color: #c586c0; }
+body.vscode-high-contrast .rdn-dur-year    { color: #569cd6; }
+body.vscode-high-contrast .rdn-dur-month   { color: #4ec9b0; }
+body.vscode-high-contrast .rdn-dur-day     { color: #d7ba7d; }
+body.vscode-high-contrast .rdn-dur-hour    { color: #569cd6; }
+body.vscode-high-contrast .rdn-dur-minute  { color: #4ec9b0; }
+body.vscode-high-contrast .rdn-dur-second  { color: #d7ba7d; }

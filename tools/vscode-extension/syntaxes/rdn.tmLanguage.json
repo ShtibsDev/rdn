@@ -1,0 +1,699 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "RDN",
+  "scopeName": "source.rdn",
+  "patterns": [
+    {
+      "include": "#value"
+    }
+  ],
+  "repository": {
+    "value": {
+      "patterns": [
+        {
+          "include": "#binary-base64"
+        },
+        {
+          "include": "#binary-hex"
+        },
+        {
+          "include": "#map-explicit"
+        },
+        {
+          "include": "#set-explicit"
+        },
+        {
+          "include": "#duration"
+        },
+        {
+          "include": "#datetime"
+        },
+        {
+          "include": "#time-only"
+        },
+        {
+          "include": "#regexp"
+        },
+        {
+          "include": "#constant"
+        },
+        {
+          "include": "#special-number"
+        },
+        {
+          "include": "#bigint"
+        },
+        {
+          "include": "#number-float"
+        },
+        {
+          "include": "#number-integer"
+        },
+        {
+          "include": "#object"
+        },
+        {
+          "include": "#array"
+        },
+        {
+          "include": "#tuple"
+        },
+        {
+          "include": "#string"
+        },
+        {
+          "include": "#arrow"
+        },
+        {
+          "include": "#comma"
+        },
+        {
+          "include": "#colon"
+        }
+      ]
+    },
+    "binary-base64": {
+      "name": "string.other.binary.base64.rdn",
+      "begin": "(b)(\")",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.binary.prefix.rdn"
+        },
+        "2": {
+          "name": "punctuation.definition.string.begin.rdn"
+        }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.encoded.base64.rdn",
+          "match": "[A-Za-z0-9+/=]+"
+        },
+        {
+          "name": "invalid.illegal.bad-base64-char.rdn",
+          "match": "[^\"]"
+        }
+      ]
+    },
+    "binary-hex": {
+      "name": "string.other.binary.hex.rdn",
+      "begin": "(x)(\")",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.binary.prefix.rdn"
+        },
+        "2": {
+          "name": "punctuation.definition.string.begin.rdn"
+        }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.encoded.hex.rdn",
+          "match": "[0-9A-Fa-f]+"
+        },
+        {
+          "name": "invalid.illegal.bad-hex-char.rdn",
+          "match": "[^\"]"
+        }
+      ]
+    },
+    "map-explicit": {
+      "name": "meta.structure.map.rdn",
+      "begin": "(Map)(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.map.rdn"
+        },
+        "2": {
+          "name": "punctuation.definition.map.begin.rdn"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.map.end.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#value"
+        }
+      ]
+    },
+    "set-explicit": {
+      "name": "meta.structure.set.rdn",
+      "begin": "(Set)(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.set.rdn"
+        },
+        "2": {
+          "name": "punctuation.definition.set.begin.rdn"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.set.end.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#value"
+        }
+      ]
+    },
+    "duration": {
+      "match": "(@)(P)(?:(\\d+(?:\\.\\d+)?)(Y))?(?:(\\d+(?:\\.\\d+)?)(M))?(?:(\\d+(?:\\.\\d+)?)(D))?(T)?(?:(\\d+(?:\\.\\d+)?)(H))?(?:(\\d+(?:\\.\\d+)?)(M))?(?:(\\d+(?:\\.\\d+)?)(S))?(?=[\\s,}\\]\\)=]|$)",
+      "captures": {
+        "1": {
+          "name": "keyword.operator.new.datetime.rdn"
+        },
+        "2": {
+          "name": "keyword.control.duration.rdn"
+        },
+        "3": {
+          "name": "constant.numeric.duration.year.rdn"
+        },
+        "4": {
+          "name": "keyword.control.unit.year.duration.rdn"
+        },
+        "5": {
+          "name": "constant.numeric.duration.month.rdn"
+        },
+        "6": {
+          "name": "keyword.control.unit.month.duration.rdn"
+        },
+        "7": {
+          "name": "constant.numeric.duration.day.rdn"
+        },
+        "8": {
+          "name": "constant.character.unit.day.duration.rdn"
+        },
+        "9": {
+          "name": "keyword.operator.new.time-separator.duration.rdn"
+        },
+        "10": {
+          "name": "constant.numeric.duration.hour.rdn"
+        },
+        "11": {
+          "name": "keyword.control.unit.hour.duration.rdn"
+        },
+        "12": {
+          "name": "constant.numeric.duration.minute.rdn"
+        },
+        "13": {
+          "name": "keyword.control.unit.minute.duration.rdn"
+        },
+        "14": {
+          "name": "constant.numeric.duration.second.rdn"
+        },
+        "15": {
+          "name": "keyword.control.unit.second.duration.rdn"
+        }
+      }
+    },
+    "datetime": {
+      "patterns": [
+        {
+          "match": "(@)(\\d{4}-\\d{2}-\\d{2})(T)(\\d{2}:\\d{2}:\\d{2})(\\.\\d{3})(Z)(?=[\\s,}\\]\\)=]|$)",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.new.datetime.rdn"
+            },
+            "2": {
+              "name": "constant.numeric.date.rdn"
+            },
+            "3": {
+              "name": "keyword.operator.new.time.rdn"
+            },
+            "4": {
+              "name": "constant.numeric.time.rdn"
+            },
+            "5": {
+              "name": "constant.numeric.milliseconds.rdn"
+            },
+            "6": {
+              "name": "keyword.operator.new.datetime.rdn"
+            }
+          }
+        },
+        {
+          "match": "(@)(\\d{4}-\\d{2}-\\d{2})(T)(\\d{2}:\\d{2}:\\d{2})(Z)(?=[\\s,}\\]\\)=]|$)",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.new.datetime.rdn"
+            },
+            "2": {
+              "name": "constant.numeric.date.rdn"
+            },
+            "3": {
+              "name": "keyword.operator.new.time.rdn"
+            },
+            "4": {
+              "name": "constant.numeric.time.rdn"
+            },
+            "5": {
+              "name": "keyword.operator.new.datetime.rdn"
+            }
+          }
+        },
+        {
+          "match": "(@)(\\d{4}-\\d{2}-\\d{2})(?=[\\s,}\\]\\)=]|$)",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.new.datetime.rdn"
+            },
+            "2": {
+              "name": "constant.numeric.date.rdn"
+            }
+          }
+        },
+        {
+          "match": "(@)(\\d+)(?=[\\s,}\\]\\)=]|$)",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.datetime.rdn"
+            },
+            "2": {
+              "name": "constant.numeric.date.rdn"
+            }
+          }
+        }
+      ]
+    },
+    "time-only": {
+      "match": "(@)(\\d{2}:\\d{2}:\\d{2})(\\.\\d{1,3})?(?=[\\s,}\\]\\)=]|$)",
+      "captures": {
+        "1": {
+          "name": "keyword.operator.new.datetime.rdn"
+        },
+        "2": {
+          "name": "constant.numeric.time.rdn"
+        },
+        "3": {
+          "name": "constant.numeric.milliseconds.rdn"
+        }
+      }
+    },
+    "regexp": {
+      "name": "string.regexp.rdn",
+      "begin": "(/)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.regexp.begin.rdn"
+        }
+      },
+      "end": "(/)([dgimsuvy]*)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.regexp.end.rdn"
+        },
+        "2": {
+          "name": "keyword.other.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#regexp-base-expression"
+        }
+      ]
+    },
+    "regexp-base-expression": {
+      "patterns": [
+        {
+          "include": "#regexp-character-class"
+        },
+        {
+          "include": "#regexp-lookaround"
+        },
+        {
+          "include": "#regexp-named-group"
+        },
+        {
+          "include": "#regexp-non-capturing-group"
+        },
+        {
+          "include": "#regexp-capturing-group"
+        },
+        {
+          "include": "#regexp-backreference"
+        },
+        {
+          "include": "#regexp-character-class-escape"
+        },
+        {
+          "include": "#regexp-escape"
+        },
+        {
+          "include": "#regexp-quantifier"
+        },
+        {
+          "include": "#regexp-anchor"
+        },
+        {
+          "include": "#regexp-alternation"
+        },
+        {
+          "include": "#regexp-dot"
+        }
+      ]
+    },
+    "regexp-quantifier": {
+      "match": "(?:[+*?]|\\{\\d+(?:,\\d*)?\\})[?+]?",
+      "name": "keyword.operator.quantifier.regexp.rdn"
+    },
+    "regexp-character-class-escape": {
+      "match": "\\\\[dDsSwWbB]",
+      "name": "constant.other.character-class.regexp.rdn"
+    },
+    "regexp-escape": {
+      "match": "\\\\(?:[tvnrf.\\\\*+?()\\[\\]{}|^$/]|c[A-Za-z]|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\\{[0-9A-Fa-f]+\\}|0(?![0-9]))",
+      "name": "constant.character.escape.regexp.rdn"
+    },
+    "regexp-anchor": {
+      "match": "\\^|\\$",
+      "name": "keyword.control.anchor.regexp.rdn"
+    },
+    "regexp-alternation": {
+      "match": "\\|",
+      "name": "keyword.operator.or.regexp.rdn"
+    },
+    "regexp-dot": {
+      "match": "\\.",
+      "name": "constant.other.character-class.regexp.rdn"
+    },
+    "regexp-backreference": {
+      "match": "\\\\[1-9][0-9]*|\\\\k<[a-zA-Z_$][a-zA-Z0-9_$]*>",
+      "name": "keyword.other.back-reference.regexp.rdn"
+    },
+    "regexp-lookaround": {
+      "name": "meta.group.assertion.regexp.rdn",
+      "begin": "(\\()((\\?=)|(\\?!)|(\\?<=)|(\\?<!))",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.group.regexp.rdn"
+        },
+        "2": {
+          "name": "keyword.operator.lookaround.regexp.rdn"
+        }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.group.regexp.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#regexp-base-expression"
+        }
+      ]
+    },
+    "regexp-named-group": {
+      "name": "meta.group.regexp.rdn",
+      "begin": "(\\()(\\?<([a-zA-Z_$][a-zA-Z0-9_$]*)>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.group.regexp.rdn"
+        },
+        "2": {
+          "name": "keyword.other.named-capture.regexp.rdn"
+        },
+        "3": {
+          "name": "entity.name.other.regexp.rdn"
+        }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.group.regexp.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#regexp-base-expression"
+        }
+      ]
+    },
+    "regexp-non-capturing-group": {
+      "name": "meta.group.regexp.rdn",
+      "begin": "(\\()(\\?:)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.group.regexp.rdn"
+        },
+        "2": {
+          "name": "keyword.other.non-capturing.regexp.rdn"
+        }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.group.regexp.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#regexp-base-expression"
+        }
+      ]
+    },
+    "regexp-capturing-group": {
+      "name": "meta.group.regexp.rdn",
+      "begin": "(\\()",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.group.regexp.rdn"
+        }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.group.regexp.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#regexp-base-expression"
+        }
+      ]
+    },
+    "regexp-character-class": {
+      "name": "constant.other.character-class.set.regexp.rdn",
+      "begin": "(\\[)(\\^)?",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.character-class.regexp.rdn"
+        },
+        "2": {
+          "name": "keyword.operator.negation.regexp.rdn"
+        }
+      },
+      "end": "(\\])",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.character-class.regexp.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#regexp-character-class-escape"
+        },
+        {
+          "include": "#regexp-escape"
+        },
+        {
+          "match": "-",
+          "name": "keyword.operator.range.regexp.rdn"
+        }
+      ]
+    },
+    "constant": {
+      "patterns": [
+        {
+          "name": "constant.language.null.rdn",
+          "match": "\\bnull\\b"
+        },
+        {
+          "name": "constant.language.boolean.true.rdn",
+          "match": "\\btrue\\b"
+        },
+        {
+          "name": "constant.language.boolean.false.rdn",
+          "match": "\\bfalse\\b"
+        }
+      ]
+    },
+    "special-number": {
+      "patterns": [
+        {
+          "name": "constant.numeric.nan.rdn",
+          "match": "\\bNaN\\b"
+        },
+        {
+          "name": "constant.numeric.infinity.rdn",
+          "match": "-?\\bInfinity\\b"
+        }
+      ]
+    },
+    "bigint": {
+      "name": "constant.numeric.bigint.rdn",
+      "match": "-?\\d+n\\b"
+    },
+    "number-float": {
+      "name": "constant.numeric.float.rdn",
+      "match": "-?(?:0|[1-9]\\d*)(?:\\.\\d+)(?:[eE][+-]?\\d+)?|-?(?:0|[1-9]\\d*)[eE][+-]?\\d+"
+    },
+    "number-integer": {
+      "name": "constant.numeric.integer.rdn",
+      "match": "-?(?:0|[1-9]\\d*)(?![.eEn])"
+    },
+    "object": {
+      "name": "meta.structure.object.rdn",
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.object.begin.rdn"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.object.end.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#object-key"
+        },
+        {
+          "include": "#value"
+        }
+      ]
+    },
+    "object-key": {
+      "begin": "(?=(?:\"(?:[^\"\\\\]|\\\\.)*\")\\s*:)",
+      "end": "(?!\\G)",
+      "patterns": [
+        {
+          "name": "string.quoted.double.rdn support.type.property-name.rdn",
+          "begin": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.support.type.property-name.begin.rdn"
+            }
+          },
+          "end": "\"",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.support.type.property-name.end.rdn"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#string-escape"
+            },
+            {
+              "include": "#string-escape-invalid"
+            }
+          ]
+        }
+      ]
+    },
+    "array": {
+      "name": "meta.structure.array.rdn",
+      "begin": "\\[",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.array.begin.rdn"
+        }
+      },
+      "end": "\\]",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.array.end.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#value"
+        }
+      ]
+    },
+    "tuple": {
+      "name": "meta.structure.tuple.rdn",
+      "begin": "\\(",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.tuple.begin.rdn"
+        }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.tuple.end.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#value"
+        }
+      ]
+    },
+    "string": {
+      "name": "string.quoted.double.rdn",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.rdn"
+        }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.rdn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#string-escape"
+        },
+        {
+          "include": "#string-escape-invalid"
+        }
+      ]
+    },
+    "string-escape": {
+      "name": "constant.character.escape.rdn",
+      "match": "\\\\(?:[\"\\\\/bfnrt]|u[0-9A-Fa-f]{4})"
+    },
+    "string-escape-invalid": {
+      "name": "invalid.illegal.unrecognized-escape.rdn",
+      "match": "\\\\."
+    },
+    "arrow": {
+      "name": "punctuation.separator.arrow.rdn",
+      "match": "=>"
+    },
+    "comma": {
+      "name": "punctuation.separator.comma.rdn",
+      "match": ","
+    },
+    "colon": {
+      "name": "punctuation.separator.colon.rdn",
+      "match": ":"
+    }
+  }
+}
