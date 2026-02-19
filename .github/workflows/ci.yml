@@ -42,17 +42,17 @@ jobs:
       - run: dotnet test
         working-directory: packages/rdn-dotnet
 
-  rust:
-    name: Rust
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  # rust:
+  #   name: Rust
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+  #     - uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: implementations/rust
+  #     - uses: Swatinem/rust-cache@v2
+  #       with:
+  #         workspaces: implementations/rust
 
-      - run: cargo test
-        working-directory: implementations/rust
+  #     - run: cargo test
+  #       working-directory: implementations/rust

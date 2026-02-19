@@ -14,7 +14,13 @@
   "bugs": {
     "url": "https://github.com/ShtibsDev/rdn/issues"
   },
-  "keywords": ["rdn", "rich data notation", "json", "data format", "syntax highlighting"],
+  "keywords": [
+    "rdn",
+    "rich data notation",
+    "json",
+    "data format",
+    "syntax highlighting"
+  ],
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -23,6 +29,7 @@
     "Formatters",
     "Linters"
   ],
+  "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
     "languages": [
@@ -51,8 +58,12 @@
       {
         "scopeName": "markdown.rdn.codeblock",
         "path": "./syntaxes/rdn.markdown.tmLanguage.json",
-        "injectTo": ["text.html.markdown"],
-        "embeddedLanguages": { "meta.embedded.block.rdn": "rdn" }
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.rdn": "rdn"
+        }
       }
     ],
     "configuration": {
@@ -155,8 +166,12 @@
         }
       }
     },
-    "markdown.previewScripts": ["./preview/rdn-preview.js"],
-    "markdown.previewStyles": ["./preview/rdn-preview.css"],
+    "markdown.previewScripts": [
+      "./preview/rdn-preview.js"
+    ],
+    "markdown.previewStyles": [
+      "./preview/rdn-preview.css"
+    ],
     "commands": [
       {
         "command": "rdn.sortDocument",
@@ -166,7 +181,10 @@
     ],
     "menus": {
       "commandPalette": [
-        { "command": "rdn.sortDocument", "when": "editorLangId == rdn" }
+        {
+          "command": "rdn.sortDocument",
+          "when": "editorLangId == rdn"
+        }
       ]
     }
   },

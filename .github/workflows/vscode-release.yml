@@ -35,8 +35,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: .
 
-      - run: npx vsce package
-      - run: npx vsce publish ${{ inputs.bump }}
+      - run: npx @vscode/vsce package
+      - run: npx @vscode/vsce publish ${{ inputs.bump }}
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
