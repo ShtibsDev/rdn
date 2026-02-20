@@ -1,4 +1,10 @@
-# rdn (VS Code Extension)
+# RDN (VS Code Extension)
+
+## 0.2.1
+
+### Fixed
+
+- Add missing activationEvents to satisfy vsce packaging
 
 ## 0.2.0
 

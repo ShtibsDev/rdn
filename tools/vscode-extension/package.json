@@ -2,7 +2,7 @@
   "name": "rdn",
   "displayName": "RDN (Rich Data Notation)",
   "description": "Syntax highlighting, diagnostics, and smart completions for RDN files — a JSON superset with dates, BigInts, regex, binary, Maps, Sets, tuples, and more.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "RDN",
   "license": "MIT",
   "icon": "assets/rdn.png",
@@ -192,7 +192,7 @@
     "build": "node esbuild.js",
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
-    "package": "node esbuild.js --production && vsce package",
+    "package": "node esbuild.js --production && pnpm dlx @vscode/vsce package",
     "lint": "tsc --noEmit",
     "test": "vitest run"
   },
