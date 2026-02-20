@@ -11,6 +11,10 @@ on:
           - patch
           - minor
           - major
+      changelog:
+        description: "Changelog entry (markdown list items, e.g. '- Fix X\\n- Add Y')"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -45,11 +49,20 @@ jobs:
         id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
+      - name: Update changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DATE="$(date -u +%Y-%m-%d)"
+          ENTRY="## ${VERSION} — ${DATE}"$'\n\n'"${{ inputs.changelog }}"
+          # Insert new entry after the first line (the heading)
+          awk -v entry="$ENTRY" 'NR==1 { print; print ""; print entry; next } 1' CHANGELOG.md > CHANGELOG.tmp
+          mv CHANGELOG.tmp CHANGELOG.md
+
       - name: Commit version bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json
+          git add package.json CHANGELOG.md
           git commit -m "chore(vscode): 🔖 bump to v${{ steps.version.outputs.version }}"
           git push origin main
 
@@ -61,8 +74,10 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANGELOG: ${{ inputs.changelog }}
         run: |
+          printf '%s\n\nPublished to [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rdn.rdn)\n' "$CHANGELOG" > release-notes.md
           gh release create "rdn-vscode@${{ steps.version.outputs.version }}" \
             --title "rdn-vscode@${{ steps.version.outputs.version }}" \
-            --notes "Published to [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rdn.rdn)" \
+            --notes-file release-notes.md \
             ${{ contains(steps.version.outputs.version, '-') && '--prerelease' || '' }}
