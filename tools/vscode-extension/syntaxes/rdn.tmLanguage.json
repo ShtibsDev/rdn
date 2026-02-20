@@ -284,7 +284,7 @@
           "match": "(@)(\\d+)(?=[\\s,}\\]\\)=]|$)",
           "captures": {
             "1": {
-              "name": "keyword.operator.datetime.rdn"
+              "name": "keyword.operator.new.datetime.rdn"
             },
             "2": {
               "name": "constant.numeric.date.rdn"
