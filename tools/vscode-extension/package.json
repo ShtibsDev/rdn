@@ -3,7 +3,7 @@
   "displayName": "RDN (Rich Data Notation)",
   "description": "Syntax highlighting, diagnostics, and smart completions for RDN files — a JSON superset with dates, BigInts, regex, binary, Maps, Sets, tuples, and more.",
   "version": "0.2.0",
-  "publisher": "rdn",
+  "publisher": "RDN",
   "license": "MIT",
   "icon": "assets/rdn.png",
   "repository": {
