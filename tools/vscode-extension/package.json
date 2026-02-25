@@ -53,11 +53,11 @@
       {
         "language": "rdn",
         "scopeName": "source.rdn",
-        "path": "./syntaxes/rdn.tmLanguage.json"
+        "path": "../../spec/textmate/rdn.tmLanguage.json"
       },
       {
         "scopeName": "markdown.rdn.codeblock",
-        "path": "./syntaxes/rdn.markdown.tmLanguage.json",
+        "path": "../../spec/textmate/rdn.markdown.tmLanguage.json",
         "injectTo": [
           "text.html.markdown"
         ],

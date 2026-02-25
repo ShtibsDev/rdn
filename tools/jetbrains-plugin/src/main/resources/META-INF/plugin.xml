@@ -1,0 +1,48 @@
+<idea-plugin>
+    <id>com.rdn.intellij</id>
+    <name>RDN</name>
+    <vendor email="support@rdn.dev" url="https://rdn.dev">RDN</vendor>
+
+    <description><![CDATA[
+        First-class RDN (Rich Data Notation) support for all IntelliJ-based IDEs.
+        Provides syntax highlighting, real-time diagnostics, quick fixes,
+        completions, hover documentation, and document formatting.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends optional="true" config-file="rdn-markdown.xml">org.intellij.plugins.markdown</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType
+            name="RDN File"
+            implementationClass="com.rdn.intellij.RdnFileType"
+            fieldName="INSTANCE"
+            language="RDN"
+            extensions="rdn"/>
+        <lang.parserDefinition language="RDN" implementationClass="com.rdn.intellij.parser.RdnParserDefinition"/>
+        <lang.syntaxHighlighterFactory language="RDN" implementationClass="com.rdn.intellij.highlighting.RdnSyntaxHighlighterFactory"/>
+        <colorSettingsPage implementation="com.rdn.intellij.highlighting.RdnColorSettingsPage"/>
+        <externalAnnotator language="RDN" implementationClass="com.rdn.intellij.annotator.RdnExternalAnnotator"/>
+        <completion.contributor language="RDN" implementationClass="com.rdn.intellij.completion.RdnCompletionContributor" order="first"/>
+        <projectService serviceImplementation="com.rdn.intellij.settings.RdnSettingsState"/>
+        <projectConfigurable
+            parentId="language"
+            displayName="RDN"
+            id="com.rdn.intellij.settings.RdnSettingsConfigurable"
+            instance="com.rdn.intellij.settings.RdnSettingsConfigurable"
+            nonDefaultProject="true"/>
+        <lang.documentationProvider language="RDN" implementationClass="com.rdn.intellij.documentation.RdnDocumentationProvider" order="first"/>
+        <lang.braceMatcher language="RDN" implementationClass="com.rdn.intellij.braceMatcher.RdnBraceMatcher"/>
+        <lang.foldingBuilder language="RDN" implementationClass="com.rdn.intellij.folding.RdnFoldingBuilder"/>
+        <lang.formatter language="RDN" implementationClass="com.rdn.intellij.formatter.RdnFormattingModelBuilder"/>
+        <postFormatProcessor implementationClass="com.rdn.intellij.formatter.RdnPostFormatProcessor"/>
+    </extensions>
+
+    <actions>
+        <action id="RDN.SortDocumentKeys" class="com.rdn.intellij.actions.SortDocumentKeysAction" text="Sort RDN Document Keys" description="Recursively sort all object keys alphabetically and reformat the document">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <keyboard-shortcut first-keystroke="ctrl alt shift S" keymap="$default"/>
+        </action>
+    </actions>
+</idea-plugin>

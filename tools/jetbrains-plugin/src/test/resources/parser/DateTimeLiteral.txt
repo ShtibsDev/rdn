@@ -1,0 +1,9 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnDatetimeLiteralImpl(DATETIME_LITERAL)
+      PsiElement(AT_SIGN)('@')
+      PsiElement(DATE_PART)('2024-01-15')
+      PsiElement(TIME_SEPARATOR)('T')
+      PsiElement(TIME_PART)('10:30:00')
+      PsiElement(MILLIS_PART)('.000')
+      PsiElement(TIMEZONE)('Z')

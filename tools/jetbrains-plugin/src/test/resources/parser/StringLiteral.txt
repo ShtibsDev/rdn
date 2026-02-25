@@ -1,0 +1,7 @@
+RDN File
+  PsiElement(STRING_OPEN)('"')
+  PsiElement(STRING_CONTENT)('hello')
+  PsiElement(STRING_ESCAPE)('\n')
+  PsiErrorElement:STRING_CLOSE, STRING_ESCAPE or STRING_INVALID_ESCAPE expected, got 'world'
+    PsiElement(STRING_CONTENT)('world')
+  PsiElement(STRING_CLOSE)('"')

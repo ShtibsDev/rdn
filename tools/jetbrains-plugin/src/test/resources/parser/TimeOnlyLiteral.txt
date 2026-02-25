@@ -1,0 +1,5 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnTimeOnlyLiteralImpl(TIME_ONLY_LITERAL)
+      PsiElement(AT_SIGN)('@')
+      PsiElement(TIME_PART)('14:30:00')

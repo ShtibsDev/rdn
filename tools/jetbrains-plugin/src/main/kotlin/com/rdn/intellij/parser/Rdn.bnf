@@ -1,0 +1,318 @@
+{
+    parserClass="com.rdn.intellij.parser.RdnParser"
+    extends="com.intellij.extapi.psi.ASTWrapperPsiElement"
+
+    psiClassPrefix="Rdn"
+    psiImplClassSuffix="Impl"
+    psiPackage="com.rdn.intellij.psi"
+    psiImplPackage="com.rdn.intellij.psi.impl"
+
+    elementTypeHolderClass="com.rdn.intellij.psi.RdnTypes"
+    elementTypeClass="com.rdn.intellij.psi.RdnElementType"
+    tokenTypeClass="com.rdn.intellij.lexer.RdnTokenType"
+
+    // Use our factory so generated token constants return the canonical
+    // instances from RdnTokenTypes (identity equality with lexer tokens).
+    tokenTypeFactory="com.rdn.intellij.lexer.RdnTokenTypeFactory.createTokenType"
+
+    generateTokenAccessors=true
+
+    // Token declarations: text representations for error messages + generated constants.
+    // The tokenTypeFactory ensures these reuse existing RdnTokenTypes instances.
+    tokens = [
+        // Structural
+        LBRACE="{"
+        RBRACE="}"
+        LBRACKET="["
+        RBRACKET="]"
+        LPAREN="("
+        RPAREN=")"
+        COLON=":"
+        COMMA=","
+        ARROW="=>"
+        // Literals
+        NULL="null"
+        TRUE="true"
+        FALSE="false"
+        INTEGER="integer"
+        FLOAT="float"
+        BIGINT="bigint"
+        NAN="NaN"
+        INFINITY="Infinity"
+        NEG_INFINITY="-Infinity"
+        // Strings
+        STRING_OPEN='STRING_OPEN'
+        STRING_CONTENT='STRING_CONTENT'
+        STRING_ESCAPE='STRING_ESCAPE'
+        STRING_INVALID_ESCAPE='STRING_INVALID_ESCAPE'
+        STRING_CLOSE='STRING_CLOSE'
+        // Object keys
+        KEY_OPEN='KEY_OPEN'
+        KEY_CONTENT='KEY_CONTENT'
+        KEY_ESCAPE='KEY_ESCAPE'
+        KEY_CLOSE='KEY_CLOSE'
+        // Date/Time
+        AT_SIGN="@"
+        DATE_PART='DATE_PART'
+        TIME_SEPARATOR='TIME_SEPARATOR'
+        TIME_PART='TIME_PART'
+        MILLIS_PART='MILLIS_PART'
+        TIMEZONE='TIMEZONE'
+        UNIX_TIMESTAMP='UNIX_TIMESTAMP'
+        // Duration
+        DURATION_P='DURATION_P'
+        DURATION_NUMBER='DURATION_NUMBER'
+        DURATION_UNIT='DURATION_UNIT'
+        DURATION_T='DURATION_T'
+        // Binary
+        BINARY_PREFIX='BINARY_PREFIX'
+        BINARY_OPEN='BINARY_OPEN'
+        BINARY_CONTENT='BINARY_CONTENT'
+        BINARY_INVALID_CHAR='BINARY_INVALID_CHAR'
+        BINARY_CLOSE='BINARY_CLOSE'
+        // Map/Set keywords
+        MAP_KEYWORD="Map"
+        SET_KEYWORD="Set"
+        // RegExp
+        REGEXP_OPEN='REGEXP_OPEN'
+        REGEXP_CLOSE='REGEXP_CLOSE'
+        REGEXP_FLAGS='REGEXP_FLAGS'
+        REGEXP_CONTENT='REGEXP_CONTENT'
+        REGEXP_ESCAPE='REGEXP_ESCAPE'
+        REGEXP_CHAR_CLASS_ESCAPE='REGEXP_CHAR_CLASS_ESCAPE'
+        REGEXP_QUANTIFIER='REGEXP_QUANTIFIER'
+        REGEXP_ANCHOR='REGEXP_ANCHOR'
+        REGEXP_ALTERNATION='REGEXP_ALTERNATION'
+        REGEXP_DOT='REGEXP_DOT'
+        REGEXP_GROUP_OPEN='REGEXP_GROUP_OPEN'
+        REGEXP_GROUP_CLOSE='REGEXP_GROUP_CLOSE'
+        REGEXP_LOOKAROUND='REGEXP_LOOKAROUND'
+        REGEXP_NAMED_GROUP='REGEXP_NAMED_GROUP'
+        REGEXP_NON_CAPTURING='REGEXP_NON_CAPTURING'
+        REGEXP_BACKREFERENCE='REGEXP_BACKREFERENCE'
+        REGEXP_CHAR_CLASS_OPEN='REGEXP_CHAR_CLASS_OPEN'
+        REGEXP_CHAR_CLASS_CLOSE='REGEXP_CHAR_CLASS_CLOSE'
+        REGEXP_NEGATION='REGEXP_NEGATION'
+        REGEXP_RANGE='REGEXP_RANGE'
+    ]
+}
+
+// ============================================================================
+// Root
+// ============================================================================
+
+rdnFile ::= value
+
+// ============================================================================
+// Value — the union of all RDN value types
+// ============================================================================
+
+value ::= object
+        | explicit_map
+        | explicit_set
+        | implicit_map
+        | implicit_set
+        | array
+        | tuple
+        | string_literal
+        | number_literal
+        | bigint_literal
+        | boolean_literal
+        | null_literal
+        | nan_literal
+        | infinity_literal
+        | datetime_literal
+        | time_only_literal
+        | duration_literal
+        | binary_literal
+        | regexp_literal
+
+// ============================================================================
+// Collections with brace disambiguation
+//
+// The parser lexer (RdnLexerAdapter) does NOT remap STRING_* → KEY_*.
+// So all strings appear as STRING_OPEN / STRING_CONTENT / STRING_CLOSE.
+//
+// Disambiguation strategy (PEG ordered choice):
+// 1. object  — tried first: STRING_OPEN...STRING_CLOSE followed by COLON
+// 2. explicit_map  — Map{ ... }
+// 3. explicit_set  — Set{ ... }
+// 4. implicit_map  — { value => value ... } — tried before implicit_set
+// 5. implicit_set  — { value, ... } or { value }
+//
+// object_property starts with string_key (STRING_OPEN...) then COLON.
+// If the token after the string is not COLON, object fails and we try maps/sets.
+// If the first value is NOT a string (e.g., a number), object also fails immediately.
+// ============================================================================
+
+// --- Object ---
+// Empty {} is an object. Non-empty requires string key followed by colon.
+// No pin on '{' — the parser must be free to backtrack and try implicit_map / implicit_set
+// when the first value is not followed by COLON.
+object ::= '{' object_body? '}' {
+    elementType=OBJECT
+}
+
+private object_body ::= object_property (',' object_property)*
+
+object_property ::= object_key ':' value {
+    pin=2
+    elementType=OBJECT_PROPERTY
+}
+
+object_key ::= STRING_OPEN string_inner STRING_CLOSE {
+    elementType=OBJECT_KEY
+}
+
+private string_inner ::= STRING_CONTENT? (STRING_ESCAPE | STRING_INVALID_ESCAPE)*
+
+// --- Explicit Map: Map{ ... } ---
+explicit_map ::= MAP_KEYWORD '{' explicit_map_body? '}' {
+    pin=1
+    elementType=MAP
+}
+
+private explicit_map_body ::= map_entry (',' map_entry)*
+
+// --- Explicit Set: Set{ ... } ---
+explicit_set ::= SET_KEYWORD '{' explicit_set_body? '}' {
+    pin=1
+    elementType=SET
+}
+
+private explicit_set_body ::= value (',' value)*
+
+// --- Implicit Map: { value => value, ... } ---
+// The first value followed by => disambiguates this from object and set.
+private implicit_map ::= '{' implicit_map_body '}' {
+    elementType=MAP
+}
+
+private implicit_map_body ::= map_entry (',' map_entry)*
+
+// --- Map Entry ---
+map_entry ::= value '=>' value {
+    pin=2
+    elementType=MAP_ENTRY
+}
+
+// --- Implicit Set: { value } or { value, value, ... } ---
+// This is the fallback for brace-delimited collections that are neither
+// objects (no COLON) nor maps (no ARROW).
+private implicit_set ::= '{' implicit_set_body '}' {
+    elementType=SET
+}
+
+private implicit_set_body ::= value (',' value)*
+
+// --- Array ---
+array ::= '[' array_body? ']' {
+    pin=1
+    elementType=ARRAY
+}
+
+private array_body ::= value (',' value)*
+
+// --- Tuple ---
+tuple ::= '(' tuple_body? ')' {
+    pin=1
+    elementType=TUPLE
+}
+
+private tuple_body ::= value (',' value)*
+
+// ============================================================================
+// Atomic Literals
+// ============================================================================
+
+string_literal ::= STRING_OPEN string_inner STRING_CLOSE {
+    elementType=STRING_LITERAL
+}
+
+number_literal ::= INTEGER | FLOAT {
+    elementType=NUMBER_LITERAL
+}
+
+bigint_literal ::= BIGINT {
+    elementType=BIGINT_LITERAL
+}
+
+boolean_literal ::= TRUE | FALSE {
+    elementType=BOOLEAN_LITERAL
+}
+
+null_literal ::= NULL {
+    elementType=NULL_LITERAL
+}
+
+nan_literal ::= NAN {
+    elementType=NAN_LITERAL
+}
+
+infinity_literal ::= INFINITY | NEG_INFINITY {
+    elementType=INFINITY_LITERAL
+}
+
+// ============================================================================
+// Date/Time/Duration Literals
+//
+// The lexer (AT_BODY state) already handles fine-grained tokenization.
+// The parser just assembles tokens into the correct PSI nodes.
+// ============================================================================
+
+// DateTime: @2024-01-15 or @2024-01-15T10:30:00Z or @2024-01-15T10:30:00.123Z or @1234567890
+datetime_literal ::= AT_SIGN DATE_PART TIME_SEPARATOR TIME_PART MILLIS_PART? TIMEZONE
+                    | AT_SIGN DATE_PART
+                    | AT_SIGN UNIX_TIMESTAMP {
+    elementType=DATETIME_LITERAL
+}
+
+// TimeOnly: @10:30:00 or @10:30:00.123
+time_only_literal ::= AT_SIGN TIME_PART MILLIS_PART? {
+    elementType=TIME_ONLY_LITERAL
+}
+
+// Duration: @P1Y2M3DT4H5M6S or @PT1H30M
+duration_literal ::= AT_SIGN DURATION_P duration_date_part? duration_time_part? {
+    elementType=DURATION_LITERAL
+}
+
+private duration_date_part ::= (DURATION_NUMBER DURATION_UNIT)+
+private duration_time_part ::= DURATION_T (DURATION_NUMBER DURATION_UNIT)+
+
+// ============================================================================
+// Binary Literal
+// ============================================================================
+
+binary_literal ::= BINARY_PREFIX BINARY_OPEN (BINARY_CONTENT | BINARY_INVALID_CHAR)* BINARY_CLOSE {
+    elementType=BINARY_LITERAL
+}
+
+// ============================================================================
+// RegExp Literal
+// ============================================================================
+
+regexp_literal ::= REGEXP_OPEN regexp_body REGEXP_CLOSE REGEXP_FLAGS? {
+    elementType=REGEXP_LITERAL
+}
+
+private regexp_body ::= regexp_atom*
+
+private regexp_atom ::= REGEXP_CONTENT
+                       | REGEXP_ESCAPE
+                       | REGEXP_CHAR_CLASS_ESCAPE
+                       | REGEXP_QUANTIFIER
+                       | REGEXP_ANCHOR
+                       | REGEXP_ALTERNATION
+                       | REGEXP_DOT
+                       | REGEXP_GROUP_OPEN
+                       | REGEXP_GROUP_CLOSE
+                       | REGEXP_LOOKAROUND
+                       | REGEXP_NAMED_GROUP
+                       | REGEXP_NON_CAPTURING
+                       | REGEXP_BACKREFERENCE
+                       | regexp_char_class
+
+private regexp_char_class ::= REGEXP_CHAR_CLASS_OPEN regexp_char_class_body REGEXP_CHAR_CLASS_CLOSE
+
+private regexp_char_class_body ::= REGEXP_NEGATION? (REGEXP_CONTENT | REGEXP_ESCAPE | REGEXP_CHAR_CLASS_ESCAPE | REGEXP_RANGE)*

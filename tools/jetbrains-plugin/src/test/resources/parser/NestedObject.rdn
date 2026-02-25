@@ -1,0 +1,12 @@
+{
+  "user": {
+    "id": 1,
+    "name": "Alice",
+    "scores": [100, 95, 87],
+    "active": true
+  },
+  "meta": {
+    "created": @2024-01-15T10:30:00.000Z,
+    "tags": ["admin", "user"]
+  }
+}

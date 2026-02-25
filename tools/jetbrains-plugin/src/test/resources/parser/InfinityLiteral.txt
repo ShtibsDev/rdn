@@ -1,0 +1,4 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnInfinityLiteralImpl(INFINITY_LITERAL)
+      PsiElement(INFINITY)('Infinity')

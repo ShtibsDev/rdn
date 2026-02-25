@@ -1,0 +1,7 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnBinaryLiteralImpl(BINARY_LITERAL)
+      PsiElement(BINARY_PREFIX)('b')
+      PsiElement(BINARY_OPEN)('"')
+      PsiElement(BINARY_CONTENT)('SGVsbG8=')
+      PsiElement(BINARY_CLOSE)('"')

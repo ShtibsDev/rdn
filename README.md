@@ -82,6 +82,7 @@ rdn/
 ├── tools/
 │   ├── rdn-cli/              # CLI: validate, fmt, convert json↔rdn
 │   ├── vscode-extension/     # VS Code language support
+│   ├── jetbrains-plugin/     # JetBrains IDE language support
 │   └── playground/           # Web playground (Rust WASM)
 ├── assets/                   # Branding assets (SVG, WEBP)
 └── docs/                     # Documentation
@@ -137,6 +138,22 @@ Serialize a value to an RDN string. The optional `replacer` function controls wh
 - **Map / Set**: `Map{k => v}` / `Set{v}` instead of unsupported
 - **Tuple**: `(v, v)` for ordered sequences
 - **TimeOnly / Duration**: `@14:30:00` / `@P1Y2M3D`
+
+## Editor Support
+
+### VS Code Extension
+Install from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=AcmeCorp.rdn).
+Source: [`tools/vscode-extension/`](tools/vscode-extension/)
+
+### JetBrains Plugin
+Install from the [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/XXXXX-rdn).
+Works with IntelliJ IDEA, WebStorm, PyCharm, CLion, GoLand, Rider, PhpStorm, RubyMine, DataGrip, and RustRover (version 2024.3+).
+- Full feature parity with the VSCode extension
+- Native JFlex lexer + GrammarKit parser for deep IDE integration
+- Bracket matching and code folding
+- Markdown injection for ```rdn code blocks
+
+Source: [`tools/jetbrains-plugin/`](tools/jetbrains-plugin/)
 
 ## V8 Integration
 
