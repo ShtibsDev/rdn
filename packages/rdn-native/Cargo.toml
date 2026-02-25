@@ -1,0 +1,23 @@
+[package]
+name = "rdn-native"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Native Rust extension for the RDN Python package"
+
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"] }
+itoa = "1"
+ryu = "1"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+smallvec = "1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"

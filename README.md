@@ -73,7 +73,9 @@ rdn/
 │   ├── rdn-rust/             # Rust with WASM feature flag, criterion benchmarks
 │   ├── rdn-dotnet/           # C# / .NET 8 with ASP.NET Core formatters & NuGet packaging
 │   ├── rdn-go/               # Go (placeholder)
-│   └── rdn-python/           # Python (placeholder)
+│   ├── rdn-python/           # Python — core parser/serializer (zero dependencies)
+│   ├── rdn-pydantic/         # Pydantic v2 custom types for RDN
+│   └── rdn-fastapi/          # FastAPI integration (responses, middleware, DI)
 ├── v8-integration/           # Docs, patches, and d8 benchmarks for the V8 fork
 │   ├── README.md
 │   ├── patches/
@@ -112,6 +114,24 @@ cargo bench
 cd packages/rdn-dotnet
 dotnet build Rdn.sln
 dotnet test
+```
+
+### Python
+
+```bash
+cd packages/rdn-python
+pip install -e .
+pytest
+```
+
+**Ecosystem packages:**
+
+- [`rdn-pydantic`](packages/rdn-pydantic/) — Pydantic v2 custom types, validators, and serializers for all RDN extended types
+- [`rdn-fastapi`](packages/rdn-fastapi/) — FastAPI integration with `RDNResponse`, content negotiation middleware, and dependency injection
+
+```bash
+pip install -e packages/rdn-pydantic   # Pydantic v2 integration
+pip install -e packages/rdn-fastapi    # FastAPI integration
 ```
 
 ### Running the Conformance Test Suite

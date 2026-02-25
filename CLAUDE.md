@@ -54,10 +54,28 @@ dotnet test
 ```
 The C# version is managed by Changesets via `packages/rdn-dotnet/package.json`. Running `pnpm version-packages` syncs the version to `Directory.Build.props` automatically.
 
-### Go / Python (placeholders)
+### Python
+```bash
+cd packages/rdn-python && pip install -e . && pytest       # core parser/serializer (zero dependencies)
+cd packages/rdn-pydantic && pip install -e . && pytest     # Pydantic v2 integration
+cd packages/rdn-fastapi && pip install -e . && pytest      # FastAPI integration
+```
+
+### Python Native Extension (Rust + maturin)
+```bash
+cd packages/rdn-native
+pip install maturin
+maturin develop                                            # build + install into active venv
+# For dev with editable rdn install, copy the .so into the source tree:
+EXT_SUFFIX=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
+SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])")
+cp ${SITE_PACKAGES}/_native/_native${EXT_SUFFIX} ../rdn-python/src/rdn/_native${EXT_SUFFIX}
+python3 -c "import rdn; print('Native:', rdn._USE_NATIVE)"  # verify
+```
+
+### Go (placeholder)
 ```bash
 cd packages/rdn-go && go test
-cd packages/rdn-python && pip install -e . && pytest
 ```
 
 ### JetBrains Plugin (Gradle + Kotlin)
@@ -129,6 +147,37 @@ Extended types in expected JSON use a tagged convention: `{"$type": "TypeName", 
 - `src/lib.rs` — `RdnValue` enum, `parse()` / `stringify()` API
 - Optional `wasm` feature flag for wasm-bindgen
 - Benchmarks via criterion (`cargo bench`)
+
+### Python Implementation (`packages/rdn-python/`)
+- Zero runtime dependencies, pure Python, supports Python 3.10+
+- Entry: `src/rdn/__init__.py` — exports `parse`, `stringify`, `RDNDecoder`, `RDNEncoder`
+- Recursive-descent parser with lookup-table dispatch, mirrors the TypeScript/V8 architecture
+- Types without native Python equivalents use tagged dataclasses (`RDNTimeOnly`, `RDNDuration`)
+- Tests via pytest in `tests/`
+- Passes the full shared conformance test suite
+
+### Python Native Extension (`packages/rdn-native/`)
+- Rust + PyO3 native extension, built with maturin, installs as `rdn._native`
+- Provides `parse()` and `stringify()` that produce Python objects directly from Rust
+- Recursive-descent parser on `&[u8]` with O(1) dispatch table, produces `PyObject` values via PyO3
+- Type-dispatch serializer reading `PyObject`, bool-before-int order, cycle detection via `HashSet<usize>`
+- Hot-path routing: calls without hooks route to native, calls with hooks fall through to pure Python
+- `_USE_NATIVE` flag in `rdn.__init__` indicates whether the native extension is active
+- **Release profile**: `opt-level = 3`, `lto = "fat"`, `codegen-units = 1`, `panic = "abort"`
+- **Modules**:
+  - `simd.rs` — SIMD-accelerated string scanning: SSE2 on x86_64, NEON on aarch64, scalar fallback for other platforms. Provides `find_string_end()` (parser) and `needs_escape()` (serializer)
+  - `cache.rs` — `TypeCache` stores raw `*mut PyTypeObject` pointers for 16 Python types to avoid repeated `isinstance()` calls; `KeyCache` is an xxhash-based 2048-slot string-interning cache for parser object keys
+  - `buffer.rs` — `WriteBuffer` accumulates UTF-8 bytes into a `Vec<u8>` and produces the final `PyString` via `PyUnicode_FromStringAndSize`, avoiding repeated String allocations
+  - `parser.rs` — recursive-descent parser with O(1) dispatch table, integrated with KeyCache and SIMD string scanning
+  - `serializer.rs` — type-dispatch serializer with TypeCache, WriteBuffer, bit-packed state, and SIMD escape detection
+  - `tables.rs` — lookup tables for parser dispatch
+  - `error.rs` — error types and formatting
+- **Dependencies**: `itoa` (fast int formatting), `ryu` (fast float formatting), `xxhash-rust` (xxh3 hashing for KeyCache), `smallvec` (stack-allocated small vectors)
+- **Float formatting**: uses `ryu` instead of Python `repr()` -- outputs may differ in edge cases but are always mathematically equivalent
+
+### Python Ecosystem Packages
+- **`rdn-pydantic`** (`packages/rdn-pydantic/`) — Pydantic v2 custom types, validators, and serializers for all RDN extended types
+- **`rdn-fastapi`** (`packages/rdn-fastapi/`) — FastAPI integration with `RDNResponse`, `RDNRequest`, content negotiation middleware, and dependency injection
 
 ### V8 Integration (`v8-integration/`)
 The V8 fork lives at `~/v8/v8/` (external, not a submodule). Key files in the fork:

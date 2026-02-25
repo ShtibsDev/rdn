@@ -1,11 +1,11 @@
 [project]
-name = "rdn"
+name = "rdn-native"
 version = "0.1.0"
-description = "RDN (Rich Data Notation) parser and serializer for Python"
+description = "Native Rust extension for the RDN Python package"
 license = "MIT"
 requires-python = ">=3.10"
 readme = "README.md"
-keywords = ["rdn", "json", "serialization", "parser"]
+keywords = ["rdn", "json", "serialization", "parser", "native"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -14,23 +14,17 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-benchmark>=4.0", "mypy>=1.0"]
+dev = ["pytest>=7.0", "rdn>=0.1.0"]
 
 [build-system]
-requires = ["setuptools>=68.0"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "--benchmark-disable"
-
-[tool.mypy]
-strict = true
-python_version = "3.10"
+[tool.maturin]
+module-name = "rdn._native"
+features = ["pyo3/extension-module"]
