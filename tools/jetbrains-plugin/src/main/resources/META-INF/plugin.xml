@@ -36,6 +36,7 @@
         <lang.foldingBuilder language="RDN" implementationClass="com.rdn.intellij.folding.RdnFoldingBuilder"/>
         <lang.formatter language="RDN" implementationClass="com.rdn.intellij.formatter.RdnFormattingModelBuilder"/>
         <postFormatProcessor implementationClass="com.rdn.intellij.formatter.RdnPostFormatProcessor"/>
+        <enterHandlerDelegate implementation="com.rdn.intellij.typing.RdnEnterHandler"/>
     </extensions>
 
     <actions>
