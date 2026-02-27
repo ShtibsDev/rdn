@@ -1,0 +1,4 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnNullLiteralImpl(NULL_LITERAL)
+      PsiElement(NULL)('null')

@@ -1,0 +1,4 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnBigintLiteralImpl(BIGINT_LITERAL)
+      PsiElement(BIGINT)('42n')

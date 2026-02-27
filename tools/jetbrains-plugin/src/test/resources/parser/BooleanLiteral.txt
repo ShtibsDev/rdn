@@ -1,0 +1,4 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnBooleanLiteralImpl(BOOLEAN_LITERAL)
+      PsiElement(TRUE)('true')

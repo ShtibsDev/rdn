@@ -1,0 +1,9 @@
+RDN File
+  RdnValueImpl(VALUE)
+    PsiElement(LBRACE)('{')
+    RdnValueImpl(VALUE)
+      RdnStringLiteralImpl(STRING_LITERAL)
+        PsiElement(STRING_OPEN)('"')
+        PsiElement(STRING_CONTENT)('only')
+        PsiElement(STRING_CLOSE)('"')
+    PsiElement(RBRACE)('}')

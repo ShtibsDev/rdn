@@ -1,0 +1,5 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnObjectImpl(OBJECT)
+      PsiElement(LBRACE)('{')
+      PsiElement(RBRACE)('}')

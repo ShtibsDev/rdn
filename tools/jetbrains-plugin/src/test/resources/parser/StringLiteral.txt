@@ -1,0 +1,8 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnStringLiteralImpl(STRING_LITERAL)
+      PsiElement(STRING_OPEN)('"')
+      PsiElement(STRING_CONTENT)('hello')
+      PsiElement(STRING_ESCAPE)('\n')
+      PsiElement(STRING_CONTENT)('world')
+      PsiElement(STRING_CLOSE)('"')

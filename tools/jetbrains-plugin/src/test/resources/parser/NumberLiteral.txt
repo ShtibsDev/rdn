@@ -1,0 +1,4 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnNumberLiteralImpl(NUMBER_LITERAL)
+      PsiElement(FLOAT)('3.14')

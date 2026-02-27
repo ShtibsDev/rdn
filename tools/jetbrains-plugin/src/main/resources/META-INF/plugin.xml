@@ -1,0 +1,64 @@
+<idea-plugin>
+    <id>com.rdn.intellij</id>
+    <name>RDN</name>
+    <vendor email="ofirstiberdev@gmail.com" url="https://github.com/ShtibsDev/rdn">RDN</vendor>
+
+    <description><![CDATA[
+        <p>First-class <a href="https://github.com/ShtibsDev/rdn">RDN (Rich Data Notation)</a> support for all IntelliJ-based IDEs.</p>
+
+        <p>RDN is a strict JSON superset that adds native representations for dates, BigInts, regular expressions, binary data, Maps, Sets, tuples, durations, and special numeric values. Any valid JSON is valid RDN.</p>
+
+        <h3>Features</h3>
+        <ul>
+            <li><b>Syntax Highlighting</b> — full token-level coloring for all RDN constructs with customizable color schemes</li>
+            <li><b>Real-time Diagnostics</b> — validates files as you type, catching syntax errors, unquoted keys, and invalid binary literals</li>
+            <li><b>Quick Fixes</b> — wrap unquoted object keys in quotes (single or batch)</li>
+            <li><b>Code Completion</b> — keywords, schema property, and 12 snippet templates for dates, collections, binary, regex, and more</li>
+            <li><b>Hover Documentation</b> — rich popups for DateTime, TimeOnly, Duration, BigInt, binary, RegExp, and collection types with configurable format strings</li>
+            <li><b>Document Formatting</b> — full-document formatter with Prettier integration when available</li>
+            <li><b>Sort Keys</b> — recursively sort all object keys alphabetically (<code>Ctrl+Alt+Shift+S</code>)</li>
+            <li><b>Bracket Matching & Code Folding</b> — for objects, arrays, tuples, maps, and sets</li>
+            <li><b>Auto-Indent</b> — smart indentation on Enter inside brackets</li>
+            <li><b>Markdown Support</b> — syntax highlighting in RDN code blocks inside Markdown files</li>
+            <li><b>Per-Project Settings</b> — configure formatting, hover categories, format strings, and diagnostics per project</li>
+        </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends optional="true" config-file="rdn-markdown.xml">org.intellij.plugins.markdown</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType
+            name="RDN File"
+            implementationClass="com.rdn.intellij.RdnFileType"
+            fieldName="INSTANCE"
+            language="RDN"
+            extensions="rdn"/>
+        <lang.parserDefinition language="RDN" implementationClass="com.rdn.intellij.parser.RdnParserDefinition"/>
+        <lang.syntaxHighlighterFactory language="RDN" implementationClass="com.rdn.intellij.highlighting.RdnSyntaxHighlighterFactory"/>
+        <colorSettingsPage implementation="com.rdn.intellij.highlighting.RdnColorSettingsPage"/>
+        <externalAnnotator language="RDN" implementationClass="com.rdn.intellij.annotator.RdnExternalAnnotator"/>
+        <completion.contributor language="RDN" implementationClass="com.rdn.intellij.completion.RdnCompletionContributor" order="first"/>
+        <projectService serviceImplementation="com.rdn.intellij.settings.RdnSettingsState"/>
+        <projectConfigurable
+            parentId="language"
+            displayName="RDN"
+            id="com.rdn.intellij.settings.RdnSettingsConfigurable"
+            instance="com.rdn.intellij.settings.RdnSettingsConfigurable"
+            nonDefaultProject="true"/>
+        <lang.documentationProvider language="RDN" implementationClass="com.rdn.intellij.documentation.RdnDocumentationProvider" order="first"/>
+        <lang.braceMatcher language="RDN" implementationClass="com.rdn.intellij.braceMatcher.RdnBraceMatcher"/>
+        <lang.foldingBuilder language="RDN" implementationClass="com.rdn.intellij.folding.RdnFoldingBuilder"/>
+        <lang.formatter language="RDN" implementationClass="com.rdn.intellij.formatter.RdnFormattingModelBuilder"/>
+        <postFormatProcessor implementationClass="com.rdn.intellij.formatter.RdnPostFormatProcessor"/>
+        <enterHandlerDelegate implementation="com.rdn.intellij.typing.RdnEnterHandler"/>
+    </extensions>
+
+    <actions>
+        <action id="RDN.SortDocumentKeys" class="com.rdn.intellij.actions.SortDocumentKeysAction" text="Sort RDN Document Keys" description="Recursively sort all object keys alphabetically and reformat the document">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <keyboard-shortcut first-keystroke="ctrl alt shift S" keymap="$default"/>
+        </action>
+    </actions>
+</idea-plugin>

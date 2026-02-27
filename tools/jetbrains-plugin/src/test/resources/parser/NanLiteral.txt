@@ -1,0 +1,4 @@
+RDN File
+  RdnValueImpl(VALUE)
+    RdnNanLiteralImpl(NAN_LITERAL)
+      PsiElement(NAN)('NaN')

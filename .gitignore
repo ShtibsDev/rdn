@@ -47,6 +47,13 @@ BenchmarkDotNet.Artifacts/
 .DS_Store
 Thumbs.db
 
+# JetBrains plugin build
+tools/jetbrains-plugin/.gradle/
+tools/jetbrains-plugin/build/
+tools/jetbrains-plugin/.idea/
+tools/jetbrains-plugin/.intellijPlatform/
+tools/jetbrains-plugin/src/main/gen/
+
 # Environment
 .env
 .env.local

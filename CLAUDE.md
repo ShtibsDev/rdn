@@ -60,6 +60,28 @@ cd implementations/go && go test
 cd implementations/python && pip install -e . && pytest
 ```
 
+### JetBrains Plugin (Gradle + Kotlin)
+```bash
+cd tools/jetbrains-plugin
+./gradlew build              # build the plugin
+./gradlew test               # run all tests (lexer, parser, conformance, formatter, etc.)
+./gradlew buildPlugin        # produce installable .zip in build/distributions/
+./gradlew runIde             # launch a sandboxed IntelliJ IDEA with the plugin installed
+./gradlew check              # full quality check (build + test + verify)
+./gradlew generateLexer      # regenerate JFlex lexer from Rdn.flex
+./gradlew generateParser     # regenerate GrammarKit parser from Rdn.bnf
+
+# Run specific test suites:
+./gradlew test --tests "*LexerTest*"      # lexer tests only
+./gradlew test --tests "*ParserTest*"     # parser tests only
+./gradlew test --tests "*Conformance*"    # conformance tests against test-suite/
+./gradlew test --tests "*Formatter*"      # formatter tests only
+./gradlew test --tests "*Scanner*"        # scanner tests only
+./gradlew test --tests "*Completion*"     # completion tests only
+```
+
+The plugin is located at `tools/jetbrains-plugin/`. The conformance tests reference `test-suite/` via a relative path configured in `build.gradle.kts`.
+
 ## Architecture
 
 ### Source of Truth
