@@ -164,7 +164,7 @@ object_key ::= STRING_OPEN string_inner STRING_CLOSE {
     elementType=OBJECT_KEY
 }
 
-private string_inner ::= STRING_CONTENT? (STRING_ESCAPE | STRING_INVALID_ESCAPE)*
+private string_inner ::= (STRING_CONTENT | STRING_ESCAPE | STRING_INVALID_ESCAPE)*
 
 // --- Explicit Map: Map{ ... } ---
 explicit_map ::= MAP_KEYWORD '{' explicit_map_body? '}' {
