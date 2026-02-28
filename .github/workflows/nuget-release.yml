@@ -19,6 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -53,22 +57,29 @@ jobs:
           git tag "rdn-dotnet@${{ steps.version.outputs.version }}"
           git push origin "rdn-dotnet@${{ steps.version.outputs.version }}"
 
-      - name: Extract changelog
+      - name: Generate changelog
         if: steps.check.outputs.skip != 'true'
-        id: changelog
+        working-directory: .
+        run: bun scripts/release/changelog.ts --package rdn-dotnet --version ${{ steps.version.outputs.version }}
+
+      - name: Commit changelog
+        if: steps.check.outputs.skip != 'true'
+        working-directory: .
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          BODY=$(sed -n "/^## ${VERSION}/,/^## [0-9]/{/^## [0-9]/!p;}" CHANGELOG.md | sed '1d')
-          echo "body<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$BODY" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/rdn-dotnet/CHANGELOG.md
+          git diff --cached --quiet || git commit -m "chore(csharp): 📝 update changelog for v${{ steps.version.outputs.version }}"
+          git push origin main
 
       - name: Create GitHub Release
         if: steps.check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: .
         run: |
+          NOTES=$(bun scripts/release/changelog.ts --package rdn-dotnet --version ${{ steps.version.outputs.version }} --stdout 2>/dev/null || echo "Release rdn-dotnet@${{ steps.version.outputs.version }}")
           gh release create "rdn-dotnet@${{ steps.version.outputs.version }}" \
             --title "rdn-dotnet@${{ steps.version.outputs.version }}" \
-            --notes "${{ steps.changelog.outputs.body }}" \
+            --notes "$NOTES" \
             ${{ contains(steps.version.outputs.version, '-') && '--prerelease' || '' }}

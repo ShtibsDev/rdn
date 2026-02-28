@@ -3,7 +3,7 @@ name: JetBrains Plugin Release
 on:
   push:
     tags:
-      - 'jetbrains-v*'
+      - 'rdn-jetbrains@*'
 
 permissions:
   contents: write
@@ -15,30 +15,40 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: 'gradle'
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: wrapper
           build-root-directory: tools/jetbrains-plugin
+
+      - uses: oven-sh/setup-bun@v2
+
       - name: Extract version from tag
         id: version
-        run: echo "version=${GITHUB_REF_NAME#jetbrains-v}" >> $GITHUB_OUTPUT
+        run: echo "version=${GITHUB_REF_NAME#rdn-jetbrains@}" >> $GITHUB_OUTPUT
+
       - name: Build plugin
         working-directory: tools/jetbrains-plugin
         run: ./gradlew buildPlugin
         env:
           PLUGIN_VERSION: ${{ steps.version.outputs.version }}
+
       - name: Run tests
         working-directory: tools/jetbrains-plugin
         run: ./gradlew test
         env:
           PLUGIN_VERSION: ${{ steps.version.outputs.version }}
+
       - name: Sign plugin
         working-directory: tools/jetbrains-plugin
         run: ./gradlew signPlugin
@@ -47,15 +57,21 @@ jobs:
           CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+
       - name: Publish to JetBrains Marketplace
         working-directory: tools/jetbrains-plugin
         run: ./gradlew publishPlugin
         env:
           PLUGIN_VERSION: ${{ steps.version.outputs.version }}
           PUBLISH_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+
+      - name: Generate release notes
+        run: |
+          bun scripts/release/changelog.ts --package rdn-jetbrains --version ${{ steps.version.outputs.version }} --stdout > release-notes.md 2>/dev/null || echo "Release rdn-jetbrains@${{ steps.version.outputs.version }}" > release-notes.md
+
       - name: Upload plugin ZIP to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: tools/jetbrains-plugin/build/distributions/*.zip
           tag_name: ${{ github.ref_name }}
-          generate_release_notes: true
+          body_path: release-notes.md

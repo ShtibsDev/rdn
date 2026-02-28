@@ -11,10 +11,6 @@ on:
           - patch
           - minor
           - major
-      changelog:
-        description: "Changelog entry (markdown list items, e.g. '- Fix X\\n- Add Y')"
-        required: true
-        type: string
 
 permissions:
   contents: write
@@ -28,6 +24,8 @@ jobs:
         working-directory: tools/vscode-extension
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -35,6 +33,8 @@ jobs:
         with:
           node-version-file: ".node-version"
           cache: pnpm
+
+      - uses: oven-sh/setup-bun@v2
 
       - run: pnpm install --frozen-lockfile
         working-directory: .
@@ -49,20 +49,15 @@ jobs:
         id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Update changelog
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          DATE="$(date -u +%Y-%m-%d)"
-          ENTRY="## ${VERSION} — ${DATE}"$'\n\n'"${{ inputs.changelog }}"
-          # Insert new entry after the first line (the heading)
-          awk -v entry="$ENTRY" 'NR==1 { print; print ""; print entry; next } 1' CHANGELOG.md > CHANGELOG.tmp
-          mv CHANGELOG.tmp CHANGELOG.md
+      - name: Generate changelog
+        working-directory: .
+        run: bun scripts/release/changelog.ts --package rdn-vscode --version ${{ steps.version.outputs.version }}
 
       - name: Commit version bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json CHANGELOG.md
+          git add package.json ../../tools/vscode-extension/CHANGELOG.md
           git commit -m "chore(vscode): 🔖 bump to v${{ steps.version.outputs.version }}"
           git push origin main
 
@@ -74,9 +69,10 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHANGELOG: ${{ inputs.changelog }}
+        working-directory: .
         run: |
-          printf '%s\n\nPublished to [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rdn.rdn)\n' "$CHANGELOG" > release-notes.md
+          NOTES=$(bun scripts/release/changelog.ts --package rdn-vscode --version ${{ steps.version.outputs.version }} --stdout 2>/dev/null || echo "Release rdn-vscode@${{ steps.version.outputs.version }}")
+          printf '%s\n\nPublished to [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rdn.rdn)\n' "$NOTES" > release-notes.md
           gh release create "rdn-vscode@${{ steps.version.outputs.version }}" \
             --title "rdn-vscode@${{ steps.version.outputs.version }}" \
             --notes-file release-notes.md \

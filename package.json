@@ -10,7 +10,11 @@
     "version-packages": "changeset version && node scripts/sync-dotnet-version.mjs",
     "release": "turbo run build && changeset publish",
     "pre:enter": "changeset pre enter",
-    "pre:exit": "changeset pre exit"
+    "pre:exit": "changeset pre exit",
+    "changelog": "bun scripts/release/changelog.ts",
+    "bump-version": "bun scripts/release/bump.ts",
+    "release-package": "bun scripts/release/release.ts",
+    "regenerate-changelogs": "bun scripts/release/generate-all-changelogs.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild"]

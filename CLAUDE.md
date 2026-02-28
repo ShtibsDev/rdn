@@ -40,7 +40,7 @@ pnpm pre:exit             # exit pre-release mode → next version-packages prod
 
 ### Rust
 ```bash
-cd implementations/rust
+cd packages/rdn-rust
 cargo test
 cargo bench                    # criterion benchmarks
 cargo build --features wasm    # WASM build with wasm-bindgen
@@ -56,8 +56,8 @@ The C# version is managed by Changesets via `packages/rdn-dotnet/package.json`. 
 
 ### Go / Python (placeholders)
 ```bash
-cd implementations/go && go test
-cd implementations/python && pip install -e . && pytest
+cd packages/rdn-go && go test
+cd packages/rdn-python && pip install -e . && pytest
 ```
 
 ### JetBrains Plugin (Gradle + Kotlin)
@@ -82,6 +82,27 @@ cd tools/jetbrains-plugin
 
 The plugin is located at `tools/jetbrains-plugin/`. The conformance tests reference `test-suite/` via a relative path configured in `build.gradle.kts`.
 
+### Release Scripts (`scripts/release/`, run with `bun`)
+```bash
+# Generate changelog for a package from conventional commits
+pnpm changelog -- --package <name> [--version <ver>] [--from <ref>] [--to <ref>] [--stdout] [--dry-run]
+
+# Bump version across all version files for a package
+pnpm bump-version -- --package <name> --bump <patch|minor|major|prerelease> [--preid <alpha|beta|rc>] [--dry-run]
+
+# Full release: bump + changelog + commit + tag + push
+pnpm release-package -- --package <name> --bump <patch|minor|major|prerelease> [--preid <alpha|beta|rc>] [--dry-run] [--no-push]
+
+# Regenerate all changelogs from scratch
+pnpm regenerate-changelogs [-- --dry-run]
+```
+
+Package names: `@rdn/typescript`, `rdn-dotnet`, `rdn-vscode`, `prettier-plugin-rdn`, `rdn-jetbrains`, `rdn-rust`, `rdn-python`, `rdn-go`.
+
+The package registry (`scripts/release/packages.ts`) is the single source of truth mapping each package to its scopes, directory, tag prefix, version files, and ecosystem.
+
+Changesets continues to handle npm publishing for `@rdn/typescript` and `prettier-plugin-rdn`. The release scripts handle changelog generation and git tagging for all packages. Non-npm packages (VS Code, JetBrains, NuGet, Rust, Python, Go) use tag-triggered CI workflows.
+
 ## Architecture
 
 ### Source of Truth
@@ -104,7 +125,7 @@ Extended types in expected JSON use a tagged convention: `{"$type": "TypeName", 
 - Types without native JS equivalents use tagged interfaces (`__type__: "TimeOnly"` / `__type__: "Duration"`)
 - Tests via Vitest in `src/**/*.test.ts`
 
-### Rust Implementation (`implementations/rust/`)
+### Rust Implementation (`packages/rdn-rust/`)
 - `src/lib.rs` — `RdnValue` enum, `parse()` / `stringify()` API
 - Optional `wasm` feature flag for wasm-bindgen
 - Benchmarks via criterion (`cargo bench`)
