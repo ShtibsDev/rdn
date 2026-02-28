@@ -1,0 +1,133 @@
+{
+  "meta": {
+    "apiVersion": "3.2.1",
+    "requestId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "timestamp": "2025-11-20T09:15:33.472Z",
+    "pagination": {
+      "page": 1,
+      "perPage": 20,
+      "totalItems": 2,
+      "totalPages": 1
+    }
+  },
+  "products": [
+    {
+      "id": "1000000000000001",
+      "sku": "WH-1000XM5-BLK",
+      "name": "Premium Wireless Headphones",
+      "description": "Industry-leading noise cancellation with exceptional sound quality and comfort for all-day wear.",
+      "category": "Electronics/Audio",
+      "price": 349.99,
+      "currency": "USD",
+      "inStock": true,
+      "quantity": 1247,
+      "weight": 0.25,
+      "dimensions": {
+        "length": 19.5,
+        "width": 16.8,
+        "height": 7.2,
+        "unit": "cm"
+      },
+      "tags": [
+        "wireless",
+        "noise-cancelling",
+        "bluetooth",
+        "over-ear"
+      ],
+      "createdAt": "2024-03-15T08:00:00.000Z",
+      "updatedAt": "2025-10-01T14:22:17.000Z",
+      "manufacturer": {
+        "name": "SoundTech Corp",
+        "country": "JP",
+        "website": "https://soundtech.example.com"
+      },
+      "ratings": {
+        "average": 4.7,
+        "count": 3842,
+        "distribution": {
+          "5": 2105,
+          "4": 1203,
+          "3": 389,
+          "2": 98,
+          "1": 47
+        }
+      },
+      "reviews": [
+        {
+          "userId": "5001",
+          "author": "AudioPhile42",
+          "rating": 5,
+          "title": "Best headphones I've ever owned",
+          "body": "The noise cancellation is incredible. I use these daily for work calls and music. Battery life exceeds expectations.",
+          "createdAt": "2025-06-12T16:45:00.000Z",
+          "helpful": 127,
+          "verified": true
+        }
+      ],
+      "relatedProductIds": [
+        "1000000000000007",
+        "1000000000000012",
+        "1000000000000034"
+      ]
+    },
+    {
+      "id": "1000000000000002",
+      "sku": "KB-MECH-TKL-RGB",
+      "name": "Mechanical Gaming Keyboard TKL",
+      "description": "Tenkeyless mechanical keyboard with hot-swappable switches, per-key RGB lighting, and aircraft-grade aluminum frame.",
+      "category": "Electronics/Peripherals",
+      "price": 159.95,
+      "currency": "USD",
+      "inStock": true,
+      "quantity": 583,
+      "weight": 0.82,
+      "dimensions": {
+        "length": 36.0,
+        "width": 13.5,
+        "height": 3.8,
+        "unit": "cm"
+      },
+      "tags": [
+        "mechanical",
+        "gaming",
+        "rgb",
+        "tenkeyless",
+        "hot-swap"
+      ],
+      "createdAt": "2024-07-22T11:30:00.000Z",
+      "updatedAt": "2025-09-18T09:05:44.000Z",
+      "manufacturer": {
+        "name": "KeyCraft Industries",
+        "country": "TW",
+        "website": "https://keycraft.example.com"
+      },
+      "ratings": {
+        "average": 4.5,
+        "count": 1956,
+        "distribution": {
+          "5": 978,
+          "4": 645,
+          "3": 215,
+          "2": 82,
+          "1": 36
+        }
+      },
+      "reviews": [
+        {
+          "userId": "7823",
+          "author": "TypeMaster",
+          "rating": 4,
+          "title": "Great build quality, minor software issues",
+          "body": "The keyboard feels fantastic. Switches are smooth and the aluminum case is solid. The configuration software could use some polish but overall very happy.",
+          "createdAt": "2025-08-30T22:10:00.000Z",
+          "helpful": 84,
+          "verified": true
+        }
+      ],
+      "relatedProductIds": [
+        "1000000000000019",
+        "1000000000000025"
+      ]
+    }
+  ]
+}

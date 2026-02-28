@@ -14,13 +14,19 @@
     "changelog": "bun scripts/release/changelog.ts",
     "bump-version": "bun scripts/release/bump.ts",
     "release-package": "bun scripts/release/release.ts",
-    "regenerate-changelogs": "bun scripts/release/generate-all-changelogs.ts"
+    "regenerate-changelogs": "bun scripts/release/generate-all-changelogs.ts",
+    "generate-fixtures": "bun benchmarks/generate-fixtures.ts"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.0",
     "turbo": "^2.5.0"
+  },
+  "dependencies": {
+    "@types/bun": "^1.3.9"
   }
 }
