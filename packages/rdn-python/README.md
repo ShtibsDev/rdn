@@ -12,23 +12,19 @@ pip install rdn
 
 Requires Python 3.10+. Zero runtime dependencies.
 
-### Optional: Native Acceleration
+### Native Acceleration (Built-in)
 
-For significantly better performance, install the optional Rust native extension:
+This package ships with a built-in Rust native extension. Hot-path calls (without hooks/callbacks) are automatically routed to the compiled Rust implementation. Calls with hooks fall through to the pure Python implementation transparently.
 
-```bash
-pip install rdn-native
-```
+The native extension includes SIMD-accelerated string scanning, type-pointer caching, string-interning key cache, and direct-to-buffer serialization.
 
-When installed, hot-path calls (without hooks/callbacks) are automatically routed to the compiled Rust implementation. Calls with hooks fall through to the pure Python implementation transparently.
-
-The native extension includes SIMD-accelerated string scanning, type-pointer caching, string-interning key cache, and direct-to-buffer serialization. See the [rdn-native README](../rdn-native/README.md) for architecture details.
+**Building from source** requires a Rust toolchain (install via [rustup](https://rustup.rs/)). Pre-built wheels are available for common platforms.
 
 **Float formatting note:** The native extension uses `ryu` for float-to-string conversion, which may produce slightly different string representations compared to Python's `repr()` in edge cases (e.g., trailing digit differences). All outputs are mathematically equivalent -- they parse back to the identical IEEE 754 value.
 
 ```python
 import rdn
-print(rdn._USE_NATIVE)  # True if rdn-native is installed
+print(rdn._USE_NATIVE)  # True when native extension is loaded
 ```
 
 ## Quick Start

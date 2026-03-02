@@ -51,12 +51,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/rdn-python
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install rdn
         run: pip install -e packages/rdn-python[dev]
+
+      - name: Verify native extension
+        run: python -c "import rdn; assert rdn._USE_NATIVE, 'Native extension not loaded'"
 
       - name: Run rdn tests
         run: pytest packages/rdn-python/tests -v

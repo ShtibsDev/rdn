@@ -16,9 +16,9 @@ from rdn.decoder import RDNDecoder
 from rdn.encoder import RDNEncoder
 from rdn.exceptions import MAX_SAFE_INTEGER, RDNDecodeError
 
-# Phase 2 native extension fallback (Rust + maturin).
-# When the optional C extension is installed, hot-path calls (no hooks)
-# are routed to the native implementation for speed.
+# Built-in native extension (Rust + maturin).
+# Hot-path calls (no hooks) are routed to the native implementation for
+# speed. Falls back to pure Python if the extension failed to compile.
 try:
     from rdn._native import parse as _native_parse, stringify as _native_stringify
     _USE_NATIVE = True
