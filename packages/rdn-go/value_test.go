@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func TestValueConstructorsAndAccessors(t *testing.T) {
@@ -119,6 +120,29 @@ func TestValueConstructorsAndAccessors(t *testing.T) {
 			t.Errorf("expected len 3, got %d", v.Len())
 		}
 	})
+}
+
+func TestValueStructSize(t *testing.T) {
+	size := unsafe.Sizeof(Value{})
+	if size > 80 {
+		t.Errorf("Value struct size %d bytes exceeds 80-byte target (was 224 before optimization)", size)
+	}
+	t.Logf("Value: %d bytes, KeyValue: %d bytes, MapEntry: %d bytes", size, unsafe.Sizeof(KeyValue{}), unsafe.Sizeof(MapEntry{}))
+}
+
+func TestParseZeroCopy(t *testing.T) {
+	data := []byte(`{"name":"Alice","age":30}`)
+	v, err := ParseZeroCopy(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj := v.Object()
+	if len(obj) != 2 {
+		t.Fatalf("expected 2 keys, got %d", len(obj))
+	}
+	if obj[0].Key != "name" || obj[0].Value.Str() != "Alice" {
+		t.Errorf("unexpected first pair: %q=%q", obj[0].Key, obj[0].Value.Str())
+	}
 }
 
 func TestValueEqual(t *testing.T) {

@@ -64,6 +64,32 @@ func BenchmarkParse(b *testing.B) {
 	}
 }
 
+func BenchmarkParseZeroCopy(b *testing.B) {
+	benchmarks := []struct {
+		name string
+		data []byte
+	}{
+		{"Primitives", benchPrimitives},
+		{"Nested", benchNested},
+		{"RDNHeavy", benchRDNHeavy},
+		{"LargeArray1K", benchLargeArray},
+		{"StringHeavy", benchStringHeavy},
+	}
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			b.SetBytes(int64(len(bm.data)))
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				v, err := ParseZeroCopy(bm.data)
+				if err != nil {
+					b.Fatal(err)
+				}
+				sink = v
+			}
+		})
+	}
+}
+
 func BenchmarkStringify(b *testing.B) {
 	benchmarks := []struct {
 		name string

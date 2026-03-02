@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 	"time"
+	"unsafe"
 )
 
 const maxEncodeDepth = 128
@@ -251,36 +252,38 @@ func (enc *encoder) encode(v Value) error {
 		enc.escapeString(v.str)
 
 	case KindDateTime:
-		enc.formatDate(v.timeVal)
+		enc.formatDate(*(*time.Time)(v.ptr))
 
 	case KindTimeOnly:
-		enc.formatTimeOnly(v.timeO)
+		enc.formatTimeOnly(*(*TimeOnly)(v.ptr))
 
 	case KindDuration:
 		enc.buf.WriteByte('@')
 		enc.buf.WriteString(v.str)
 
 	case KindRegExp:
+		re := (*RegExp)(v.ptr)
 		enc.buf.WriteByte('/')
-		enc.escapeRegExpSource(v.regexpV.Source)
+		enc.escapeRegExpSource(re.Source)
 		enc.buf.WriteByte('/')
-		enc.buf.WriteString(v.regexpV.Flags)
+		enc.buf.WriteString(re.Flags)
 
 	case KindBinary:
-		enc.encodeBase64(v.binary)
+		enc.encodeBase64(*(*[]byte)(v.ptr))
 
 	case KindArray:
+		arr := unsafe.Slice((*Value)(v.ptr), v.ptrLen)
 		enc.buf.WriteByte('[')
-		if len(v.arr) > 0 {
+		if len(arr) > 0 {
 			if err := enc.enterDepth(); err != nil {
 				return err
 			}
-			for i, elem := range v.arr {
+			for i := range arr {
 				if i > 0 {
 					enc.buf.WriteByte(',')
 				}
 				enc.writeIndent()
-				if err := enc.encode(elem); err != nil {
+				if err := enc.encode(arr[i]); err != nil {
 					return err
 				}
 			}
@@ -290,19 +293,20 @@ func (enc *encoder) encode(v Value) error {
 		enc.buf.WriteByte(']')
 
 	case KindObject:
+		obj := unsafe.Slice((*KeyValue)(v.ptr), v.ptrLen)
 		enc.buf.WriteByte('{')
-		if len(v.obj) > 0 {
+		if len(obj) > 0 {
 			if err := enc.enterDepth(); err != nil {
 				return err
 			}
-			for i, kv := range v.obj {
+			for i := range obj {
 				if i > 0 {
 					enc.buf.WriteByte(',')
 				}
 				enc.writeIndent()
-				enc.escapeString(kv.Key)
+				enc.escapeString(obj[i].Key)
 				enc.writeSep()
-				if err := enc.encode(kv.Value); err != nil {
+				if err := enc.encode(obj[i].Value); err != nil {
 					return err
 				}
 			}
@@ -312,23 +316,24 @@ func (enc *encoder) encode(v Value) error {
 		enc.buf.WriteByte('}')
 
 	case KindMap:
-		if len(v.mapV) == 0 {
+		mapV := unsafe.Slice((*MapEntry)(v.ptr), v.ptrLen)
+		if len(mapV) == 0 {
 			enc.buf.WriteString("Map{}")
 		} else {
 			enc.buf.WriteString("Map{")
 			if err := enc.enterDepth(); err != nil {
 				return err
 			}
-			for i, entry := range v.mapV {
+			for i := range mapV {
 				if i > 0 {
 					enc.buf.WriteByte(',')
 				}
 				enc.writeIndent()
-				if err := enc.encode(entry.Key); err != nil {
+				if err := enc.encode(mapV[i].Key); err != nil {
 					return err
 				}
 				enc.writeArrow()
-				if err := enc.encode(entry.Value); err != nil {
+				if err := enc.encode(mapV[i].Value); err != nil {
 					return err
 				}
 			}
@@ -338,19 +343,20 @@ func (enc *encoder) encode(v Value) error {
 		}
 
 	case KindSet:
-		if len(v.arr) == 0 {
+		arr := unsafe.Slice((*Value)(v.ptr), v.ptrLen)
+		if len(arr) == 0 {
 			enc.buf.WriteString("Set{}")
 		} else {
 			enc.buf.WriteString("Set{")
 			if err := enc.enterDepth(); err != nil {
 				return err
 			}
-			for i, elem := range v.arr {
+			for i := range arr {
 				if i > 0 {
 					enc.buf.WriteByte(',')
 				}
 				enc.writeIndent()
-				if err := enc.encode(elem); err != nil {
+				if err := enc.encode(arr[i]); err != nil {
 					return err
 				}
 			}
@@ -360,17 +366,18 @@ func (enc *encoder) encode(v Value) error {
 		}
 
 	case KindTuple:
+		arr := unsafe.Slice((*Value)(v.ptr), v.ptrLen)
 		enc.buf.WriteByte('(')
-		if len(v.arr) > 0 {
+		if len(arr) > 0 {
 			if err := enc.enterDepth(); err != nil {
 				return err
 			}
-			for i, elem := range v.arr {
+			for i := range arr {
 				if i > 0 {
 					enc.buf.WriteByte(',')
 				}
 				enc.writeIndent()
-				if err := enc.encode(elem); err != nil {
+				if err := enc.encode(arr[i]); err != nil {
 					return err
 				}
 			}

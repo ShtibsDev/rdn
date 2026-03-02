@@ -19,6 +19,14 @@ func Parse(data []byte) (Value, error) {
 	return parseRoot(data)
 }
 
+// ParseZeroCopy parses RDN-encoded data using zero-copy string optimization.
+// Strings without escape sequences will reference the input buffer directly
+// instead of copying. The returned Value must not be used after the input
+// byte slice is modified or freed.
+func ParseZeroCopy(data []byte) (Value, error) {
+	return parseRootZeroCopy(data)
+}
+
 // Stringify returns the compact RDN encoding of a Value.
 func Stringify(v Value) ([]byte, error) {
 	return stringify(v, "", "")

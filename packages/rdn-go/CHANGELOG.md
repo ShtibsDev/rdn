@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `ParseZeroCopy(data []byte) (Value, error)` — zero-copy string parsing via `unsafe.String`; strings without escapes reference the input buffer directly
+- Object key interning — repeated short keys (≤64 bytes) are deduplicated across collections
+- Reusable scratch buffer for escaped string materialization
+
+### Changed
+
+- **Compact Value struct**: reduced from 224 bytes to 64 bytes (71% reduction) using `unsafe.Pointer` for collection and rare-type storage
+  - `KeyValue`: 240B → 80B (67% reduction)
+  - `MapEntry`: 448B → 128B (71% reduction)
+- **Large payload parsing 4.3x faster**: LargeArray1K 88.6 µs → 20.4 µs, allocation bytes 784KB → 145KB (81% reduction)
+- **Small/medium parsing 1.1-1.5x faster** across all payload sizes
+- Encoder updated to use compact struct layout with direct `unsafe.Pointer` access
+
 ## [0.1.0] - 2026-02-28
 
 ### Added

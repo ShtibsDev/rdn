@@ -36,63 +36,66 @@ func valueToJSON(v Value) any {
 	case KindString:
 		return v.str
 	case KindArray:
-		arr := make([]any, len(v.arr))
-		for i, elem := range v.arr {
+		elems := v.Array()
+		arr := make([]any, len(elems))
+		for i, elem := range elems {
 			arr[i] = valueToJSON(elem)
 		}
 		return arr
 	case KindObject:
-		// Use ordered approach: json.Marshal respects map insertion order in Go 1.12+
-		// but for comparison we use encoding/json which sorts keys. Instead, build
-		// a map since the expected JSON is compared via deep-equal after re-parsing.
-		m := make(map[string]any, len(v.obj))
-		for _, kv := range v.obj {
+		pairs := v.Object()
+		m := make(map[string]any, len(pairs))
+		for _, kv := range pairs {
 			m[kv.Key] = valueToJSON(kv.Value)
 		}
 		return m
 	case KindDateTime:
-		t := v.timeVal.UTC()
+		t := v.Time().UTC()
 		return map[string]any{"$type": "Date", "value": t.Format("2006-01-02T15:04:05.000Z")}
 	case KindTimeOnly:
+		to := v.TimeOnlyValue()
 		return map[string]any{
 			"$type": "TimeOnly",
 			"value": map[string]any{
-				"hours": float64(v.timeO.Hours), "minutes": float64(v.timeO.Minutes),
-				"seconds": float64(v.timeO.Seconds), "milliseconds": float64(v.timeO.Milliseconds),
+				"hours": float64(to.Hours), "minutes": float64(to.Minutes),
+				"seconds": float64(to.Seconds), "milliseconds": float64(to.Milliseconds),
 			},
 		}
 	case KindDuration:
 		return map[string]any{"$type": "Duration", "value": v.str}
 	case KindRegExp:
+		re := v.RegExpValue()
 		return map[string]any{
 			"$type": "RegExp",
-			"value": map[string]any{"source": v.regexpV.Source, "flags": v.regexpV.Flags},
+			"value": map[string]any{"source": re.Source, "flags": re.Flags},
 		}
 	case KindBinary:
 		// Encode as base64 for comparison
 		enc := newEncoder("", "")
 		defer putEncodeState(enc.buf)
-		enc.encodeBase64(v.binary)
+		enc.encodeBase64(v.Bytes())
 		raw := enc.buf.String()
 		// Strip the b"..." wrapper
 		b64str := raw[2 : len(raw)-1]
 		return map[string]any{"$type": "Binary", "value": b64str}
 	case KindMap:
-		entries := make([]any, len(v.mapV))
-		for i, entry := range v.mapV {
+		mapEntries := v.Map()
+		entries := make([]any, len(mapEntries))
+		for i, entry := range mapEntries {
 			entries[i] = []any{valueToJSON(entry.Key), valueToJSON(entry.Value)}
 		}
 		return map[string]any{"$type": "Map", "value": entries}
 	case KindSet:
-		items := make([]any, len(v.arr))
-		for i, elem := range v.arr {
+		elems := v.Array()
+		items := make([]any, len(elems))
+		for i, elem := range elems {
 			items[i] = valueToJSON(elem)
 		}
 		return map[string]any{"$type": "Set", "value": items}
 	case KindTuple:
-		// Tuples are represented as plain arrays in expected JSON
-		arr := make([]any, len(v.arr))
-		for i, elem := range v.arr {
+		elems := v.Array()
+		arr := make([]any, len(elems))
+		for i, elem := range elems {
 			arr[i] = valueToJSON(elem)
 		}
 		return arr

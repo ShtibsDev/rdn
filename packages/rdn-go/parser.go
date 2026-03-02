@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 	"unicode/utf16"
+	"unsafe"
 )
 
 const maxBinarySize = 100 * 1024 * 1024 // 100 MB
@@ -21,7 +22,12 @@ func (s *scanner) parseString() (string, error) {
 		c := s.data[s.pos]
 		if c == '"' {
 			if !hasEscape {
-				result := string(s.data[start:s.pos])
+				var result string
+				if s.zeroCopy {
+					result = unsafeString(s.data[start:s.pos])
+				} else {
+					result = string(s.data[start:s.pos])
+				}
 				s.pos++ // skip closing "
 				return result, nil
 			}
@@ -57,9 +63,58 @@ func (s *scanner) parseString() (string, error) {
 	return "", s.error("Unterminated string")
 }
 
+// parseObjectKey parses a string and interns it for key deduplication.
+func (s *scanner) parseObjectKey() (string, error) {
+	s.pos++ // skip opening "
+	start := s.pos
+	hasEscape := false
+	for s.pos < s.len {
+		c := s.data[s.pos]
+		if c == '"' {
+			if !hasEscape {
+				result := s.internKey(s.data[start:s.pos])
+				s.pos++ // skip closing "
+				return result, nil
+			}
+			result, err := s.materializeString(start, s.pos)
+			if err != nil {
+				return "", err
+			}
+			s.pos++ // skip closing "
+			return result, nil
+		}
+		if c == '\\' {
+			hasEscape = true
+			s.pos++
+			if s.pos >= s.len {
+				break
+			}
+			if s.data[s.pos] == 'u' {
+				if s.pos+5 <= s.len {
+					s.pos += 5
+				} else {
+					s.pos = s.len
+				}
+			} else {
+				s.pos++
+			}
+			continue
+		}
+		if c < 0x20 {
+			return "", s.error("Unescaped control character in string")
+		}
+		s.pos++
+	}
+	return "", s.error("Unterminated string")
+}
+
 func (s *scanner) materializeString(start, end int) (string, error) {
-	// Pre-allocate: worst case is the same length (no expansion from escapes in practice)
-	buf := make([]byte, 0, end-start)
+	// Reuse scratch buffer to avoid per-call allocation
+	s.scratch = s.scratch[:0]
+	if cap(s.scratch) < end-start {
+		s.scratch = make([]byte, 0, end-start)
+	}
+	buf := s.scratch
 	i := start
 	for i < end {
 		c := s.data[i]
@@ -136,6 +191,7 @@ func (s *scanner) materializeString(start, end int) (string, error) {
 			i = j
 		}
 	}
+	s.scratch = buf // save grown buffer for next call
 	return string(buf), nil
 }
 
@@ -180,6 +236,15 @@ func encodeRuneToUTF8(p []byte, r rune) int {
 	p[2] = byte(0x80 | ((r >> 6) & 0x3F))
 	p[3] = byte(0x80 | (r & 0x3F))
 	return 4
+}
+
+// unsafeString creates a string that references the byte slice data without copying.
+// The returned string is only valid as long as the byte slice is not modified.
+func unsafeString(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	return unsafe.String(&b[0], len(b))
 }
 
 // ── Number parsing ──────────────────────────────────────────────────────
@@ -478,10 +543,8 @@ func (s *scanner) parseDuration() (Value, error) {
 	}
 	iso := string(s.data[start:s.pos])
 	if len(iso) < 3 {
-		// Minimum valid: "P" + at least one component e.g. "P1D", "PT1S"
 		return Value{}, s.error("Invalid duration")
 	}
-	// Validate: must contain at least one designator letter after P
 	hasDesignator := false
 	for i := 1; i < len(iso); i++ {
 		c := iso[i]
@@ -510,7 +573,6 @@ func (s *scanner) parseUnixTimestamp() (Value, error) {
 	if err != nil {
 		return Value{}, s.error("Invalid unix timestamp")
 	}
-	// ≤10 digits = seconds, >10 = milliseconds
 	if len(digits) <= 10 {
 		return DateTimeVal(time.Unix(num, 0).UTC()), nil
 	}
@@ -549,11 +611,9 @@ func (s *scanner) parseRegExp() (Value, error) {
 	if len(raw) == 0 {
 		return Value{}, s.error("Empty regular expression body")
 	}
-	// Unescape \/ to / so the Source field holds the logical pattern
 	pattern := unescapeRegExpSlash(raw)
 	s.pos++ // skip closing /
 
-	// Read flags: d g i m s u v y
 	flagStart := s.pos
 	for s.pos < s.len {
 		c := s.data[s.pos]
@@ -568,7 +628,6 @@ func (s *scanner) parseRegExp() (Value, error) {
 }
 
 func unescapeRegExpSlash(raw []byte) string {
-	// Fast check: if no backslash-slash, return as-is
 	hasEscape := false
 	for i := 0; i+1 < len(raw); i++ {
 		if raw[i] == '\\' && raw[i+1] == '/' {
@@ -583,7 +642,7 @@ func unescapeRegExpSlash(raw []byte) string {
 	for i := 0; i < len(raw); i++ {
 		if raw[i] == '\\' && i+1 < len(raw) && raw[i+1] == '/' {
 			buf = append(buf, '/')
-			i++ // skip the /
+			i++
 		} else {
 			buf = append(buf, raw[i])
 		}
@@ -618,7 +677,6 @@ func (s *scanner) parseBinaryB64() (Value, error) {
 		return Value{}, s.error("Invalid base64: length must be a multiple of 4")
 	}
 
-	// Count padding
 	padding := 0
 	if content[len(content)-1] == '=' {
 		padding++
@@ -648,7 +706,6 @@ func (s *scanner) parseBinaryB64() (Value, error) {
 			return Value{}, s.error("Invalid base64 character")
 		}
 
-		// Padding is only valid in the last 4-byte group
 		if (c == 0xFE || d == 0xFE) && i != lastGroup {
 			return Value{}, s.error("Invalid base64: padding in non-final group")
 		}
@@ -868,7 +925,7 @@ func (s *scanner) finishObject(firstKey string) (Value, error) {
 		if s.pos >= s.len || s.data[s.pos] != '"' {
 			return Value{}, s.error("Object key must be a string")
 		}
-		key, err := s.parseString()
+		key, err := s.parseObjectKey()
 		if err != nil {
 			return Value{}, err
 		}
@@ -965,7 +1022,6 @@ func (s *scanner) parseExplicitMap() (Value, error) {
 	if err := s.enterContainer(); err != nil {
 		return Value{}, err
 	}
-	// pos is at 'M', check for 'Map{'
 	if s.pos+3 >= s.len || s.data[s.pos+1] != 'a' || s.data[s.pos+2] != 'p' || s.data[s.pos+3] != '{' {
 		return Value{}, s.error("Expected 'Map{'")
 	}
@@ -1028,7 +1084,6 @@ func (s *scanner) parseExplicitSet() (Value, error) {
 	if err := s.enterContainer(); err != nil {
 		return Value{}, err
 	}
-	// pos is at 'S', check for 'Set{'
 	if s.pos+3 >= s.len || s.data[s.pos+1] != 'e' || s.data[s.pos+2] != 't' || s.data[s.pos+3] != '{' {
 		return Value{}, s.error("Expected 'Set{'")
 	}
@@ -1106,7 +1161,6 @@ func (s *scanner) parseValue() (Value, error) {
 
 	case tMinus:
 		s.pos++ // skip -
-		// -Infinity
 		if s.pos < s.len && s.data[s.pos] == 'I' {
 			if err := s.parseLiteral("Infinity"); err != nil {
 				return Value{}, err
@@ -1180,6 +1234,20 @@ func (s *scanner) parseValue() (Value, error) {
 // parseRoot is the entry point: parse one value, ensure no trailing content.
 func parseRoot(data []byte) (Value, error) {
 	s := newScanner(data)
+	v, err := s.parseValue()
+	if err != nil {
+		return Value{}, err
+	}
+	s.skipWs()
+	if s.pos < s.len {
+		return Value{}, s.error("Unexpected data after value")
+	}
+	return v, nil
+}
+
+// parseRootZeroCopy is like parseRoot but strings without escapes reference the input directly.
+func parseRootZeroCopy(data []byte) (Value, error) {
+	s := newScannerZeroCopy(data)
 	v, err := s.parseValue()
 	if err != nil {
 		return Value{}, err

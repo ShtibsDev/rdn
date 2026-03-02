@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"time"
+	"unsafe"
 )
 
 // ValueKind identifies the type of value stored in a Value.
@@ -54,20 +55,29 @@ type MapEntry struct {
 	Value Value
 }
 
-// Value represents any RDN value. It is a concrete struct using union-style
-// storage — only the fields relevant to Kind() are meaningful.
+// Value represents any RDN value. It uses a compact layout with unsafe.Pointer
+// for collection and rare-type storage to minimize per-element memory overhead.
+//
+// Only the fields relevant to Kind() are meaningful:
+//   - KindNull: no fields
+//   - KindBool: boolean
+//   - KindNumber: num
+//   - KindString, KindBigInt, KindDuration: str
+//   - KindArray, KindTuple, KindSet: ptr (→ []Value via ptrLen/ptrCap)
+//   - KindObject: ptr (→ []KeyValue via ptrLen/ptrCap)
+//   - KindMap: ptr (→ []MapEntry via ptrLen/ptrCap)
+//   - KindDateTime: ptr (→ *time.Time)
+//   - KindTimeOnly: ptr (→ *TimeOnly)
+//   - KindRegExp: ptr (→ *RegExp)
+//   - KindBinary: ptr (→ *[]byte)
 type Value struct {
-	kind    ValueKind
-	str     string    // String, BigInt digits, Duration ISO
-	num     float64   // Number
-	boolean bool      // Bool
-	arr     []Value   // Array, Tuple, Set
-	obj     []KeyValue // Object
-	mapV    []MapEntry // Map
-	timeVal time.Time  // DateTime
-	timeO   TimeOnly   // TimeOnly
-	regexpV RegExp     // RegExp
-	binary  []byte     // Binary
+	kind    ValueKind      // 8
+	num     float64        // 8
+	boolean bool           // 1 (+7 pad)
+	str     string         // 16
+	ptr     unsafe.Pointer // 8  → points to backing array or heap-allocated rare type
+	ptrLen  int            // 8  → length for slice-backed collections
+	ptrCap  int            // 8  → capacity for slice-backed collections
 }
 
 // ── Constructors ─────────────────────────────────────────────────────────
@@ -91,34 +101,65 @@ func BigIntVal(s string) Value { return Value{kind: KindBigInt, str: s} }
 func BigIntFromGo(v *big.Int) Value { return Value{kind: KindBigInt, str: v.String()} }
 
 // ArrayVal returns an array Value.
-func ArrayVal(elems []Value) Value { return Value{kind: KindArray, arr: elems} }
+func ArrayVal(elems []Value) Value {
+	sh := (*sliceHeader)(unsafe.Pointer(&elems))
+	return Value{kind: KindArray, ptr: sh.Data, ptrLen: sh.Len, ptrCap: sh.Cap}
+}
 
 // ObjectVal returns an object Value with ordered key-value pairs.
-func ObjectVal(pairs []KeyValue) Value { return Value{kind: KindObject, obj: pairs} }
+func ObjectVal(pairs []KeyValue) Value {
+	sh := (*sliceHeader)(unsafe.Pointer(&pairs))
+	return Value{kind: KindObject, ptr: sh.Data, ptrLen: sh.Len, ptrCap: sh.Cap}
+}
 
 // DateTimeVal returns a DateTime Value.
-func DateTimeVal(t time.Time) Value { return Value{kind: KindDateTime, timeVal: t} }
+func DateTimeVal(t time.Time) Value {
+	p := new(time.Time)
+	*p = t
+	return Value{kind: KindDateTime, ptr: unsafe.Pointer(p)}
+}
 
 // TimeOnlyVal returns a TimeOnly Value.
-func TimeOnlyVal(t TimeOnly) Value { return Value{kind: KindTimeOnly, timeO: t} }
+func TimeOnlyVal(t TimeOnly) Value {
+	p := new(TimeOnly)
+	*p = t
+	return Value{kind: KindTimeOnly, ptr: unsafe.Pointer(p)}
+}
 
 // DurationVal returns a Duration Value from an ISO 8601 duration string.
 func DurationVal(iso string) Value { return Value{kind: KindDuration, str: iso} }
 
 // RegExpVal returns a RegExp Value.
-func RegExpVal(source, flags string) Value { return Value{kind: KindRegExp, regexpV: RegExp{Source: source, Flags: flags}} }
+func RegExpVal(source, flags string) Value {
+	p := new(RegExp)
+	*p = RegExp{Source: source, Flags: flags}
+	return Value{kind: KindRegExp, ptr: unsafe.Pointer(p)}
+}
 
 // BinaryVal returns a Binary Value.
-func BinaryVal(data []byte) Value { return Value{kind: KindBinary, binary: data} }
+func BinaryVal(data []byte) Value {
+	p := new([]byte)
+	*p = data
+	return Value{kind: KindBinary, ptr: unsafe.Pointer(p)}
+}
 
 // MapVal returns a Map Value.
-func MapVal(entries []MapEntry) Value { return Value{kind: KindMap, mapV: entries} }
+func MapVal(entries []MapEntry) Value {
+	sh := (*sliceHeader)(unsafe.Pointer(&entries))
+	return Value{kind: KindMap, ptr: sh.Data, ptrLen: sh.Len, ptrCap: sh.Cap}
+}
 
 // SetVal returns a Set Value.
-func SetVal(elems []Value) Value { return Value{kind: KindSet, arr: elems} }
+func SetVal(elems []Value) Value {
+	sh := (*sliceHeader)(unsafe.Pointer(&elems))
+	return Value{kind: KindSet, ptr: sh.Data, ptrLen: sh.Len, ptrCap: sh.Cap}
+}
 
 // TupleVal returns a Tuple Value.
-func TupleVal(elems []Value) Value { return Value{kind: KindTuple, arr: elems} }
+func TupleVal(elems []Value) Value {
+	sh := (*sliceHeader)(unsafe.Pointer(&elems))
+	return Value{kind: KindTuple, ptr: sh.Data, ptrLen: sh.Len, ptrCap: sh.Cap}
+}
 
 // ── Accessors ────────────────────────────────────────────────────────────
 
@@ -141,37 +182,71 @@ func (v Value) Int64() int64 { return int64(v.num) }
 func (v Value) Str() string { return v.str }
 
 // Array returns the element slice. Meaningful for KindArray, KindTuple, KindSet.
-func (v Value) Array() []Value { return v.arr }
+func (v Value) Array() []Value {
+	if v.ptr == nil {
+		return nil
+	}
+	return unsafe.Slice((*Value)(v.ptr), v.ptrLen)
+}
 
 // Object returns the ordered key-value pairs. Meaningful for KindObject.
-func (v Value) Object() []KeyValue { return v.obj }
+func (v Value) Object() []KeyValue {
+	if v.ptr == nil {
+		return nil
+	}
+	return unsafe.Slice((*KeyValue)(v.ptr), v.ptrLen)
+}
 
 // Map returns the map entries. Meaningful for KindMap.
-func (v Value) Map() []MapEntry { return v.mapV }
+func (v Value) Map() []MapEntry {
+	if v.ptr == nil {
+		return nil
+	}
+	return unsafe.Slice((*MapEntry)(v.ptr), v.ptrLen)
+}
 
 // Time returns the time.Time. Meaningful for KindDateTime.
-func (v Value) Time() time.Time { return v.timeVal }
+func (v Value) Time() time.Time {
+	if v.ptr == nil {
+		return time.Time{}
+	}
+	return *(*time.Time)(v.ptr)
+}
 
 // TimeOnlyValue returns the TimeOnly. Meaningful for KindTimeOnly.
-func (v Value) TimeOnlyValue() TimeOnly { return v.timeO }
+func (v Value) TimeOnlyValue() TimeOnly {
+	if v.ptr == nil {
+		return TimeOnly{}
+	}
+	return *(*TimeOnly)(v.ptr)
+}
 
 // RegExpValue returns the RegExp. Meaningful for KindRegExp.
-func (v Value) RegExpValue() RegExp { return v.regexpV }
+func (v Value) RegExpValue() RegExp {
+	if v.ptr == nil {
+		return RegExp{}
+	}
+	return *(*RegExp)(v.ptr)
+}
 
 // Bytes returns the binary data. Meaningful for KindBinary.
-func (v Value) Bytes() []byte { return v.binary }
+func (v Value) Bytes() []byte {
+	if v.ptr == nil {
+		return nil
+	}
+	return *(*[]byte)(v.ptr)
+}
 
 // Len returns the length of the contained collection (array, object, map, set, tuple, binary).
 func (v Value) Len() int {
 	switch v.kind {
-	case KindArray, KindTuple, KindSet:
-		return len(v.arr)
-	case KindObject:
-		return len(v.obj)
-	case KindMap:
-		return len(v.mapV)
+	case KindArray, KindTuple, KindSet, KindObject, KindMap:
+		return v.ptrLen
 	case KindBinary:
-		return len(v.binary)
+		if v.ptr == nil {
+			return 0
+		}
+		return len(*(*[]byte)(v.ptr))
 	case KindString:
 		return len(v.str)
 	default:
@@ -203,47 +278,51 @@ func (v Value) Equal(other Value) bool {
 	case KindBigInt, KindString, KindDuration:
 		return v.str == other.str
 	case KindArray, KindTuple, KindSet:
-		if len(v.arr) != len(other.arr) {
+		a, b := v.Array(), other.Array()
+		if len(a) != len(b) {
 			return false
 		}
-		for i := range v.arr {
-			if !v.arr[i].Equal(other.arr[i]) {
+		for i := range a {
+			if !a[i].Equal(b[i]) {
 				return false
 			}
 		}
 		return true
 	case KindObject:
-		if len(v.obj) != len(other.obj) {
+		a, b := v.Object(), other.Object()
+		if len(a) != len(b) {
 			return false
 		}
-		for i := range v.obj {
-			if v.obj[i].Key != other.obj[i].Key || !v.obj[i].Value.Equal(other.obj[i].Value) {
+		for i := range a {
+			if a[i].Key != b[i].Key || !a[i].Value.Equal(b[i].Value) {
 				return false
 			}
 		}
 		return true
 	case KindMap:
-		if len(v.mapV) != len(other.mapV) {
+		a, b := v.Map(), other.Map()
+		if len(a) != len(b) {
 			return false
 		}
-		for i := range v.mapV {
-			if !v.mapV[i].Key.Equal(other.mapV[i].Key) || !v.mapV[i].Value.Equal(other.mapV[i].Value) {
+		for i := range a {
+			if !a[i].Key.Equal(b[i].Key) || !a[i].Value.Equal(b[i].Value) {
 				return false
 			}
 		}
 		return true
 	case KindDateTime:
-		return v.timeVal.Equal(other.timeVal)
+		return v.Time().Equal(other.Time())
 	case KindTimeOnly:
-		return v.timeO == other.timeO
+		return v.TimeOnlyValue() == other.TimeOnlyValue()
 	case KindRegExp:
-		return v.regexpV == other.regexpV
+		return v.RegExpValue() == other.RegExpValue()
 	case KindBinary:
-		if len(v.binary) != len(other.binary) {
+		ab, bb := v.Bytes(), other.Bytes()
+		if len(ab) != len(bb) {
 			return false
 		}
-		for i := range v.binary {
-			if v.binary[i] != other.binary[i] {
+		for i := range ab {
+			if ab[i] != bb[i] {
 				return false
 			}
 		}
@@ -279,14 +358,22 @@ func (v Value) String() string {
 	case KindString:
 		return fmt.Sprintf("%q", v.str)
 	case KindDateTime:
-		return "@" + v.timeVal.UTC().Format("2006-01-02T15:04:05.000Z")
+		return "@" + v.Time().UTC().Format("2006-01-02T15:04:05.000Z")
 	case KindTimeOnly:
-		return "@" + v.timeO.String()
+		return "@" + v.TimeOnlyValue().String()
 	case KindDuration:
 		return "@" + v.str
 	case KindRegExp:
-		return v.regexpV.String()
+		return v.RegExpValue().String()
 	default:
 		return fmt.Sprintf("%s(...)", v.kind)
 	}
 }
+
+// sliceHeader mirrors reflect.SliceHeader but uses unsafe.Pointer for the data field.
+type sliceHeader struct {
+	Data unsafe.Pointer
+	Len  int
+	Cap  int
+}
+

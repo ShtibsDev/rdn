@@ -48,6 +48,11 @@ func main() {
 // Parse parses RDN-encoded data and returns the corresponding Value.
 func Parse(data []byte) (Value, error)
 
+// ParseZeroCopy parses RDN-encoded data using zero-copy string optimization.
+// Strings without escape sequences reference the input buffer directly.
+// The returned Value must not be used after the input slice is modified.
+func ParseZeroCopy(data []byte) (Value, error)
+
 // Stringify returns the compact RDN encoding of a Value.
 func Stringify(v Value) ([]byte, error)
 
@@ -60,7 +65,7 @@ func Valid(data []byte) bool
 
 ### Value Type
 
-`Value` is a concrete struct with union-style storage. Use `Kind()` to determine which accessor to call.
+`Value` is a compact 64-byte struct using `unsafe.Pointer` for collection and rare-type storage. Use `Kind()` to determine which accessor to call.
 
 **Constructors:**
 
@@ -158,22 +163,27 @@ type SyntaxError struct {
 
 Benchmarks on Apple M3 Pro (`go test -bench=. -benchmem`):
 
-| Benchmark | Speed | Throughput | Allocs |
-|-----------|-------|------------|--------|
-| Parse/Primitives | 494 ns/op | 142 MB/s | 7 |
-| Parse/Nested | 1.44 µs/op | 128 MB/s | 16 |
-| Parse/RDNHeavy | 864 ns/op | 210 MB/s | 14 |
-| Parse/LargeArray1K | 91.2 µs/op | 43 MB/s | 9 |
-| Parse/StringHeavy | 874 ns/op | 290 MB/s | 12 |
-| Stringify/Primitives | 262 ns/op | 267 MB/s | 6 |
-| Stringify/Nested | 465 ns/op | 396 MB/s | 6 |
-| Stringify/RDNHeavy | 366 ns/op | 494 MB/s | 6 |
-| Stringify/LargeArray1K | 34.4 µs/op | 113 MB/s | 6 |
-| Stringify/StringHeavy | 352 ns/op | 719 MB/s | 6 |
+| Benchmark | Speed | Throughput | Bytes/op | Allocs |
+|-----------|-------|------------|----------|--------|
+| Parse/Primitives | 436 ns/op | 160 MB/s | 1,984 B | 11 |
+| Parse/Nested | 909 ns/op | 202 MB/s | 3,808 B | 23 |
+| Parse/RDNHeavy | 822 ns/op | 220 MB/s | 2,168 B | 22 |
+| Parse/LargeArray1K | 20.4 µs/op | 191 MB/s | 145,536 B | 8 |
+| Parse/StringHeavy | 857 ns/op | 295 MB/s | 2,264 B | 16 |
+| ParseZeroCopy/StringHeavy | 800 ns/op | 316 MB/s | 2,072 B | 11 |
+| Stringify/Primitives | 179 ns/op | 391 MB/s | 80 B | 1 |
+| Stringify/Nested | 354 ns/op | 520 MB/s | 192 B | 1 |
+| Stringify/RDNHeavy | 277 ns/op | 653 MB/s | 192 B | 1 |
+| Stringify/LargeArray1K | 33.1 µs/op | 118 MB/s | 4,097 B | 1 |
+| Stringify/StringHeavy | 265 ns/op | 954 MB/s | 256 B | 1 |
 
 Key optimizations:
+- Compact 64-byte `Value` struct (down from 224B) using `unsafe.Pointer` for collections
 - 256-entry dispatch table for O(1) first-character token lookup
 - Deferred string materialization (fast path avoids allocation for escape-free strings)
+- Reusable scratch buffer for escaped string materialization
+- Object key interning for repeated keys across collections
+- Zero-copy string parsing via `unsafe.String` (`ParseZeroCopy`)
 - Smi-first number parsing (int64 accumulation for up to 15 digits)
 - Pre-computed base64/hex decode tables (inline decoding without `encoding/base64`)
 - sync.Pool buffer reuse for serialization

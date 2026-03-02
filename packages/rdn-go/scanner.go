@@ -11,10 +11,23 @@ type scanner struct {
 	len      int
 	depth    int
 	elements int // total parsed values (DoS protection)
+
+	// Scratch buffer reused across materializeString calls.
+	scratch []byte
+
+	// Key interning cache for repeated short object keys.
+	keyCache map[string]string
+
+	// Zero-copy mode: when true, strings without escapes reference input data directly.
+	zeroCopy bool
 }
 
 func newScanner(data []byte) scanner {
 	return scanner{data: data, pos: 0, len: len(data), depth: 0}
+}
+
+func newScannerZeroCopy(data []byte) scanner {
+	return scanner{data: data, pos: 0, len: len(data), depth: 0, zeroCopy: true}
 }
 
 func (s *scanner) error(msg string) error {
@@ -65,4 +78,25 @@ func (s *scanner) countElement() error {
 		return s.error("Maximum element count exceeded")
 	}
 	return nil
+}
+
+// ── String interning ────────────────────────────────────────────────────
+
+const maxInternLen = 64
+
+// internKey interns short strings for object key deduplication.
+func (s *scanner) internKey(b []byte) string {
+	if len(b) > maxInternLen {
+		return string(b)
+	}
+	if s.keyCache == nil {
+		s.keyCache = make(map[string]string, 16)
+	}
+	// string(b) in map lookup does not allocate (Go compiler optimization)
+	if cached, ok := s.keyCache[string(b)]; ok {
+		return cached
+	}
+	str := string(b)
+	s.keyCache[str] = str
+	return str
 }
