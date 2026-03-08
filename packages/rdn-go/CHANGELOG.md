@@ -7,6 +7,14 @@
 - `ParseZeroCopy(data []byte) (Value, error)` — zero-copy string parsing via `unsafe.String`; strings without escapes reference the input buffer directly
 - Object key interning — repeated short keys (≤64 bytes) are deduplicated across collections
 - Reusable scratch buffer for escaped string materialization
+- Streaming I/O: `NewEncoder(w io.Writer)` / `NewDecoder(r io.Reader)` — mirrors `encoding/json`'s streaming API with `Encode`, `Decode`, and `SetIndent`
+- `rdnhttp` sub-package — HTTP content-type negotiation and handler utilities:
+  - Content negotiation: `NegotiateFormat`, `DetectContentType`, `AcceptsRDN`, `IsRDNContentType`
+  - Request/response helpers: `ReadRequest`, `WriteResponse`
+  - Middleware: `Negotiate`, `NegotiateFunc`, `FormatFromContext`
+  - Full handler wrapper: `HandleRDN` — read → process → write with format negotiation
+  - JSON fallback for the JSON-compatible subset of RDN values
+  - Configurable body size limits (default 10 MB)
 
 ### Changed
 
