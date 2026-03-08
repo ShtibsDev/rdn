@@ -1,0 +1,38 @@
+[project]
+name = "rdn-fastapi"
+version = "0.1.0"
+description = "FastAPI integration for RDN (Rich Data Notation)"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "RDN Contributors" }]
+keywords = ["rdn", "fastapi", "asgi", "api"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Typing :: Typed",
+]
+dependencies = [
+    "rdn>=0.1.0",
+    "fastapi>=0.100.0",
+]
+
+[project.optional-dependencies]
+pydantic = ["rdn-pydantic>=0.1.0"]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[project.urls]
+Homepage = "https://github.com/AstroSnout/rdn"
+Repository = "https://github.com/AstroSnout/rdn"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
