@@ -935,6 +935,107 @@ class TestDump:
 # rdn module exports (Task 13)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# skipkeys (Task 003)
+# ---------------------------------------------------------------------------
+
+class TestSkipKeys:
+    """Test the ``skipkeys`` parameter for dict serialization."""
+
+    def test_skipkeys_true_skips_non_string_keys(self) -> None:
+        """Non-string keys are silently skipped when skipkeys=True."""
+        assert stringify({1: "a", "b": 2}, skipkeys=True) == '{"b":2}'
+
+    def test_skipkeys_false_raises_typeerror(self) -> None:
+        """Default (skipkeys=False) raises TypeError for non-string keys."""
+        with pytest.raises(TypeError, match="Object key must be a string, got int"):
+            stringify({1: "a", "b": 2})
+
+    def test_skipkeys_all_keys_skipped(self) -> None:
+        """When all keys are non-string, result is empty object."""
+        assert stringify({1: "a", 2: "b"}, skipkeys=True) == "{}"
+
+    def test_skipkeys_nested_dicts(self) -> None:
+        """skipkeys applies at all nesting levels."""
+        result = stringify({"a": {1: "skip", "b": 2}}, skipkeys=True)
+        assert result == '{"a":{"b":2}}'
+
+    def test_skipkeys_with_sort_keys(self) -> None:
+        """skipkeys=True combined with sort_keys=True."""
+        result = stringify({1: "skip", "c": 3, "a": 1, "b": 2}, skipkeys=True, sort_keys=True)
+        assert result == '{"a":1,"b":2,"c":3}'
+
+    def test_skipkeys_via_encoder(self) -> None:
+        """skipkeys works through RDNEncoder."""
+        from rdn.encoder import RDNEncoder
+        encoder = RDNEncoder(skipkeys=True)
+        assert encoder.encode({1: "a", "b": 2}) == '{"b":2}'
+
+    def test_skipkeys_via_dumps(self) -> None:
+        """skipkeys works through rdn.dumps()."""
+        assert rdn.dumps({1: "a", "b": 2}, skipkeys=True) == '{"b":2}'
+
+    def test_skipkeys_various_non_string_key_types(self) -> None:
+        """Various non-string key types are all skipped."""
+        result = stringify({1: "int", 2.5: "float", True: "bool", None: "none", "ok": "str"}, skipkeys=True)
+        assert result == '{"ok":"str"}'
+
+
+# ---------------------------------------------------------------------------
+# allow_nan (Task 004)
+# ---------------------------------------------------------------------------
+
+class TestAllowNan:
+    """Test the ``allow_nan`` parameter for float serialization."""
+
+    def test_default_allows_nan(self) -> None:
+        """By default, NaN/Infinity are serialized normally."""
+        assert stringify(float("nan")) == "NaN"
+        assert stringify(float("inf")) == "Infinity"
+        assert stringify(float("-inf")) == "-Infinity"
+
+    def test_allow_nan_false_nan_raises(self) -> None:
+        with pytest.raises(ValueError, match="Out of range float values are not RDN compliant"):
+            stringify(float("nan"), allow_nan=False)
+
+    def test_allow_nan_false_infinity_raises(self) -> None:
+        with pytest.raises(ValueError, match="Out of range float values are not RDN compliant"):
+            stringify(float("inf"), allow_nan=False)
+
+    def test_allow_nan_false_neg_infinity_raises(self) -> None:
+        with pytest.raises(ValueError, match="Out of range float values are not RDN compliant"):
+            stringify(float("-inf"), allow_nan=False)
+
+    def test_allow_nan_false_nested_in_list(self) -> None:
+        with pytest.raises(ValueError, match="Out of range float values are not RDN compliant"):
+            stringify([1, float("nan")], allow_nan=False)
+
+    def test_allow_nan_false_nested_in_dict(self) -> None:
+        with pytest.raises(ValueError, match="Out of range float values are not RDN compliant"):
+            stringify({"a": float("inf")}, allow_nan=False)
+
+    def test_normal_floats_unaffected(self) -> None:
+        """Normal floats work fine with allow_nan=False."""
+        assert stringify(3.14, allow_nan=False) == "3.14"
+        assert stringify(0.0, allow_nan=False) == "0.0"
+        assert stringify(-1.5, allow_nan=False) == "-1.5"
+
+    def test_via_encoder(self) -> None:
+        """allow_nan works through RDNEncoder."""
+        from rdn.encoder import RDNEncoder
+        with pytest.raises(ValueError, match="Out of range float values are not RDN compliant"):
+            RDNEncoder(allow_nan=False).encode(float("nan"))
+
+    def test_via_dumps(self) -> None:
+        """allow_nan works through rdn.dumps()."""
+        with pytest.raises(ValueError, match="Out of range float values are not RDN compliant"):
+            rdn.dumps(float("nan"), allow_nan=False)
+
+    def test_via_dumps_normal_float(self) -> None:
+        """Normal floats via rdn.dumps() with allow_nan=False."""
+        assert rdn.dumps(3.14, allow_nan=False) == "3.14"
+
+
 class TestModuleExports:
     """Verify that the rdn module exports the expected public API."""
 

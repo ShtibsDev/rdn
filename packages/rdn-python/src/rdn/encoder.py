@@ -28,6 +28,9 @@ class RDNEncoder:
 
     Parameters
     ----------
+    skipkeys:
+        When ``True``, dict keys that are not strings are silently
+        skipped instead of raising :class:`TypeError`. Default ``False``.
     ensure_ascii:
         When ``True`` (default), non-ASCII characters are escaped as
         ``\\uXXXX``. When ``False``, they pass through verbatim.
@@ -49,15 +52,19 @@ class RDNEncoder:
     def __init__(
         self,
         *,
+        skipkeys: bool = False,
         ensure_ascii: bool = True,
         check_circular: bool = True,
+        allow_nan: bool = True,
         indent: int | str | None = None,
         separators: tuple[str, str] | None = None,
         default: Callable[[Any], Any] | None = None,
         sort_keys: bool = False,
     ) -> None:
+        self.skipkeys = skipkeys
         self.ensure_ascii = ensure_ascii
         self.check_circular = check_circular
+        self.allow_nan = allow_nan
         self.indent = indent
         self.separators = separators
         self.sort_keys = sort_keys
@@ -91,8 +98,10 @@ class RDNEncoder:
         """
         result = _stringify(
             o,
+            skipkeys=self.skipkeys,
             ensure_ascii=self.ensure_ascii,
             check_circular=self.check_circular,
+            allow_nan=self.allow_nan,
             indent=self.indent,
             separators=self.separators,
             default=self.default,

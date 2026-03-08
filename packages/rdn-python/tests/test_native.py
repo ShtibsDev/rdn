@@ -313,6 +313,62 @@ class TestNativeParity:
             assert native_result == python_result, f"Parity failed for {value!r}: native={native_result!r} python={python_result!r}"
 
 
+class TestNativeSkipKeys:
+    """Test skipkeys support in the native extension."""
+
+    def test_skipkeys_skips_non_string_keys(self) -> None:
+        from rdn._native import stringify
+        result = stringify({1: "a", "b": 2}, skipkeys=True)
+        assert result == '{"b":2}'
+
+    def test_default_raises_on_non_string_keys(self) -> None:
+        from rdn._native import stringify
+        with pytest.raises(TypeError, match="Object key must be a string"):
+            stringify({1: "a", "b": 2})
+
+    def test_skipkeys_all_keys_skipped(self) -> None:
+        from rdn._native import stringify
+        result = stringify({1: "a"}, skipkeys=True)
+        assert result == "{}"
+
+    def test_skipkeys_with_sort_keys(self) -> None:
+        from rdn._native import stringify
+        result = stringify({1: "a", "b": 2, "a": 1}, skipkeys=True, sort_keys=True)
+        assert result == '{"a":1,"b":2}'
+
+
+class TestNativeAllowNan:
+    """Test allow_nan support in the native extension."""
+
+    def test_default_allows_nan(self) -> None:
+        from rdn._native import stringify
+        assert stringify(float("nan")) == "NaN"
+
+    def test_default_allows_infinity(self) -> None:
+        from rdn._native import stringify
+        assert stringify(float("inf")) == "Infinity"
+        assert stringify(float("-inf")) == "-Infinity"
+
+    def test_allow_nan_false_rejects_nan(self) -> None:
+        from rdn._native import stringify
+        with pytest.raises(ValueError, match="Out of range float values"):
+            stringify(float("nan"), allow_nan=False)
+
+    def test_allow_nan_false_rejects_infinity(self) -> None:
+        from rdn._native import stringify
+        with pytest.raises(ValueError, match="Out of range float values"):
+            stringify(float("inf"), allow_nan=False)
+
+    def test_allow_nan_false_rejects_neg_infinity(self) -> None:
+        from rdn._native import stringify
+        with pytest.raises(ValueError, match="Out of range float values"):
+            stringify(float("-inf"), allow_nan=False)
+
+    def test_allow_nan_false_normal_float_ok(self) -> None:
+        from rdn._native import stringify
+        assert stringify(3.14, allow_nan=False) == "3.14"
+
+
 class TestNativeFallback:
     """Verify that hooks cause fallback to pure Python."""
 

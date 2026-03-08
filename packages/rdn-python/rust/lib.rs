@@ -32,12 +32,14 @@ fn parse(py: Python<'_>, text: &str) -> PyResult<PyObject> {
 /// This is the native hot-path equivalent of `rdn._serializer.stringify()`.
 /// Only handles the no-hooks case (no `default` callback).
 #[pyfunction]
-#[pyo3(signature = (value, *, ensure_ascii=true, check_circular=true, sort_keys=false, indent=None, separators=None))]
+#[pyo3(signature = (value, *, skipkeys=false, ensure_ascii=true, check_circular=true, allow_nan=true, sort_keys=false, indent=None, separators=None))]
 fn stringify(
     py: Python<'_>,
     value: &Bound<'_, PyAny>,
+    skipkeys: bool,
     ensure_ascii: bool,
     check_circular: bool,
+    allow_nan: bool,
     sort_keys: bool,
     indent: Option<&Bound<'_, PyAny>>,
     separators: Option<&Bound<'_, PyAny>>,
@@ -78,7 +80,7 @@ fn stringify(
     let seps_ref = seps.as_ref().map(|(a, b)| (a.as_str(), b.as_str()));
     let indent_ref = indent_str.as_deref();
 
-    let mut ser = Serializer::new(py, ensure_ascii, check_circular, sort_keys, indent_ref, seps_ref)?;
+    let mut ser = Serializer::new(py, skipkeys, ensure_ascii, check_circular, allow_nan, sort_keys, indent_ref, seps_ref)?;
     ser.stringify(value)
 }
 

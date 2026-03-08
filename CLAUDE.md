@@ -141,7 +141,11 @@ Extended types in expected JSON use a tagged convention: `{"$type": "TypeName", 
 ### Python Implementation (`packages/rdn-python/`)
 - Supports Python 3.10+, built with maturin (mixed Python/Rust mode)
 - Entry: `src/rdn/__init__.py` — exports `parse`, `stringify`, `RDNDecoder`, `RDNEncoder`
+- `parse`/`stringify` are aliases for `loads`/`dumps`; both forms are exported
 - Pure Python: recursive-descent parser with lookup-table dispatch, mirrors the TypeScript/V8 architecture
+- `dumps()`/`dump()`/`RDNEncoder` accept `skipkeys` (skip non-string dict keys) and `allow_nan` (raise on NaN/Infinity when False)
+- CLI tool: `python -m rdn` for pretty-printing, sorting keys, and validating RDN documents
+- PEP 561 `py.typed` marker included — mypy/pyright recognize `rdn` types without stubs
 - Types without native Python equivalents use tagged dataclasses (`RDNTimeOnly`, `RDNDuration`)
 - Tests via pytest in `tests/`
 - Passes the full shared conformance test suite

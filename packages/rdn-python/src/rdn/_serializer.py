@@ -173,13 +173,16 @@ def _format_binary(data: bytes | bytearray) -> str:
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def stringify(value: object, *, ensure_ascii: bool = True, check_circular: bool = True, sort_keys: bool = False, indent: int | str | None = None, separators: tuple[str, str] | None = None, default: Callable[[Any], Any] | None = None) -> str | None:
+def stringify(value: object, *, skipkeys: bool = False, ensure_ascii: bool = True, check_circular: bool = True, allow_nan: bool = True, sort_keys: bool = False, indent: int | str | None = None, separators: tuple[str, str] | None = None, default: Callable[[Any], Any] | None = None) -> str | None:
     """Serialize *value* to an RDN-formatted string.
 
     Parameters
     ----------
     value:
         The Python value to serialize.
+    skipkeys:
+        When ``True``, dict keys that are not strings are silently
+        skipped instead of raising :class:`TypeError`. Default ``False``.
     ensure_ascii:
         When ``True`` (default), all non-ASCII characters in strings are
         escaped as ``\\uXXXX``. When ``False``, UTF-8 characters are
@@ -266,10 +269,16 @@ def stringify(value: object, *, ensure_ascii: bool = True, check_circular: bool 
         # 4. float -- special values, then repr for shortest round-trip
         if _isinstance(value, _float):
             if _isnan(value):
+                if not allow_nan:
+                    raise ValueError("Out of range float values are not RDN compliant")
                 return "NaN"
             if value == _INF:
+                if not allow_nan:
+                    raise ValueError("Out of range float values are not RDN compliant")
                 return "Infinity"
             if value == _NEG_INF:
+                if not allow_nan:
+                    raise ValueError("Out of range float values are not RDN compliant")
                 return "-Infinity"
             return repr(value)
 
@@ -319,7 +328,11 @@ def stringify(value: object, *, ensure_ascii: bool = True, check_circular: bool 
         if _isinstance(value, dict):
             if check_circular:
                 _check(value, _seen)
-            keys = sorted(value.keys()) if sort_keys else value.keys()
+            if skipkeys:
+                raw_keys = [k for k in value.keys() if _isinstance(k, _str)]
+            else:
+                raw_keys = value.keys()  # type: ignore[assignment]
+            keys = sorted(raw_keys) if sort_keys else raw_keys
             child_level = _level + 1
             parts = []
             kcache = _key_cache

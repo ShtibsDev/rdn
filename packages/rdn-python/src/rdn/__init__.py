@@ -10,11 +10,18 @@ import re
 from datetime import datetime, time, timedelta
 from typing import IO, Any, Callable
 
+from importlib.metadata import version as _meta_version, PackageNotFoundError
+
 from rdn._parser import parse as _parse
 from rdn._serializer import stringify as _stringify
 from rdn.decoder import RDNDecoder
 from rdn.encoder import RDNEncoder
 from rdn.exceptions import MAX_SAFE_INTEGER, RDNDecodeError
+
+try:
+    __version__ = _meta_version("rdn")
+except PackageNotFoundError:
+    __version__ = "0.0.0-dev"
 
 # Built-in native extension (Rust + maturin).
 # Hot-path calls (no hooks) are routed to the native implementation for
@@ -25,10 +32,10 @@ try:
 except ImportError:
     _USE_NATIVE = False
 
-__all__ = ["loads", "load", "dumps", "dump", "RDNDecoder", "RDNEncoder", "RDNDecodeError", "MAX_SAFE_INTEGER"]
+__all__ = ["loads", "load", "dumps", "dump", "parse", "stringify", "RDNDecoder", "RDNEncoder", "RDNDecodeError", "MAX_SAFE_INTEGER", "__version__"]
 
 
-def dumps(obj: Any, *, cls: type | None = None, ensure_ascii: bool = True, check_circular: bool = True, indent: int | str | None = None, separators: tuple[str, str] | None = None, default: Callable[[Any], Any] | None = None, sort_keys: bool = False) -> str:
+def dumps(obj: Any, *, skipkeys: bool = False, cls: type | None = None, ensure_ascii: bool = True, check_circular: bool = True, allow_nan: bool = True, indent: int | str | None = None, separators: tuple[str, str] | None = None, default: Callable[[Any], Any] | None = None, sort_keys: bool = False) -> str:
     """Serialize *obj* to an RDN-formatted string.
 
     API mirrors :func:`json.dumps` with RDN-specific extensions.
@@ -37,6 +44,9 @@ def dumps(obj: Any, *, cls: type | None = None, ensure_ascii: bool = True, check
     ----------
     obj:
         The Python value to serialize.
+    skipkeys:
+        When ``True``, dict keys that are not strings are silently
+        skipped instead of raising :class:`TypeError`. Default ``False``.
     cls:
         An optional encoder class (e.g. :class:`RDNEncoder` or a
         subclass). If provided, the class is instantiated and its
@@ -72,15 +82,15 @@ def dumps(obj: Any, *, cls: type | None = None, ensure_ascii: bool = True, check
         If a circular reference is detected.
     """
     if cls is not None:
-        encoder = cls(ensure_ascii=ensure_ascii, check_circular=check_circular, indent=indent, separators=separators, default=default, sort_keys=sort_keys)
+        encoder = cls(skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, indent=indent, separators=separators, default=default, sort_keys=sort_keys)
         return encoder.encode(obj)
 
     # Native hot path: when no cls or default callback is provided, route to
     # the Rust native extension for significantly better performance.
     if _USE_NATIVE and default is None:
-        return _native_stringify(obj, ensure_ascii=ensure_ascii, check_circular=check_circular, sort_keys=sort_keys, indent=indent, separators=separators)
+        return _native_stringify(obj, skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, sort_keys=sort_keys, indent=indent, separators=separators)
 
-    result = _stringify(obj, ensure_ascii=ensure_ascii, check_circular=check_circular, indent=indent, separators=separators, default=default, sort_keys=sort_keys)
+    result = _stringify(obj, skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, indent=indent, separators=separators, default=default, sort_keys=sort_keys)
     # _stringify returns str | None; for top-level None value it returns "null"
     # but for truly non-serializable values it raises TypeError.
     # The only case result can be None is if value is non-serializable, but
@@ -235,3 +245,11 @@ def load(fp: IO[str] | IO[bytes], **kwargs: Any) -> Any:
         The decoded Python value.
     """
     return loads(fp.read(), **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Cross-implementation aliases (match TypeScript/Rust API)
+# ---------------------------------------------------------------------------
+
+parse = loads
+stringify = dumps

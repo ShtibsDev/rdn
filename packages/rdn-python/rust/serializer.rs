@@ -29,6 +29,8 @@ const STATE_DEPTH_MASK: u32 = 0x7F;
 const STATE_ASCII_BIT: u32 = 0x80;
 const STATE_CIRCULAR_BIT: u32 = 0x100;
 const STATE_SORT_BIT: u32 = 0x200;
+const STATE_SKIPKEYS_BIT: u32 = 0x400;
+const STATE_ALLOW_NAN_BIT: u32 = 0x800;
 
 pub struct Serializer<'py> {
     py: Python<'py>,
@@ -43,8 +45,10 @@ pub struct Serializer<'py> {
 impl<'py> Serializer<'py> {
     pub fn new(
         py: Python<'py>,
+        skipkeys: bool,
         ensure_ascii: bool,
         check_circular: bool,
+        allow_nan: bool,
         sort_keys: bool,
         indent: Option<&str>,
         separators: Option<(&str, &str)>,
@@ -66,6 +70,8 @@ impl<'py> Serializer<'py> {
         if ensure_ascii { state |= STATE_ASCII_BIT; }
         if check_circular { state |= STATE_CIRCULAR_BIT; }
         if sort_keys { state |= STATE_SORT_BIT; }
+        if skipkeys { state |= STATE_SKIPKEYS_BIT; }
+        if allow_nan { state |= STATE_ALLOW_NAN_BIT; }
 
         Ok(Serializer { py, state, indent_str, item_sep, key_sep, seen: HashSet::new(), buf: WriteBuffer::with_capacity(256) })
     }
@@ -400,10 +406,19 @@ impl<'py> Serializer<'py> {
         if obj_type == tc.float_type {
             let f: f64 = value.extract()?;
             if f.is_nan() {
+                if self.state & STATE_ALLOW_NAN_BIT == 0 {
+                    return Err(pyo3::exceptions::PyValueError::new_err("Out of range float values are not RDN compliant"));
+                }
                 self.buf.write_str("NaN");
             } else if f == f64::INFINITY {
+                if self.state & STATE_ALLOW_NAN_BIT == 0 {
+                    return Err(pyo3::exceptions::PyValueError::new_err("Out of range float values are not RDN compliant"));
+                }
                 self.buf.write_str("Infinity");
             } else if f == f64::NEG_INFINITY {
+                if self.state & STATE_ALLOW_NAN_BIT == 0 {
+                    return Err(pyo3::exceptions::PyValueError::new_err("Out of range float values are not RDN compliant"));
+                }
                 self.buf.write_str("-Infinity");
             } else {
                 self.buf.write_f64(f);
@@ -491,19 +506,24 @@ impl<'py> Serializer<'py> {
             let depth = (self.state & STATE_DEPTH_MASK) as usize;
             self.buf.write_byte(b'{');
 
+            let skipkeys = self.state & STATE_SKIPKEYS_BIT != 0;
+
             if self.state & STATE_SORT_BIT != 0 {
                 let mut keys: Vec<String> = Vec::new();
                 for key in dict.keys() {
-                    let k = key.downcast::<PyString>()
-                        .map_err(|_| {
+                    match key.downcast::<PyString>() {
+                        Ok(k) => keys.push(k.to_string()),
+                        Err(_) => {
+                            if skipkeys { continue; }
                             let type_name = key.get_type().name().map(|n| n.to_string()).unwrap_or_else(|_| "unknown".to_string());
-                            pyo3::exceptions::PyTypeError::new_err(format!("Object key must be a string, got {}", type_name))
-                        })?;
-                    keys.push(k.to_string());
+                            return Err(pyo3::exceptions::PyTypeError::new_err(format!("Object key must be a string, got {}", type_name)));
+                        }
+                    }
                 }
                 keys.sort();
-                for (i, k) in keys.iter().enumerate() {
-                    if i > 0 {
+                let mut first = true;
+                for k in keys.iter() {
+                    if !first {
                         self.buf.write_str(&self.item_sep);
                     }
                     if indent {
@@ -513,23 +533,29 @@ impl<'py> Serializer<'py> {
                     self.buf.write_str(&self.key_sep);
                     let val = dict.get_item(k)?.unwrap();
                     self.stringify_value(&val)?;
+                    first = false;
                 }
             } else {
-                for (i, (key, val)) in dict.iter().enumerate() {
-                    if i > 0 {
+                let mut first = true;
+                for (key, val) in dict.iter() {
+                    let k = match key.downcast::<PyString>() {
+                        Ok(k) => k,
+                        Err(_) => {
+                            if skipkeys { continue; }
+                            let type_name = key.get_type().name().map(|n| n.to_string()).unwrap_or_else(|_| "unknown".to_string());
+                            return Err(pyo3::exceptions::PyTypeError::new_err(format!("Object key must be a string, got {}", type_name)));
+                        }
+                    };
+                    if !first {
                         self.buf.write_str(&self.item_sep);
                     }
                     if indent {
                         self.write_indent(depth);
                     }
-                    let k = key.downcast::<PyString>()
-                        .map_err(|_| {
-                            let type_name = key.get_type().name().map(|n| n.to_string()).unwrap_or_else(|_| "unknown".to_string());
-                            pyo3::exceptions::PyTypeError::new_err(format!("Object key must be a string, got {}", type_name))
-                        })?;
                     self.escape_string(k.to_str()?);
                     self.buf.write_str(&self.key_sep);
                     self.stringify_value(&val)?;
+                    first = false;
                 }
             }
 
@@ -712,10 +738,19 @@ impl<'py> Serializer<'py> {
         if value.is_instance_of::<PyFloat>() {
             let f: f64 = value.extract()?;
             if f.is_nan() {
+                if self.state & STATE_ALLOW_NAN_BIT == 0 {
+                    return Err(pyo3::exceptions::PyValueError::new_err("Out of range float values are not RDN compliant"));
+                }
                 self.buf.write_str("NaN");
             } else if f == f64::INFINITY {
+                if self.state & STATE_ALLOW_NAN_BIT == 0 {
+                    return Err(pyo3::exceptions::PyValueError::new_err("Out of range float values are not RDN compliant"));
+                }
                 self.buf.write_str("Infinity");
             } else if f == f64::NEG_INFINITY {
+                if self.state & STATE_ALLOW_NAN_BIT == 0 {
+                    return Err(pyo3::exceptions::PyValueError::new_err("Out of range float values are not RDN compliant"));
+                }
                 self.buf.write_str("-Infinity");
             } else {
                 self.buf.write_f64(f);
@@ -799,20 +834,24 @@ impl<'py> Serializer<'py> {
             self.state += 1;
             let depth = (self.state & STATE_DEPTH_MASK) as usize;
             self.buf.write_byte(b'{');
+            let skipkeys = self.state & STATE_SKIPKEYS_BIT != 0;
 
             if self.state & STATE_SORT_BIT != 0 {
                 let mut keys: Vec<String> = Vec::new();
                 for key in dict.keys() {
-                    let k = key.downcast::<PyString>()
-                        .map_err(|_| {
+                    match key.downcast::<PyString>() {
+                        Ok(k) => keys.push(k.to_string()),
+                        Err(_) => {
+                            if skipkeys { continue; }
                             let type_name = key.get_type().name().map(|n| n.to_string()).unwrap_or_else(|_| "unknown".to_string());
-                            pyo3::exceptions::PyTypeError::new_err(format!("Object key must be a string, got {}", type_name))
-                        })?;
-                    keys.push(k.to_string());
+                            return Err(pyo3::exceptions::PyTypeError::new_err(format!("Object key must be a string, got {}", type_name)));
+                        }
+                    }
                 }
                 keys.sort();
-                for (i, k) in keys.iter().enumerate() {
-                    if i > 0 {
+                let mut first = true;
+                for k in keys.iter() {
+                    if !first {
                         self.buf.write_str(&self.item_sep);
                     }
                     if indent {
@@ -822,23 +861,29 @@ impl<'py> Serializer<'py> {
                     self.buf.write_str(&self.key_sep);
                     let val = dict.get_item(k)?.unwrap();
                     self.stringify_value(&val)?;
+                    first = false;
                 }
             } else {
-                for (i, (key, val)) in dict.iter().enumerate() {
-                    if i > 0 {
+                let mut first = true;
+                for (key, val) in dict.iter() {
+                    let k = match key.downcast::<PyString>() {
+                        Ok(k) => k,
+                        Err(_) => {
+                            if skipkeys { continue; }
+                            let type_name = key.get_type().name().map(|n| n.to_string()).unwrap_or_else(|_| "unknown".to_string());
+                            return Err(pyo3::exceptions::PyTypeError::new_err(format!("Object key must be a string, got {}", type_name)));
+                        }
+                    };
+                    if !first {
                         self.buf.write_str(&self.item_sep);
                     }
                     if indent {
                         self.write_indent(depth);
                     }
-                    let k = key.downcast::<PyString>()
-                        .map_err(|_| {
-                            let type_name = key.get_type().name().map(|n| n.to_string()).unwrap_or_else(|_| "unknown".to_string());
-                            pyo3::exceptions::PyTypeError::new_err(format!("Object key must be a string, got {}", type_name))
-                        })?;
                     self.escape_string(k.to_str()?);
                     self.buf.write_str(&self.key_sep);
                     self.stringify_value(&val)?;
+                    first = false;
                 }
             }
 

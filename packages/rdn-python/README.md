@@ -112,7 +112,7 @@ Deserialize an RDN document to a Python object.
 
 **Raises:** `RDNDecodeError` if the input is not valid RDN; `TypeError` if `s` is not `str`, `bytes`, or `bytearray`.
 
-### `rdn.dumps(obj, *, cls=None, ensure_ascii=True, check_circular=True, indent=None, separators=None, default=None, sort_keys=False)`
+### `rdn.dumps(obj, *, cls=None, skipkeys=False, ensure_ascii=True, check_circular=True, allow_nan=True, indent=None, separators=None, default=None, sort_keys=False)`
 
 Serialize a Python object to an RDN-formatted string.
 
@@ -120,8 +120,10 @@ Serialize a Python object to an RDN-formatted string.
 |---|---|---|---|
 | `obj` | `Any` | | The value to serialize. |
 | `cls` | `type[RDNEncoder]` | `None` | Optional encoder class. |
+| `skipkeys` | `bool` | `False` | Silently skip dict keys that are not strings (instead of raising `TypeError`). |
 | `ensure_ascii` | `bool` | `True` | Escape non-ASCII characters as `\uXXXX`. |
 | `check_circular` | `bool` | `True` | Detect circular references. |
+| `allow_nan` | `bool` | `True` | Allow `NaN`, `Infinity`, `-Infinity`. When `False`, raises `ValueError` on these values. |
 | `indent` | `int \| str \| None` | `None` | Pretty-print indent (spaces or string). |
 | `separators` | `tuple[str, str]` | `None` | `(item_separator, key_separator)` override. |
 | `default` | `Callable[[Any], Any]` | `None` | Fallback for non-serializable objects. |
@@ -129,7 +131,7 @@ Serialize a Python object to an RDN-formatted string.
 
 **Returns:** The RDN string.
 
-**Raises:** `TypeError` if a value is not serializable and no `default` handles it; `ValueError` on circular references.
+**Raises:** `TypeError` if a value is not serializable and no `default` handles it; `ValueError` on circular references or on NaN/Infinity when `allow_nan=False`.
 
 ### `rdn.load(fp, **kwargs)`
 
@@ -273,6 +275,51 @@ try:
 except ValueError:
     print("Circular reference detected")
 ```
+
+## Aliases
+
+`rdn.parse` and `rdn.stringify` are available as aliases for `rdn.loads` and `rdn.dumps`, respectively. Use whichever style you prefer:
+
+```python
+import rdn
+
+# These are equivalent
+rdn.loads('{"a": 1}')
+rdn.parse('{"a": 1}')
+
+# These are equivalent
+rdn.dumps({"a": 1})
+rdn.stringify({"a": 1})
+```
+
+## Version
+
+```python
+import rdn
+print(rdn.__version__)  # e.g. '0.1.0'
+```
+
+## CLI
+
+`rdn` includes a command-line tool for formatting and validating RDN documents, invoked via `python -m rdn`:
+
+```bash
+# Pretty-print RDN from stdin
+echo '{"b":1,"a":2}' | python -m rdn
+
+# Sort keys
+echo '{"b":1,"a":2}' | python -m rdn --sort-keys
+
+# Compact output
+echo '{"b": 1, "a": 2}' | python -m rdn --compact
+
+# From file
+python -m rdn input.rdn
+```
+
+## Type Checking
+
+This package includes a PEP 561 `py.typed` marker, so type checkers like mypy and pyright will recognize `rdn` types out of the box -- no stubs needed.
 
 ## Constants
 
