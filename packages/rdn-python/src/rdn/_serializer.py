@@ -150,7 +150,7 @@ def _format_duration(td: timedelta) -> str:
     return result
 
 
-def _format_regexp(pattern: re.Pattern) -> str:  # type: ignore[type-arg]
+def _format_regexp(pattern: re.Pattern[str]) -> str:
     """Format a compiled regex as ``/pattern/flags``."""
     flags = ""
     if pattern.flags & re.IGNORECASE:
@@ -225,7 +225,7 @@ def stringify(value: object, *, skipkeys: bool = False, ensure_ascii: bool = Tru
         item_sep, key_sep = ",", ":"
 
     # Initialise cycle detection set
-    _seen: set[int] | None = set() if check_circular else None
+    _seen: set[int] = set()
 
     # Bind frequently-used names as closure variables (LOAD_DEREF vs LOAD_GLOBAL)
     _isinstance = isinstance
@@ -246,7 +246,7 @@ def stringify(value: object, *, skipkeys: bool = False, ensure_ascii: bool = Tru
     # Key escape cache — avoids re-escaping repeated dict keys (common in JSON arrays)
     _key_cache: dict[str, str] = {}
 
-    def _encode(value: object, _level: int = 0, _in_default: bool = False) -> str | None:
+    def _encode(value: Any, _level: int = 0, _in_default: bool = False) -> str | None:
         """Serialize a single value. Config captured by closure — no kwargs overhead."""
         # 1. Singletons — identity checks (pointer comparison, fastest possible)
         if value is None:
@@ -331,7 +331,7 @@ def stringify(value: object, *, skipkeys: bool = False, ensure_ascii: bool = Tru
             if skipkeys:
                 raw_keys = [k for k in value.keys() if _isinstance(k, _str)]
             else:
-                raw_keys = value.keys()  # type: ignore[assignment]
+                raw_keys = value.keys()
             keys = sorted(raw_keys) if sort_keys else raw_keys
             child_level = _level + 1
             parts = []

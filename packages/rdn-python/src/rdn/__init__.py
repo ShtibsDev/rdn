@@ -27,7 +27,7 @@ except PackageNotFoundError:
 # Hot-path calls (no hooks) are routed to the native implementation for
 # speed. Falls back to pure Python if the extension failed to compile.
 try:
-    from rdn._native import parse as _native_parse, stringify as _native_stringify
+    from rdn._native import parse as _native_parse, stringify as _native_stringify  # type: ignore[import-not-found]
     _USE_NATIVE = True
 except ImportError:
     _USE_NATIVE = False
@@ -83,12 +83,12 @@ def dumps(obj: Any, *, skipkeys: bool = False, cls: type | None = None, ensure_a
     """
     if cls is not None:
         encoder = cls(skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, indent=indent, separators=separators, default=default, sort_keys=sort_keys)
-        return encoder.encode(obj)
+        return str(encoder.encode(obj))
 
     # Native hot path: when no cls or default callback is provided, route to
     # the Rust native extension for significantly better performance.
     if _USE_NATIVE and default is None:
-        return _native_stringify(obj, skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, sort_keys=sort_keys, indent=indent, separators=separators)
+        return _native_stringify(obj, skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, sort_keys=sort_keys, indent=indent, separators=separators)  # type: ignore[no-any-return]
 
     result = _stringify(obj, skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, indent=indent, separators=separators, default=default, sort_keys=sort_keys)
     # _stringify returns str | None; for top-level None value it returns "null"

@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import re
 from datetime import datetime, time, timedelta, timezone
-from typing import Any, Callable
+from typing import Any, Callable, NoReturn
 
 from .exceptions import RDNDecodeError
 from ._tables import B64_DECODE, HEX_DECODE
@@ -61,7 +61,7 @@ def _skip_ws() -> None:
             _pos = m.end()
 
 
-def _error(msg: str) -> None:
+def _error(msg: str) -> NoReturn:
     """Raise an RDNDecodeError at the current position."""
     raise RDNDecodeError(msg, _source, _pos)
 
@@ -97,6 +97,7 @@ def _parse_string() -> str:
 
     # Fast path: regex scans for end of unescaped content in one C-level call
     m = chunk_match(source, pos)
+    assert m is not None
     end = m.end()
     if end < slen and source[end] == '"':
         # Common case: no escapes, no control chars
@@ -195,6 +196,7 @@ def _parse_string() -> str:
 
         # Scan next chunk of normal characters
         m = chunk_match(source, pos)
+        assert m is not None
         end = m.end()
 
     # unreachable, but keeps mypy happy
@@ -205,7 +207,7 @@ def _parse_string() -> str:
 # Number parsing
 # ---------------------------------------------------------------------------
 
-def _parse_number(negative: bool) -> int | float:
+def _parse_number(negative: bool) -> Any:
     """Parse a JSON-style number or BigInt literal using regex scanning.
 
     When *negative* is True the leading ``-`` has already been consumed and
@@ -852,6 +854,7 @@ def _finish_object(first_key: str) -> Any:
             if pos < slen and source[pos] == '"':
                 kstart = pos + 1
                 km = chunk_match(source, kstart)
+                assert km is not None
                 kend = km.end()
                 if kend < slen and source[kend] == '"':
                     key = source[kstart:kend]
@@ -913,6 +916,7 @@ def _finish_object(first_key: str) -> Any:
         if pos < slen and source[pos] == '"':
             kstart = pos + 1
             km = chunk_match(source, kstart)
+            assert km is not None
             kend = km.end()
             if kend < slen and source[kend] == '"':
                 key = source[kstart:kend]
