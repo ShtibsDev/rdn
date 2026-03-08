@@ -1,7 +1,9 @@
 package rdn
 
 import (
+	"bytes"
 	"testing"
+	"time"
 )
 
 func TestParseStringifyRoundtrip(t *testing.T) {
@@ -102,5 +104,135 @@ func TestStringifyIndent(t *testing.T) {
 	expected := "{\n  \"a\": 1,\n  \"b\": [\n    2,\n    3\n  ]\n}"
 	if string(out) != expected {
 		t.Errorf("StringifyIndent:\n  got:      %s\n  expected: %s", out, expected)
+	}
+}
+
+func TestMarshalUnmarshalRoundtrip(t *testing.T) {
+	type Inner struct {
+		Value int `rdn:"value"`
+	}
+	type Outer struct {
+		Name    string    `rdn:"name"`
+		Score   float64   `rdn:"score"`
+		Active  bool      `rdn:"active"`
+		Created time.Time `rdn:"created"`
+		Tags    []string  `rdn:"tags"`
+		Inner   Inner     `rdn:"inner"`
+	}
+
+	now := time.Date(2024, 6, 15, 10, 30, 0, 0, time.UTC)
+	original := Outer{
+		Name:    "Alice",
+		Score:   99.5,
+		Active:  true,
+		Created: now,
+		Tags:    []string{"admin", "editor"},
+		Inner:   Inner{Value: 42},
+	}
+
+	data, err := Marshal(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify it's valid RDN
+	if !Valid(data) {
+		t.Fatalf("Marshal output is not valid RDN: %s", data)
+	}
+
+	var restored Outer
+	if err := Unmarshal(data, &restored); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	if restored.Name != original.Name {
+		t.Errorf("Name: got %q, want %q", restored.Name, original.Name)
+	}
+	if restored.Score != original.Score {
+		t.Errorf("Score: got %v, want %v", restored.Score, original.Score)
+	}
+	if restored.Active != original.Active {
+		t.Errorf("Active: got %v, want %v", restored.Active, original.Active)
+	}
+	if !restored.Created.Equal(original.Created) {
+		t.Errorf("Created: got %v, want %v", restored.Created, original.Created)
+	}
+	if len(restored.Tags) != len(original.Tags) {
+		t.Errorf("Tags length: got %d, want %d", len(restored.Tags), len(original.Tags))
+	}
+	if restored.Inner.Value != original.Inner.Value {
+		t.Errorf("Inner.Value: got %d, want %d", restored.Inner.Value, original.Inner.Value)
+	}
+}
+
+func TestMarshalUnmarshalNil(t *testing.T) {
+	data, err := Marshal(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result any
+	if err := Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
+	if result != nil {
+		t.Errorf("expected nil, got %v", result)
+	}
+}
+
+func TestMarshalUnmarshalMap(t *testing.T) {
+	original := map[string]int{"alpha": 1, "beta": 2, "gamma": 3}
+	data, err := Marshal(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored map[string]int
+	if err := Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	for k, v := range original {
+		if restored[k] != v {
+			t.Errorf("key %q: got %d, want %d", k, restored[k], v)
+		}
+	}
+}
+
+func TestMarshalUnmarshalInterface(t *testing.T) {
+	// Marshal a struct, unmarshal into interface{}
+	type Item struct {
+		X int `rdn:"x"`
+	}
+	data, err := Marshal(Item{X: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result any
+	if err := Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any, got %T", result)
+	}
+	if m["x"] != float64(5) {
+		t.Errorf("expected x=5, got %v", m["x"])
+	}
+}
+
+func TestMarshalIndentRoundtrip(t *testing.T) {
+	data, err := MarshalIndent(map[string]int{"a": 1}, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Should contain newlines
+	if !bytes.Contains(data, []byte("\n")) {
+		t.Errorf("expected indented output with newlines, got: %s", data)
+	}
+	// Should still be valid RDN
+	var restored map[string]int
+	if err := Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if restored["a"] != 1 {
+		t.Errorf("expected a=1, got %v", restored["a"])
 	}
 }

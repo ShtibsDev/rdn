@@ -149,14 +149,242 @@ type Number string   // preserves original text; has Float64(), Int64(), BigInt(
 type RawMessage []byte
 ```
 
+### Marshal / Unmarshal
+
+Reflection-based serialization mirroring `encoding/json`:
+
+```go
+type User struct {
+    Name    string          `rdn:"name"`
+    Created time.Time       `rdn:"created"`
+    Score   int             `rdn:"score,omitempty"`
+    Tags    rdn.Set[string] `rdn:"tags"`
+}
+
+// Marshal Go struct → RDN bytes
+data, err := rdn.Marshal(User{
+    Name:    "Alice",
+    Created: time.Now(),
+    Tags:    rdn.Set[string]{"admin", "editor"},
+})
+
+// Unmarshal RDN bytes → Go struct
+var user User
+err = rdn.Unmarshal(data, &user)
+
+// Work with Value directly (no serialization step)
+val, err := rdn.MarshalValue(user)   // Go → Value
+err = rdn.UnmarshalValue(val, &user) // Value → Go
+```
+
+#### Struct Tags
+
+Format: `rdn:"name,option1,option2"`
+
+| Tag | Behavior |
+|-----|----------|
+| `rdn:"name"` | Use `name` as the object key |
+| `rdn:"-"` | Skip this field entirely |
+| `rdn:"-,"` | Use literal key name `-` |
+| `rdn:",omitempty"` | Omit if the field is the Go zero value |
+| `rdn:"name,omitempty"` | Custom name + omitempty |
+| `rdn:",string"` | Quote numbers/bools as RDN strings |
+| (no tag) | Use the exported field name as-is |
+
+If no `rdn` tag is present, the `json` tag is used as a fallback.
+
+#### Custom Marshaling
+
+Implement `Marshaler` / `Unmarshaler` for full control over how a type is converted:
+
+```go
+type Marshaler interface {
+    MarshalRDN() (Value, error)
+}
+
+type Unmarshaler interface {
+    UnmarshalRDN(Value) error
+}
+```
+
+Types implementing `encoding.TextMarshaler` / `encoding.TextUnmarshaler` are also supported as a fallback.
+
+#### Wrapper Types
+
+Thin generic wrappers for RDN-only collection types:
+
+| Type | Marshals to | Description |
+|------|-------------|-------------|
+| `Set[T]` | `Set{...}` | Ordered set of homogeneous values |
+| `Tuple` | `(...)` | Heterogeneous tuple (`[]any` under the hood) |
+| `OrderedMap[K,V]` | `Map{k => v}` | Insertion-ordered map with any key type |
+
+```go
+tags := rdn.Set[string]{"admin", "editor"}
+point := rdn.Tuple{1, 2, "label"}
+
+m := &rdn.OrderedMap[int, string]{}
+m.Set(1, "one")
+m.Set(2, "two")
+```
+
+#### Type Mapping (Go to RDN)
+
+| Go Type | RDN Kind | Notes |
+|---------|----------|-------|
+| `nil` | null | |
+| `bool` | Bool | |
+| `int`, `int8`..`int64` | Number | BigInt if abs > 2^53 |
+| `uint`, `uint8`..`uint64` | Number | BigInt if > 2^53 |
+| `float32`, `float64` | Number | NaN and Inf preserved |
+| `string` | String | |
+| `[]byte` | Binary | base64 encoded |
+| `*big.Int` | BigInt | nil produces null |
+| `time.Time` | DateTime | |
+| `rdn.TimeOnly` | TimeOnly | |
+| `rdn.Duration` | Duration | |
+| `rdn.RegExp` | RegExp | |
+| `rdn.Value` | (passthrough) | |
+| `rdn.Set[T]` | Set | via Marshaler |
+| `rdn.Tuple` | Tuple | via Marshaler |
+| `rdn.OrderedMap[K,V]` | Map | via Marshaler |
+| `[]T` | Array | nil produces null |
+| `map[string]V` | Object | nil produces null, keys sorted |
+| `map[K]V` (non-string K) | Map | nil produces null |
+| `struct` | Object | field tags respected |
+
+#### Type Mapping (RDN to `interface{}`)
+
+| RDN Kind | Go Type |
+|----------|---------|
+| null | `nil` |
+| Bool | `bool` |
+| Number | `float64` |
+| BigInt | `*big.Int` |
+| String | `string` |
+| Array | `[]any` |
+| Object | `map[string]any` |
+| DateTime | `time.Time` |
+| TimeOnly | `rdn.TimeOnly` |
+| Duration | `rdn.Duration` |
+| RegExp | `rdn.RegExp` |
+| Binary | `[]byte` |
+| Map | `[]rdn.MapEntry` |
+| Set | `rdn.Set[any]` |
+| Tuple | `rdn.Tuple` |
+
+### Streaming
+
+`Encoder` and `Decoder` mirror `encoding/json`'s streaming API.
+
+```go
+// Decode from an io.Reader
+dec := rdn.NewDecoder(reader)
+var v rdn.Value
+if err := dec.Decode(&v); err != nil { ... }
+
+// Encode to an io.Writer (appends newline after each value)
+enc := rdn.NewEncoder(writer)
+enc.SetIndent("", "  ") // optional pretty-print
+if err := enc.Encode(v); err != nil { ... }
+
+// Encode/Decode Go values directly (combines Marshal + stream)
+enc.EncodeValue(myStruct)  // Go value → RDN bytes
+dec.DecodeValue(&myStruct) // RDN bytes → Go value
+```
+
+### HTTP Support (`rdnhttp` sub-package)
+
+The `rdnhttp` sub-package provides content-type negotiation, request/response helpers, and middleware for serving RDN over HTTP. It lives in a separate package to avoid pulling `net/http` into every consumer.
+
+```go
+import "github.com/ShtibsDev/rdn/packages/rdn-go/rdnhttp"
+```
+
+**Constants & Types:**
+
+| Export | Description |
+|--------|-------------|
+| `MediaTypeRDN` | `"application/rdn"` |
+| `MediaTypeJSON` | `"application/json"` |
+| `FormatRDN` / `FormatJSON` | Response format enum |
+| `Options` | JSONFallback, Indent, Prefix, MaxBodySize |
+
+**Content Negotiation:**
+
+| Function | Purpose |
+|----------|---------|
+| `NegotiateFormat(r, opts)` | Parse Accept header, pick response format |
+| `DetectContentType(r)` | Parse Content-Type header, identify request format |
+| `AcceptsRDN(r)` | Quick check: does Accept include `application/rdn`? |
+| `IsRDNContentType(r)` | Quick check: is Content-Type `application/rdn`? |
+
+**HTTP Helpers & Middleware:**
+
+| Function | Purpose |
+|----------|---------|
+| `ReadRequest(r, v, opts...)` | Read + parse request body into `*rdn.Value` |
+| `WriteResponse(w, r, v, opts...)` | Negotiate format + write response |
+| `Negotiate(next, opts...)` | Middleware: sets negotiated format in context |
+| `NegotiateFunc(opts...)` | Middleware chain variant `func(http.Handler) http.Handler` |
+| `FormatFromContext(ctx)` | Retrieve negotiated format from context |
+| `HandleRDN(fn, opts...)` | Full handler wrapper: read → process → write |
+
+**Example — HTTP handler:**
+
+```go
+handler := rdnhttp.HandleRDN(func(r *http.Request, v rdn.Value) (rdn.Value, error) {
+    // v is the parsed request body; return the response value
+    return rdn.ObjectVal([]rdn.KeyValue{
+        {Key: "status", Value: rdn.StringVal("ok")},
+    }), nil
+})
+http.Handle("/api/data", handler)
+```
+
+**Example — Middleware:**
+
+```go
+mux := http.NewServeMux()
+mux.HandleFunc("/api/items", func(w http.ResponseWriter, r *http.Request) {
+    format := rdnhttp.FormatFromContext(r.Context())
+    // ... use format to decide response encoding
+})
+wrapped := rdnhttp.Negotiate(mux, rdnhttp.Options{JSONFallback: true})
+http.ListenAndServe(":8080", wrapped)
+```
+
+JSON fallback converts only the JSON-compatible subset of RDN values (null, bool, number, string, array, object). Extended types (BigInt, DateTime, RegExp, etc.) return an error when JSON output is requested.
+
 ### Errors
 
 ```go
+// SyntaxError is returned when the input is not valid RDN.
 type SyntaxError struct {
     msg    string
     Offset int64  // byte offset in input
 }
-// Error() returns: "rdn: <msg> at position <offset>"
+
+// MarshalError describes an error encountered while marshaling a Go value.
+type MarshalError struct {
+    Type reflect.Type
+    Err  error
+}
+
+// UnmarshalTypeError describes an RDN value that was not appropriate
+// for a value of a specific Go type.
+type UnmarshalTypeError struct {
+    Value  string       // "number", "string", "array", etc.
+    Type   reflect.Type // Go type it could not be assigned to
+    Struct string       // containing struct name (if applicable)
+    Field  string       // full field path (if applicable)
+}
+
+// InvalidUnmarshalError describes an invalid argument passed to Unmarshal
+// (must be a non-nil pointer).
+type InvalidUnmarshalError struct {
+    Type reflect.Type
+}
 ```
 
 ## Performance
@@ -189,12 +417,10 @@ Key optimizations:
 - sync.Pool buffer reuse for serialization
 - Pre-computed digit-pair and escape tables
 
-## v0.2.0 Roadmap
+## Roadmap
 
-- `Marshal(v any) ([]byte, error)` / `Unmarshal(data []byte, v any) error` — reflection-based
-- Struct tags: `rdn:"name,omitempty"`
-- Streaming: `NewEncoder(w io.Writer)` / `NewDecoder(r io.Reader)`
-- `Marshaler` / `Unmarshaler` interfaces
+- `DisallowUnknownFields` option for strict struct unmarshaling
+- Single-pass optimization (bypass `Value` intermediate for Marshal/Unmarshal)
 
 ## License
 
