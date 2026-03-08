@@ -50,11 +50,6 @@ namespace Rdn.Serialization.Converters
 
                 rdnTypeInfo.OnSerializing?.Invoke(value);
 
-                if (state.CurrentContainsMetadata && CanHaveMetadata)
-                {
-                    state.Current.MetadataPropertyName = RdnSerializer.WriteMetadataForCollection(this, ref state, writer);
-                }
-
                 writer.WriteStartSet(forceTypeName: value.Count == 0);
                 state.Current.RdnPropertyInfo = rdnTypeInfo.ElementTypeInfo!.PropertyInfoForTypeInfo;
             }

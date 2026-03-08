@@ -230,13 +230,9 @@ namespace Rdn
         }
 
         [DoesNotReturn]
-        public static void ThrowInvalidOperationException_SerializerOptionsReadOnly(RdnSerializerContext? context)
+        public static void ThrowInvalidOperationException_SerializerOptionsReadOnly()
         {
-            string message = context == null
-                ? SR.SerializerOptionsReadOnly
-                : SR.SerializerContextOptionsReadOnly;
-
-            throw new InvalidOperationException(message);
+            throw new InvalidOperationException(SR.SerializerOptionsReadOnly);
         }
 
         [DoesNotReturn]
@@ -665,11 +661,7 @@ namespace Rdn
 
             if (type.IsInterface || type.IsAbstract)
             {
-                if (typeInfo.PolymorphicTypeResolver?.UsesTypeDiscriminators is true)
-                {
-                    message = SR.Format(SR.DeserializationMustSpecifyTypeDiscriminator, type);
-                }
-                else if (typeInfo.Kind is RdnTypeInfoKind.Enumerable or RdnTypeInfoKind.Dictionary)
+                if (typeInfo.Kind is RdnTypeInfoKind.Enumerable or RdnTypeInfoKind.Dictionary)
                 {
                     message = SR.Format(SR.CannotPopulateCollection, type);
                 }
@@ -838,15 +830,7 @@ namespace Rdn
             scoped ref ReadStack state)
         {
 
-            MetadataPropertyName name = RdnSerializer.GetMetadataPropertyName(propertyName, state.Current.BaseRdnTypeInfo.PolymorphicTypeResolver);
-            if (name != 0)
-            {
-                ThrowRdnException_MetadataUnexpectedProperty(propertyName, ref state);
-            }
-            else
-            {
-                ThrowRdnException_MetadataInvalidPropertyWithLeadingDollarSign(propertyName, ref state, reader);
-            }
+            ThrowRdnException_MetadataInvalidPropertyWithLeadingDollarSign(propertyName, ref state, reader);
         }
 
         [DoesNotReturn]
@@ -968,12 +952,6 @@ namespace Rdn
         }
 
         [DoesNotReturn]
-        public static void ThrowArgumentException_RdnPolymorphismOptionsAssociatedWithDifferentRdnTypeInfo(string parameterName)
-        {
-            throw new ArgumentException(SR.RdnPolymorphismOptionsAssociatedWithDifferentRdnTypeInfo, paramName: parameterName);
-        }
-
-        [DoesNotReturn]
         public static void ThrowOperationCanceledException_PipeWriteCanceled()
         {
             throw new OperationCanceledException(SR.PipeWriterCanceled);
@@ -991,16 +969,5 @@ namespace Rdn
             throw new InvalidOperationException(SR.Format(SR.PipeWriter_DoesNotImplementUnflushedBytes, pipeWriter.GetType().Name));
         }
 
-        [DoesNotReturn]
-        public static void ThrowNotSupportedException_RdnSchemaExporterDoesNotSupportReferenceHandlerPreserve()
-        {
-            throw new NotSupportedException(SR.RdnSchemaExporter_ReferenceHandlerPreserve_NotSupported);
-        }
-
-        [DoesNotReturn]
-        public static void ThrowInvalidOperationException_RdnSchemaExporterDepthTooLarge()
-        {
-            throw new InvalidOperationException(SR.RdnSchemaExporter_DepthTooLarge);
-        }
     }
 }

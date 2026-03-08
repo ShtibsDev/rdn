@@ -268,7 +268,7 @@ namespace Rdn
                 ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ZeroDepthAtEnd);
             }
 
-            if (_readerOptions.CommentHandling == RdnCommentHandling.Allow && _tokenType == RdnTokenType.Comment)
+            if (_readerOptions.CommentHandling == RdnCommentHandling.Disallow && _tokenType == RdnTokenType.Comment)
             {
                 return false;
             }
@@ -453,7 +453,7 @@ namespace Rdn
         {
             while (true)
             {
-                Debug.Assert((_trailingCommaBeforeComment && _readerOptions.CommentHandling == RdnCommentHandling.Allow) || !_trailingCommaBeforeComment);
+                Debug.Assert((_trailingCommaBeforeComment && _readerOptions.CommentHandling == RdnCommentHandling.Disallow) || !_trailingCommaBeforeComment);
                 Debug.Assert((_trailingCommaBeforeComment && marker != RdnConstants.Slash) || !_trailingCommaBeforeComment);
                 _trailingCommaBeforeComment = false;
 
@@ -531,7 +531,7 @@ namespace Rdn
                         byte next = _buffer[nextIdx];
                         if ((next == RdnConstants.Slash || next == RdnConstants.Asterisk) && _readerOptions.CommentHandling != RdnCommentHandling.Disallow)
                         {
-                            if (_readerOptions.CommentHandling == RdnCommentHandling.Allow)
+                            if (_readerOptions.CommentHandling == RdnCommentHandling.Disallow)
                             {
                                 SequencePosition copy = _currentPosition;
                                 if (!SkipOrConsumeCommentMultiSegmentWithRollback())
@@ -543,7 +543,7 @@ namespace Rdn
                             }
                             else
                             {
-                                Debug.Assert(_readerOptions.CommentHandling == RdnCommentHandling.Skip);
+                                Debug.Assert(_readerOptions.CommentHandling == RdnCommentHandling.Disallow);
                                 SequencePosition copy = _currentPosition;
                                 if (SkipCommentMultiSegment(out _))
                                 {
@@ -594,70 +594,7 @@ namespace Rdn
                 }
                 else
                 {
-                    switch (_readerOptions.CommentHandling)
-                    {
-                        case RdnCommentHandling.Disallow:
-                            break;
-                        case RdnCommentHandling.Allow:
-                            if (marker == RdnConstants.Slash)
-                            {
-                                SequencePosition copy = _currentPosition;
-                                if (!SkipOrConsumeCommentMultiSegmentWithRollback())
-                                {
-                                    _currentPosition = copy;
-                                    return false;
-                                }
-                                return true;
-                            }
-                            break;
-                        default:
-                            Debug.Assert(_readerOptions.CommentHandling == RdnCommentHandling.Skip);
-                            if (marker == RdnConstants.Slash)
-                            {
-                                SequencePosition copy = _currentPosition;
-                                if (SkipCommentMultiSegment(out _))
-                                {
-                                    if (_consumed >= (uint)_buffer.Length)
-                                    {
-                                        if (_isNotPrimitive && IsLastSpan && _tokenType != RdnTokenType.EndArray && _tokenType != RdnTokenType.EndObject && _tokenType != RdnTokenType.EndSet && _tokenType != RdnTokenType.EndMap)
-                                        {
-                                            ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.InvalidEndOfRdnNonPrimitive);
-                                        }
-                                        if (!GetNextSpan())
-                                        {
-                                            if (_isNotPrimitive && IsLastSpan && _tokenType != RdnTokenType.EndArray && _tokenType != RdnTokenType.EndObject && _tokenType != RdnTokenType.EndSet && _tokenType != RdnTokenType.EndMap)
-                                            {
-                                                ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.InvalidEndOfRdnNonPrimitive);
-                                            }
-                                            _currentPosition = copy;
-                                            return false;
-                                        }
-                                    }
-
-                                    marker = _buffer[_consumed];
-
-                                    // This check is done as an optimization to avoid calling SkipWhiteSpace when not necessary.
-                                    if (marker <= RdnConstants.Space)
-                                    {
-                                        SkipWhiteSpaceMultiSegment();
-                                        if (!HasMoreDataMultiSegment())
-                                        {
-                                            _currentPosition = copy;
-                                            return false;
-                                        }
-                                        marker = _buffer[_consumed];
-                                    }
-
-                                    TokenStartIndex = BytesConsumed;
-
-                                    // Skip comments and consume the actual RDN value.
-                                    continue;
-                                }
-                                _currentPosition = copy;
-                                return false;
-                            }
-                            break;
-                    }
+                    // Comments are not supported in RDN.
                     ThrowHelper.ThrowRdnReaderException(ref this, ExceptionResource.ExpectedStartOfValueNotFound, marker);
                 }
                 break;
@@ -1771,7 +1708,7 @@ namespace Rdn
         {
             if (_readerOptions.CommentHandling != RdnCommentHandling.Disallow)
             {
-                if (_readerOptions.CommentHandling == RdnCommentHandling.Allow)
+                if (_readerOptions.CommentHandling == RdnCommentHandling.Disallow)
                 {
                     if (marker == RdnConstants.Slash)
                     {
@@ -1784,7 +1721,7 @@ namespace Rdn
                 }
                 else
                 {
-                    Debug.Assert(_readerOptions.CommentHandling == RdnCommentHandling.Skip);
+                    Debug.Assert(_readerOptions.CommentHandling == RdnCommentHandling.Disallow);
                     return ConsumeNextTokenUntilAfterAllCommentsAreSkippedMultiSegment(marker);
                 }
             }
@@ -1884,7 +1821,7 @@ namespace Rdn
 
                 TokenStartIndex = BytesConsumed;
 
-                if (_readerOptions.CommentHandling == RdnCommentHandling.Allow && first == RdnConstants.Slash)
+                if (_readerOptions.CommentHandling == RdnCommentHandling.Disallow && first == RdnConstants.Slash)
                 {
                     if (_inObject)
                     {
@@ -1989,7 +1926,7 @@ namespace Rdn
 
         private ConsumeTokenResult ConsumeNextTokenFromLastNonCommentTokenMultiSegment()
         {
-            Debug.Assert(_readerOptions.CommentHandling == RdnCommentHandling.Allow);
+            Debug.Assert(_readerOptions.CommentHandling == RdnCommentHandling.Disallow);
             Debug.Assert(_tokenType == RdnTokenType.Comment);
 
             if (RdnReaderHelper.IsTokenTypePrimitive(_previousTokenType))
@@ -2731,10 +2668,10 @@ namespace Rdn
             if (skipSucceeded)
             {
                 Debug.Assert(
-                    _readerOptions.CommentHandling == RdnCommentHandling.Allow ||
-                    _readerOptions.CommentHandling == RdnCommentHandling.Skip);
+                    _readerOptions.CommentHandling == RdnCommentHandling.Disallow ||
+                    _readerOptions.CommentHandling == RdnCommentHandling.Disallow);
 
-                if (_readerOptions.CommentHandling == RdnCommentHandling.Allow)
+                if (_readerOptions.CommentHandling == RdnCommentHandling.Disallow)
                 {
                     SequencePosition end = new SequencePosition(_currentPosition.GetObject(), _currentPosition.GetInteger() + _consumed);
 

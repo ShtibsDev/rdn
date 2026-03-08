@@ -63,7 +63,7 @@ namespace Rdn.Serialization.Metadata
         /// Gets a value indicating whether the constructor parameter is annotated as nullable.
         /// </summary>
         /// <remarks>
-        /// Contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// Contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// derive the value of this parameter from nullable reference type annotations, including annotations
         /// from attributes such as <see cref="AllowNullAttribute"/> or <see cref="DisallowNullAttribute"/>.
         ///

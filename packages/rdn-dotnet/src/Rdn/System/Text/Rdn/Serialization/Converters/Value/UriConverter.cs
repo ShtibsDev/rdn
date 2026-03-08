@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 using Rdn.Nodes;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -49,8 +48,5 @@ namespace Rdn.Serialization.Converters
 
             writer.WritePropertyName(value.OriginalString);
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) =>
-            new() { Type = RdnSchemaType.String, Format = "uri" };
     }
 }

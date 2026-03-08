@@ -31,7 +31,7 @@ namespace Rdn.Serialization.Metadata
                 // this avoids creating a WriteStack and calling into the converter infrastructure.
 
                 Debug.Assert(SerializeHandler != null);
-                Debug.Assert(Converter is RdnMetadataServicesConverter<T>);
+                Debug.Assert(Converter is not null);
 
                 SerializeHandler(writer, rootValue!);
                 writer.Flush();
@@ -98,7 +98,7 @@ namespace Rdn.Serialization.Metadata
 
                 Debug.Assert(SerializeHandler != null);
                 Debug.Assert(CanUseSerializeHandler);
-                Debug.Assert(Converter is RdnMetadataServicesConverter<T>);
+                Debug.Assert(Converter is not null);
 
                 Utf8RdnWriter writer = Utf8RdnWriterCache.RentWriter(Options, pipeWriter);
 
@@ -264,7 +264,7 @@ namespace Rdn.Serialization.Metadata
 
                 Debug.Assert(SerializeHandler != null);
                 Debug.Assert(CanUseSerializeHandler);
-                Debug.Assert(Converter is RdnMetadataServicesConverter<T>);
+                Debug.Assert(Converter is not null);
 
                 Utf8RdnWriter writer = Utf8RdnWriterCache.RentWriterAndBuffer(Options, out PooledByteBufferWriter bufferWriter);
                 try

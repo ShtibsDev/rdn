@@ -101,37 +101,6 @@ namespace Rdn
             return ReadFromSpanAsObject(utf8Rdn, rdnTypeInfo);
         }
 
-        /// <summary>
-        /// Parses the UTF-8 encoded text representing a single RDN value into a <paramref name="returnType"/>.
-        /// </summary>
-        /// <returns>A <paramref name="returnType"/> representation of the RDN value.</returns>
-        /// <param name="utf8Rdn">RDN text to parse.</param>
-        /// <param name="returnType">The type of the object to convert to and return.</param>
-        /// <param name="context">A metadata provider for serializable types.</param>
-        /// <exception cref="System.ArgumentNullException">
-        /// <paramref name="returnType"/> is <see langword="null"/>.
-        /// </exception>
-        /// <exception cref="RdnException">
-        /// The RDN is invalid,
-        /// <paramref name="returnType"/> is not compatible with the RDN,
-        /// or when there is remaining data in the Stream.
-        /// </exception>
-        /// <exception cref="NotSupportedException">
-        /// There is no compatible <see cref="Rdn.Serialization.RdnConverter"/>
-        /// for <paramref name="returnType"/> or its serializable members.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// The <see cref="RdnSerializerContext.GetTypeInfo(Type)"/> method on the provided <paramref name="context"/>
-        /// did not return a compatible <see cref="RdnTypeInfo"/> for <paramref name="returnType"/>.
-        /// </exception>
-        public static object? Deserialize(ReadOnlySpan<byte> utf8Rdn, Type returnType, RdnSerializerContext context)
-        {
-            ArgumentNullException.ThrowIfNull(returnType);
-            ArgumentNullException.ThrowIfNull(context);
-
-            return ReadFromSpanAsObject(utf8Rdn, GetTypeInfo(context, returnType));
-        }
-
         private static TValue? ReadFromSpan<TValue>(ReadOnlySpan<byte> utf8Rdn, RdnTypeInfo<TValue> rdnTypeInfo, int? actualByteCount = null)
         {
             Debug.Assert(rdnTypeInfo.IsConfigured);

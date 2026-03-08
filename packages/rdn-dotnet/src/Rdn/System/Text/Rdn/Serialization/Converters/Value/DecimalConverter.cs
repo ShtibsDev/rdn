@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -67,8 +66,5 @@ namespace Rdn.Serialization.Converters
                 writer.WriteNumberValue(value);
             }
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling numberHandling) =>
-            GetSchemaForNumericType(RdnSchemaType.Number, numberHandling);
     }
 }

@@ -183,54 +183,10 @@ namespace Rdn.Serialization
                     state.Current.ObjectState = StackFrameObjectState.StartToken;
                 }
 
-                // Handle the metadata properties.
-                if (state.Current.CanContainMetadata && state.Current.ObjectState < StackFrameObjectState.ReadMetadata)
-                {
-                    if (!RdnSerializer.TryReadMetadata(this, rdnTypeInfo, ref reader, ref state))
-                    {
-                        value = default;
-                        return false;
-                    }
-
-                    if (state.Current.MetadataPropertyNames == MetadataPropertyName.Ref)
-                    {
-                        value = RdnSerializer.ResolveReferenceId<TDictionary>(ref state);
-                        return true;
-                    }
-
-                    state.Current.ObjectState = StackFrameObjectState.ReadMetadata;
-                }
-
-                // Dispatch to any polymorphic converters: should always be entered regardless of ObjectState progress
-                if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Type) != 0 &&
-                    state.Current.PolymorphicSerializationState != PolymorphicSerializationState.PolymorphicReEntryStarted &&
-                    ResolvePolymorphicConverter(rdnTypeInfo, ref state) is RdnConverter polymorphicConverter)
-                {
-                    Debug.Assert(!IsValueType);
-                    bool success = polymorphicConverter.OnTryReadAsObject(ref reader, polymorphicConverter.Type!, options, ref state, out object? objectResult);
-                    value = (TDictionary)objectResult!;
-                    state.ExitPolymorphicConverter(success);
-                    return success;
-                }
-
                 // Create the dictionary.
                 if (state.Current.ObjectState < StackFrameObjectState.CreatedObject)
                 {
-                    if (state.Current.CanContainMetadata)
-                    {
-                        RdnSerializer.ValidateMetadataForObjectConverter(ref state);
-                    }
-
                     CreateCollection(ref reader, ref state);
-
-                    if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Id) != 0)
-                    {
-                        Debug.Assert(state.ReferenceId != null);
-                        Debug.Assert(options.ReferenceHandlingStrategy == RdnKnownReferenceHandler.Preserve);
-                        Debug.Assert(state.Current.ReturnValue is TDictionary);
-                        state.ReferenceResolver.AddReference(state.ReferenceId, state.Current.ReturnValue);
-                        state.ReferenceId = null;
-                    }
 
                     rdnTypeInfo.OnDeserializing?.Invoke(state.Current.ReturnValue!);
 
@@ -280,19 +236,7 @@ namespace Rdn.Serialization
                             if (state.Current.CanContainMetadata)
                             {
                                 ReadOnlySpan<byte> propertyName = reader.GetUnescapedSpan();
-                                if (RdnSerializer.IsMetadataPropertyName(propertyName, state.Current.BaseRdnTypeInfo.PolymorphicTypeResolver))
-                                {
-                                    if (options.AllowOutOfOrderMetadataProperties)
-                                    {
-                                        reader.SkipWithVerify();
-                                        state.Current.EndElement();
-                                        continue;
-                                    }
-                                    else
-                                    {
-                                        ThrowHelper.ThrowUnexpectedMetadataException(propertyName, ref reader, ref state);
-                                    }
-                                }
+                                ThrowHelper.ThrowUnexpectedMetadataException(propertyName, ref reader, ref state);
                             }
 
                             state.Current.RdnPropertyInfo = keyTypeInfo.PropertyInfoForTypeInfo;
@@ -384,11 +328,6 @@ namespace Rdn.Serialization
 
                 bool isEmpty = dictionary is System.Collections.ICollection c ? c.Count == 0 : false;
                 writer.WriteStartMap(forceTypeName: isEmpty);
-
-                if (state.CurrentContainsMetadata && CanHaveMetadata)
-                {
-                    RdnSerializer.WriteMetadataForObject(this, ref state, writer);
-                }
 
                 state.Current.RdnPropertyInfo = rdnTypeInfo.ElementTypeInfo!.PropertyInfoForTypeInfo;
             }

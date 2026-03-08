@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 using Rdn.Nodes;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -45,7 +44,5 @@ namespace Rdn.Serialization.Converters
             Debug.Assert(reader.TokenType is RdnTokenType.String or RdnTokenType.False or RdnTokenType.True or RdnTokenType.Number);
             return RdnValueOfRdnPrimitive.CreatePrimitiveValue(ref reader, options);
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => RdnSchema.CreateTrueSchema();
     }
 }

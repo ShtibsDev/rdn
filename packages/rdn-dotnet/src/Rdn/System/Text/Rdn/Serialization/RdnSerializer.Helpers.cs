@@ -12,7 +12,7 @@ namespace Rdn
 {
     public static partial class RdnSerializer
     {
-        internal const string SerializationUnreferencedCodeMessage = "RDN serialization and deserialization might require types that cannot be statically analyzed. Use the overload that takes a RdnTypeInfo or RdnSerializerContext, or make sure all of the required types are preserved.";
+        internal const string SerializationUnreferencedCodeMessage = "RDN serialization and deserialization might require types that cannot be statically analyzed. Use the overload that takes a RdnTypeInfo, or make sure all of the required types are preserved.";
         internal const string SerializationRequiresDynamicCodeMessage = "RDN serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use Rdn source generation for native AOT applications.";
 
         /// <summary>
@@ -51,21 +51,6 @@ namespace Rdn
         [RequiresDynamicCode(SerializationRequiresDynamicCodeMessage)]
         private static RdnTypeInfo<T> GetTypeInfo<T>(RdnSerializerOptions? options)
             => (RdnTypeInfo<T>)GetTypeInfo(options, typeof(T));
-
-        private static RdnTypeInfo GetTypeInfo(RdnSerializerContext context, Type inputType)
-        {
-            Debug.Assert(context != null);
-            Debug.Assert(inputType != null);
-
-            RdnTypeInfo? info = context.GetTypeInfo(inputType);
-            if (info is null)
-            {
-                ThrowHelper.ThrowInvalidOperationException_NoMetadataForType(inputType, context);
-            }
-
-            info.EnsureConfigured();
-            return info;
-        }
 
         private static void ValidateInputType(object? value, Type inputType)
         {
@@ -141,41 +126,5 @@ namespace Rdn
             return (T?)value;
         }
 
-        private static RdnTypeInfo<List<T?>> GetOrAddListTypeInfoForRootLevelValueMode<T>(RdnTypeInfo<T> elementTypeInfo)
-        {
-            if (elementTypeInfo._asyncEnumerableRootLevelValueTypeInfo != null)
-            {
-                return (RdnTypeInfo<List<T?>>)elementTypeInfo._asyncEnumerableRootLevelValueTypeInfo;
-            }
-
-            var converter = new RootLevelListConverter<T>(elementTypeInfo);
-            var listTypeInfo = new RdnTypeInfo<List<T?>>(converter, elementTypeInfo.Options)
-            {
-                ElementTypeInfo = elementTypeInfo,
-            };
-
-            listTypeInfo.EnsureConfigured();
-            elementTypeInfo._asyncEnumerableRootLevelValueTypeInfo = listTypeInfo;
-            return listTypeInfo;
-        }
-
-        private static RdnTypeInfo<List<T?>> GetOrAddListTypeInfoForArrayMode<T>(RdnTypeInfo<T> elementTypeInfo)
-        {
-            if (elementTypeInfo._asyncEnumerableArrayTypeInfo != null)
-            {
-                return (RdnTypeInfo<List<T?>>)elementTypeInfo._asyncEnumerableArrayTypeInfo;
-            }
-
-            var converter = new ListOfTConverter<List<T>, T>();
-            var listTypeInfo = new RdnTypeInfo<List<T?>>(converter, elementTypeInfo.Options)
-            {
-                CreateObject = static () => new List<T?>(),
-                ElementTypeInfo = elementTypeInfo,
-            };
-
-            listTypeInfo.EnsureConfigured();
-            elementTypeInfo._asyncEnumerableArrayTypeInfo = listTypeInfo;
-            return listTypeInfo;
-        }
     }
 }

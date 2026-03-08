@@ -1640,9 +1640,9 @@ namespace Rdn
             string paramName)
         {
             // Since these are coming from a valid instance of Utf8RdnReader, the RdnReaderOptions must already be valid
-            Debug.Assert(readerOptions.CommentHandling >= 0 && readerOptions.CommentHandling <= RdnCommentHandling.Allow);
+            Debug.Assert(readerOptions.CommentHandling >= 0 && readerOptions.CommentHandling <= RdnCommentHandling.Disallow);
 
-            if (readerOptions.CommentHandling == RdnCommentHandling.Allow)
+            if (readerOptions.CommentHandling == RdnCommentHandling.Disallow)
             {
                 throw new ArgumentException(SR.RdnDocumentDoesNotSupportComments, paramName);
             }

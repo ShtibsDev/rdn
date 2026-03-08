@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Rdn.Schema;
 using Rdn.Nodes;
 
 namespace Rdn.Serialization.Converters
@@ -19,8 +18,5 @@ namespace Rdn.Serialization.Converters
 
         public override void Write(Utf8RdnWriter writer, T value, RdnSerializerOptions options) =>
             throw new NotSupportedException(ErrorMessage);
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) =>
-            new RdnSchema { Comment = "Unsupported .NET type", Not = RdnSchema.CreateTrueSchema() };
     }
 }

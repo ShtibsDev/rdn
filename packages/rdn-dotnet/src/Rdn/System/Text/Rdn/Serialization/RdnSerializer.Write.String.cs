@@ -112,36 +112,7 @@ namespace Rdn
             return WriteStringAsObject(value, rdnTypeInfo);
         }
 
-        /// <summary>
-        /// Converts the provided value into a <see cref="string"/>.
-        /// </summary>
-        /// <returns>A <see cref="string"/> representation of the value.</returns>
-        /// <param name="value">The value to convert.</param>
-        /// <param name="inputType">The type of the <paramref name="value"/> to convert.</param>
-        /// <param name="context">A metadata provider for serializable types.</param>
-        /// <exception cref="NotSupportedException">
-        /// There is no compatible <see cref="Rdn.Serialization.RdnConverter"/>
-        /// for <paramref name="inputType"/> or its serializable members.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// The <see cref="RdnSerializerContext.GetTypeInfo(Type)"/> method of the provided
-        /// <paramref name="context"/> returns <see langword="null"/> for the type to convert.
-        /// </exception>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="inputType"/> or <paramref name="context"/> is <see langword="null"/>.
-        /// </exception>
-        /// <remarks>Using a <see cref="string"/> is not as efficient as using UTF-8
-        /// encoding since the implementation internally uses UTF-8. See also <see cref="SerializeToUtf8Bytes(object?, Type, RdnSerializerContext)"/>
-        /// and <see cref="SerializeAsync(IO.Stream, object?, Type, RdnSerializerContext, Threading.CancellationToken)"/>.
-        /// </remarks>
-        public static string Serialize(object? value, Type inputType, RdnSerializerContext context)
-        {
-            ArgumentNullException.ThrowIfNull(context);
 
-            ValidateInputType(value, inputType);
-            RdnTypeInfo rdnTypeInfo = GetTypeInfo(context, inputType);
-            return WriteStringAsObject(value, rdnTypeInfo);
-        }
 
         private static string WriteString<TValue>(in TValue value, RdnTypeInfo<TValue> rdnTypeInfo)
         {

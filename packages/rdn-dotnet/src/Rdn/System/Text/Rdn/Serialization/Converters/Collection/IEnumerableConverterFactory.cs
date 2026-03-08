@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -66,14 +65,6 @@ namespace Rdn.Serialization.Converters
                 dictionaryKeyType = genericArgs[0];
                 elementType = genericArgs[1];
             }
-            // Immutable dictionaries from System.Collections.Immutable, e.g. ImmutableDictionary<TKey, TValue>
-            else if (typeToConvert.IsImmutableDictionaryType())
-            {
-                genericArgs = typeToConvert.GetGenericArguments();
-                converterType = typeof(ImmutableDictionaryOfTKeyTValueConverterWithReflection<,,>);
-                dictionaryKeyType = genericArgs[0];
-                elementType = genericArgs[1];
-            }
             // IDictionary<TKey, TValue> or deriving from IDictionary<TKey, TValue>
             else if ((actualTypeToConvert = typeToConvert.GetCompatibleGenericInterface(typeof(IDictionary<,>))) != null)
             {
@@ -89,12 +80,6 @@ namespace Rdn.Serialization.Converters
                 converterType = typeof(IReadOnlyDictionaryOfTKeyTValueConverter<,,>);
                 dictionaryKeyType = genericArgs[0];
                 elementType = genericArgs[1];
-            }
-            // Immutable non-dictionaries from System.Collections.Immutable, e.g. ImmutableStack<T>
-            else if (typeToConvert.IsImmutableEnumerableType())
-            {
-                converterType = typeof(ImmutableEnumerableOfTConverterWithReflection<,>);
-                elementType = typeToConvert.GetGenericArguments()[0];
             }
             // IList<>
             else if ((actualTypeToConvert = typeToConvert.GetCompatibleGenericInterface(typeof(IList<>))) != null)
@@ -122,30 +107,6 @@ namespace Rdn.Serialization.Converters
                 converterType = typeof(ICollectionOfTConverter<,>);
                 elementType = actualTypeToConvert.GetGenericArguments()[0];
             }
-            // Stack<> or deriving from Stack<>
-            else if ((actualTypeToConvert = typeToConvert.GetCompatibleGenericBaseClass(typeof(Stack<>))) != null)
-            {
-                converterType = typeof(StackOfTConverter<,>);
-                elementType = actualTypeToConvert.GetGenericArguments()[0];
-            }
-            // Queue<> or deriving from Queue<>
-            else if ((actualTypeToConvert = typeToConvert.GetCompatibleGenericBaseClass(typeof(Queue<>))) != null)
-            {
-                converterType = typeof(QueueOfTConverter<,>);
-                elementType = actualTypeToConvert.GetGenericArguments()[0];
-            }
-            // ConcurrentStack<> or deriving from ConcurrentStack<>
-            else if ((actualTypeToConvert = typeToConvert.GetCompatibleGenericBaseClass(typeof(ConcurrentStack<>))) != null)
-            {
-                converterType = typeof(ConcurrentStackOfTConverter<,>);
-                elementType = actualTypeToConvert.GetGenericArguments()[0];
-            }
-            // ConcurrentQueue<> or deriving from ConcurrentQueue<>
-            else if ((actualTypeToConvert = typeToConvert.GetCompatibleGenericBaseClass(typeof(ConcurrentQueue<>))) != null)
-            {
-                converterType = typeof(ConcurrentQueueOfTConverter<,>);
-                elementType = actualTypeToConvert.GetGenericArguments()[0];
-            }
             // IEnumerable<>, types assignable from List<>
             else if ((actualTypeToConvert = typeToConvert.GetCompatibleGenericInterface(typeof(IEnumerable<>))) != null)
             {
@@ -170,10 +131,6 @@ namespace Rdn.Serialization.Converters
                 }
 
                 converterType = typeof(IListConverter<>);
-            }
-            else if (typeToConvert.IsNonGenericStackOrQueue())
-            {
-                converterType = typeof(StackOrQueueConverterWithReflection<>);
             }
             else
             {

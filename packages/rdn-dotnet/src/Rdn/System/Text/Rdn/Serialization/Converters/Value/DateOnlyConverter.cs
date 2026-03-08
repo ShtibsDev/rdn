@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 using System.Globalization;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -80,7 +79,5 @@ namespace Rdn.Serialization.Converters
             Debug.Assert(formattedSuccessfully && charsWritten == FormatLength);
             writer.WritePropertyName(buffer);
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => new() { Type = RdnSchemaType.String, Format = "date" };
     }
 }

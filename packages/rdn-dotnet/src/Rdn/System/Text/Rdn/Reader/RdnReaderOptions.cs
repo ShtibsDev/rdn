@@ -30,7 +30,7 @@ namespace Rdn
             set
             {
                 Debug.Assert(value >= 0);
-                if (value > RdnCommentHandling.Allow)
+                if (value > RdnCommentHandling.Disallow)
                 {
                     ThrowHelper.ThrowArgumentOutOfRangeException_CommentEnumMustBeInRange(nameof(value));
                 }

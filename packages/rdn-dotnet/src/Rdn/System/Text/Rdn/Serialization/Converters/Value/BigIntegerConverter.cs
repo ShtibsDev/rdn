@@ -3,7 +3,6 @@
 
 using System.Buffers;
 using System.Numerics;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -35,7 +34,5 @@ namespace Rdn.Serialization.Converters
         {
             writer.WriteBigIntegerValue(value);
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => new() { Type = RdnSchemaType.Integer };
     }
 }

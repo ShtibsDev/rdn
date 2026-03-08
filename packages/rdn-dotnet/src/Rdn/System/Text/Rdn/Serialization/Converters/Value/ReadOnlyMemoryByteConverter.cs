@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Rdn.Nodes;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -30,7 +29,5 @@ namespace Rdn.Serialization.Converters
                 writer.WriteRdnBinaryValue(value.Span);
             }
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => new() { Type = RdnSchemaType.String };
     }
 }

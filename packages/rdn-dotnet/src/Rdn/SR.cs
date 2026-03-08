@@ -160,13 +160,10 @@ namespace Rdn
         internal static string RdnElementHasWrongType => GetResourceString("RdnElementHasWrongType");
         internal static string RdnIncludeOnInaccessibleProperty => GetResourceString("RdnIncludeOnInaccessibleProperty");
         internal static string RdnNumberExponentTooLarge => GetResourceString("RdnNumberExponentTooLarge");
-        internal static string RdnPolymorphismOptionsAssociatedWithDifferentRdnTypeInfo => GetResourceString("RdnPolymorphismOptionsAssociatedWithDifferentRdnTypeInfo");
         internal static string RdnPropertyInfoBoundToDifferentParent => GetResourceString("RdnPropertyInfoBoundToDifferentParent");
         internal static string RdnPropertyRequiredAndExtensionData => GetResourceString("RdnPropertyRequiredAndExtensionData");
         internal static string RdnPropertyRequiredAndNotDeserializable => GetResourceString("RdnPropertyRequiredAndNotDeserializable");
         internal static string RdnRequiredPropertiesMissing => GetResourceString("RdnRequiredPropertiesMissing");
-        internal static string RdnSchemaExporter_DepthTooLarge => GetResourceString("RdnSchemaExporter_DepthTooLarge");
-        internal static string RdnSchemaExporter_ReferenceHandlerPreserve_NotSupported => GetResourceString("RdnSchemaExporter_ReferenceHandlerPreserve_NotSupported");
         internal static string RdnSerializerDoesNotSupportComments => GetResourceString("RdnSerializerDoesNotSupportComments");
         internal static string RdnSerializerIsReflectionDisabled => GetResourceString("RdnSerializerIsReflectionDisabled");
         internal static string RdnSerializerOptionsNoTypeInfoResolverSpecified => GetResourceString("RdnSerializerOptionsNoTypeInfoResolverSpecified");

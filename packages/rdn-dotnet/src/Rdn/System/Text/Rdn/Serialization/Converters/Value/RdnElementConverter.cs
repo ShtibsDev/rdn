@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Rdn.Schema;
 using Rdn.Nodes;
 
 namespace Rdn.Serialization.Converters
@@ -17,7 +16,5 @@ namespace Rdn.Serialization.Converters
         {
             value.WriteTo(writer);
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => RdnSchema.CreateTrueSchema();
     }
 }

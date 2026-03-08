@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 using Rdn.Nodes;
-using Rdn.Schema;
 using Rdn.Serialization.Metadata;
 
 namespace Rdn.Serialization.Converters
@@ -112,7 +111,5 @@ namespace Rdn.Serialization.Converters
             ThrowHelper.ThrowRdnException();
             return null;
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => new() { Type = RdnSchemaType.Object };
     }
 }

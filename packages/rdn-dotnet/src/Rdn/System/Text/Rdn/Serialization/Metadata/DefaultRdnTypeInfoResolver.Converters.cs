@@ -27,12 +27,8 @@ namespace Rdn.Serialization.Metadata
                 new NullableConverterFactory(),
                 new EnumConverterFactory(),
                 new RdnNodeConverterFactory(),
-                new FSharpTypeConverterFactory(),
                 // Tuples must be before IEnumerable since Tuple<> implements IEnumerable.
                 new TupleConverterFactory(),
-                new MemoryConverterFactory(),
-                // IAsyncEnumerable takes precedence over IEnumerable.
-                new IAsyncEnumerableConverterFactory(),
                 // IEnumerable should always be second to last since they can convert any IEnumerable.
                 new IEnumerableConverterFactory(),
                 // Object should always be last since it converts any type.
@@ -42,7 +38,7 @@ namespace Rdn.Serialization.Metadata
 
         private static Dictionary<Type, RdnConverter> GetDefaultSimpleConverters()
         {
-            const int NumberOfSimpleConverters = 34;
+            const int NumberOfSimpleConverters = 28;
             var converters = new Dictionary<Type, RdnConverter>(NumberOfSimpleConverters);
 
             // Use a dictionary for simple converters.
@@ -56,7 +52,6 @@ namespace Rdn.Serialization.Metadata
 #if NET
             Add(RdnMetadataServices.DateOnlyConverter);
             Add(RdnMetadataServices.TimeOnlyConverter);
-            Add(RdnMetadataServices.HalfConverter);
 #endif
             Add(RdnMetadataServices.DoubleConverter);
             Add(RdnMetadataServices.DecimalConverter);
@@ -66,8 +61,6 @@ namespace Rdn.Serialization.Metadata
             Add(RdnMetadataServices.Int64Converter);
             Add(RdnMetadataServices.RdnElementConverter);
             Add(RdnMetadataServices.RdnDocumentConverter);
-            Add(RdnMetadataServices.MemoryByteConverter);
-            Add(RdnMetadataServices.ReadOnlyMemoryByteConverter);
             Add(RdnMetadataServices.ObjectConverter);
             Add(RdnMetadataServices.SByteConverter);
             Add(RdnMetadataServices.SingleConverter);
@@ -76,12 +69,7 @@ namespace Rdn.Serialization.Metadata
             Add(RdnMetadataServices.UInt16Converter);
             Add(RdnMetadataServices.UInt32Converter);
             Add(RdnMetadataServices.UInt64Converter);
-#if NET
-            Add(RdnMetadataServices.Int128Converter);
-            Add(RdnMetadataServices.UInt128Converter);
-#endif
             Add(RdnMetadataServices.UriConverter);
-            Add(RdnMetadataServices.VersionConverter);
             Add(RdnMetadataServices.RdnDurationConverter);
             Add(RdnMetadataServices.RegexConverter);
             Add(RdnMetadataServices.BigIntegerConverter);

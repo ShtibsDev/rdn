@@ -194,14 +194,7 @@ namespace Rdn
             Type runtimeType = rootValue.GetType();
             if (runtimeType != RdnTypeInfo.ObjectType)
             {
-                // To determine the contract for an object value:
-                // 1. Find the RdnTypeInfo for the runtime type with fallback to the nearest ancestor, if not available.
-                // 2. If the resolved type is deriving from a polymorphic type, use the contract of the polymorphic type instead.
                 polymorphicTypeInfo = GetTypeInfoForRootType(runtimeType, fallBackToNearestAncestorType: true);
-                if (polymorphicTypeInfo.AncestorPolymorphicType is { } ancestorPolymorphicType)
-                {
-                    polymorphicTypeInfo = ancestorPolymorphicType;
-                }
                 return true;
             }
 
@@ -520,7 +513,6 @@ namespace Rdn
                     left._dictionaryKeyPolicy == right._dictionaryKeyPolicy &&
                     left._rdnPropertyNamingPolicy == right._rdnPropertyNamingPolicy &&
                     left._readCommentHandling == right._readCommentHandling &&
-                    left._referenceHandler == right._referenceHandler &&
                     left._encoder == right._encoder &&
                     left._defaultIgnoreCondition == right._defaultIgnoreCondition &&
                     left._numberHandling == right._numberHandling &&
@@ -585,7 +577,6 @@ namespace Rdn
                 AddHashCode(ref hc, options._dictionaryKeyPolicy);
                 AddHashCode(ref hc, options._rdnPropertyNamingPolicy);
                 AddHashCode(ref hc, options._readCommentHandling);
-                AddHashCode(ref hc, options._referenceHandler);
                 AddHashCode(ref hc, options._encoder);
                 AddHashCode(ref hc, options._defaultIgnoreCondition);
                 AddHashCode(ref hc, options._numberHandling);

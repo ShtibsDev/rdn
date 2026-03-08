@@ -19,7 +19,7 @@ namespace Rdn.Serialization.Metadata
         /// returning the first result that is non-null. If all <paramref name="resolvers"/> return null,
         /// then the combined resolver will also return <see langword="null"/>.
         ///
-        /// Can be used to combine multiple <see cref="RdnSerializerContext"/> sources,
+        /// Can be used to combine multiple type info resolver sources,
         /// which typically define contract metadata for small subsets of types.
         /// It can also be used to fall back to <see cref="DefaultRdnTypeInfoResolver"/> wherever necessary.
         /// </remarks>
@@ -40,7 +40,7 @@ namespace Rdn.Serialization.Metadata
         /// returning the first result that is non-null. If all <paramref name="resolvers"/> return null,
         /// then the combined resolver will also return <see langword="null"/>.
         ///
-        /// Can be used to combine multiple <see cref="RdnSerializerContext"/> sources,
+        /// Can be used to combine multiple type info resolver sources,
         /// which typically define contract metadata for small subsets of types.
         /// It can also be used to fall back to <see cref="DefaultRdnTypeInfoResolver"/> wherever necessary.
         /// </remarks>

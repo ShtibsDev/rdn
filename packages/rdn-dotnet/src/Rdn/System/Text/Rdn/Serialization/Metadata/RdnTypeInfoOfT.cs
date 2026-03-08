@@ -42,7 +42,7 @@ namespace Rdn.Serialization.Metadata
         /// <remarks>
         /// If set to <see langword="null" />, any attempt to deserialize instances of the given type will fail at runtime.
         ///
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// types with a single default constructor or default constructors annotated with <see cref="RdnConstructorAttribute"/>
         /// will be mapped to this delegate.
         /// </remarks>

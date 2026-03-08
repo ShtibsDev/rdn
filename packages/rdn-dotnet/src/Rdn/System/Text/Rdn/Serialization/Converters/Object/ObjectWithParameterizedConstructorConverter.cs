@@ -128,36 +128,6 @@ namespace Rdn.Serialization.Converters
                     state.Current.ObjectState = StackFrameObjectState.StartToken;
                 }
 
-                // Read any metadata properties.
-                if (state.Current.CanContainMetadata && state.Current.ObjectState < StackFrameObjectState.ReadMetadata)
-                {
-                    if (!RdnSerializer.TryReadMetadata(this, rdnTypeInfo, ref reader, ref state))
-                    {
-                        value = default;
-                        return false;
-                    }
-
-                    if (state.Current.MetadataPropertyNames == MetadataPropertyName.Ref)
-                    {
-                        value = RdnSerializer.ResolveReferenceId<T>(ref state);
-                        return true;
-                    }
-
-                    state.Current.ObjectState = StackFrameObjectState.ReadMetadata;
-                }
-
-                // Dispatch to any polymorphic converters: should always be entered regardless of ObjectState progress
-                if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Type) != 0 &&
-                    state.Current.PolymorphicSerializationState != PolymorphicSerializationState.PolymorphicReEntryStarted &&
-                    ResolvePolymorphicConverter(rdnTypeInfo, ref state) is RdnConverter polymorphicConverter)
-                {
-                    Debug.Assert(!IsValueType);
-                    bool success = polymorphicConverter.OnTryReadAsObject(ref reader, polymorphicConverter.Type!, options, ref state, out object? objectResult);
-                    value = (T)objectResult!;
-                    state.ExitPolymorphicConverter(success);
-                    return success;
-                }
-
                 // We need to populate before we started reading constructor arguments.
                 // Metadata is disallowed with Populate option and therefore ordering here is irrelevant.
                 // Since state.Current.IsPopulating is being checked early on in this method the continuation
@@ -175,17 +145,6 @@ namespace Rdn.Serialization.Converters
                 // Handle metadata post polymorphic dispatch
                 if (state.Current.ObjectState < StackFrameObjectState.ConstructorArguments)
                 {
-                    if (state.Current.CanContainMetadata)
-                    {
-                        RdnSerializer.ValidateMetadataForObjectConverter(ref state);
-                    }
-
-                    if (state.Current.MetadataPropertyNames == MetadataPropertyName.Ref)
-                    {
-                        value = RdnSerializer.ResolveReferenceId<T>(ref state);
-                        return true;
-                    }
-
                     BeginRead(ref state, options);
 
                     state.Current.ObjectState = StackFrameObjectState.ConstructorArguments;
@@ -203,14 +162,6 @@ namespace Rdn.Serialization.Converters
                 state.Current.ValidateAllRequiredPropertiesAreRead(rdnTypeInfo);
 
                 obj = (T)CreateObject(ref state.Current);
-
-                if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Id) != 0)
-                {
-                    Debug.Assert(state.ReferenceId != null);
-                    Debug.Assert(options.ReferenceHandlingStrategy == RdnKnownReferenceHandler.Preserve);
-                    state.ReferenceResolver.AddReference(state.ReferenceId, obj);
-                    state.ReferenceId = null;
-                }
 
                 rdnTypeInfo.OnDeserializing?.Invoke(obj);
 

@@ -62,7 +62,7 @@ namespace Rdn
         private byte _indexOffset;
 
         /// <summary>
-        /// Cancellation token used by converters performing async serialization (e.g. IAsyncEnumerable)
+        /// Cancellation token used by converters performing async serialization.
         /// </summary>
         public CancellationToken CancellationToken;
 
@@ -96,9 +96,6 @@ namespace Rdn
         /// </summary>
         public readonly bool IsContinuation => _continuationCount != 0;
 
-        // The bag of preservable references.
-        public ReferenceResolver ReferenceResolver;
-
         /// <summary>
         /// Internal flag to let us know that we need to read ahead in the inner read loop.
         /// </summary>
@@ -110,24 +107,9 @@ namespace Rdn
         public bool SupportAsync;
 
         /// <summary>
-        /// Stores a reference id that has been calculated for a newly serialized object.
-        /// </summary>
-        public string? NewReferenceId;
-
-        /// <summary>
-        /// Indicates that the next converter is polymorphic and must serialize a type discriminator.
-        /// </summary>
-        public object? PolymorphicTypeDiscriminator;
-
-        /// <summary>
-        /// The polymorphic type resolver used by the next converter.
-        /// </summary>
-        public PolymorphicTypeResolver? PolymorphicTypeResolver;
-
-        /// <summary>
         /// Whether the current frame needs to write out any metadata.
         /// </summary>
-        public readonly bool CurrentContainsMetadata => NewReferenceId != null || PolymorphicTypeDiscriminator != null;
+        public readonly bool CurrentContainsMetadata => false;
 
         private void EnsurePushCapacity()
         {
@@ -156,20 +138,6 @@ namespace Rdn
             Current.NumberHandling = Current.RdnPropertyInfo.EffectiveNumberHandling;
             SupportContinuation = supportContinuation;
             SupportAsync = supportAsync;
-
-            RdnSerializerOptions options = rdnTypeInfo.Options;
-            if (options.ReferenceHandlingStrategy != RdnKnownReferenceHandler.Unspecified)
-            {
-                Debug.Assert(options.ReferenceHandler != null);
-                ReferenceResolver = options.ReferenceHandler.CreateResolver(writing: true);
-
-                if (options.ReferenceHandlingStrategy == RdnKnownReferenceHandler.IgnoreCycles &&
-                    rootValueBoxed is not null && rdnTypeInfo.Type.IsValueType)
-                {
-                    // Root object is a boxed value type, we need to push it to the reference stack before starting the serializer.
-                    ReferenceResolver.PushReferenceForCycleDetection(rootValueBoxed);
-                }
-            }
         }
 
         /// <summary>
@@ -177,7 +145,6 @@ namespace Rdn
         /// </summary>
         public readonly RdnTypeInfo PeekNestedRdnTypeInfo()
         {
-            Debug.Assert(Current.PolymorphicSerializationState != PolymorphicSerializationState.PolymorphicReEntryStarted);
             return _count == 0 ? Current.RdnTypeInfo : Current.RdnPropertyInfo!.RdnTypeInfo;
         }
 
@@ -187,12 +154,9 @@ namespace Rdn
 
             if (_continuationCount == 0)
             {
-                Debug.Assert(Current.PolymorphicSerializationState != PolymorphicSerializationState.PolymorphicReEntrySuspended);
-
-                if (_count == 0 && Current.PolymorphicSerializationState == PolymorphicSerializationState.None)
+                if (_count == 0)
                 {
-                    // Perf enhancement: do not create a new stackframe on the first push operation
-                    // unless the converter has primed the current frame for polymorphic dispatch.
+                    // Perf enhancement: reuse the first stack frame on the first push operation.
                     _count = 1;
                     _indexOffset = 1; // currentIndex := _count - 1;
                 }

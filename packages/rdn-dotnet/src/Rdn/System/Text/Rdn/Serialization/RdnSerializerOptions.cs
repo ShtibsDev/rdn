@@ -81,7 +81,6 @@ namespace Rdn
         private RdnNamingPolicy? _dictionaryKeyPolicy;
         private RdnNamingPolicy? _rdnPropertyNamingPolicy;
         private RdnCommentHandling _readCommentHandling;
-        private ReferenceHandler? _referenceHandler;
         private JavaScriptEncoder? _encoder;
         private ConverterList? _converters;
         private RdnIgnoreCondition _defaultIgnoreCondition;
@@ -138,7 +137,6 @@ namespace Rdn
             _dictionaryKeyPolicy = options._dictionaryKeyPolicy;
             _rdnPropertyNamingPolicy = options._rdnPropertyNamingPolicy;
             _readCommentHandling = options._readCommentHandling;
-            _referenceHandler = options._referenceHandler;
             _converters = options._converters is { } converters ? new(this, converters) : null;
             _encoder = options._encoder;
             _defaultIgnoreCondition = options._defaultIgnoreCondition;
@@ -169,7 +167,6 @@ namespace Rdn
             _allowDuplicateProperties = options._allowDuplicateProperties;
             _typeInfoResolver = options._typeInfoResolver;
             EffectiveMaxDepth = options.EffectiveMaxDepth;
-            ReferenceHandlingStrategy = options.ReferenceHandlingStrategy;
 
             TrackOptionsInstance(this);
         }
@@ -212,23 +209,6 @@ namespace Rdn
                 // TODO https://github.com/dotnet/runtime/issues/51159:
                 // Look into linking this away / disabling it when hot reload isn't in use.
                 new ConditionalWeakTable<RdnSerializerOptions, object?>();
-        }
-
-        /// <summary>
-        /// Binds current <see cref="RdnSerializerOptions"/> instance with a new instance of the specified <see cref="Serialization.RdnSerializerContext"/> type.
-        /// </summary>
-        /// <typeparam name="TContext">The generic definition of the specified context type.</typeparam>
-        /// <remarks>
-        /// When serializing and deserializing types using the options
-        /// instance, metadata for the types will be fetched from the context instance.
-        /// </remarks>
-        [Obsolete(Obsoletions.RdnSerializerOptionsAddContextMessage, DiagnosticId = Obsoletions.RdnSerializerOptionsAddContextDiagId, UrlFormat = Obsoletions.SharedUrlFormat)]
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public void AddContext<TContext>() where TContext : RdnSerializerContext, new()
-        {
-            VerifyMutable();
-            TContext context = new();
-            context.AssociateWithOptions(this);
         }
 
         /// <summary>
@@ -666,7 +646,7 @@ namespace Rdn
                 VerifyMutable();
 
                 Debug.Assert(value >= 0);
-                if (value > RdnCommentHandling.Skip)
+                if (value > RdnCommentHandling.Disallow)
                     throw new ArgumentOutOfRangeException(nameof(value), SR.RdnSerializerDoesNotSupportComments);
 
                 _readCommentHandling = value;
@@ -762,20 +742,6 @@ namespace Rdn
                 RdnWriterHelper.ValidateIndentSize(value);
                 VerifyMutable();
                 _indentSize = value;
-            }
-        }
-
-        /// <summary>
-        /// Configures how object references are handled when reading and writing RDN.
-        /// </summary>
-        public ReferenceHandler? ReferenceHandler
-        {
-            get => _referenceHandler;
-            set
-            {
-                VerifyMutable();
-                _referenceHandler = value;
-                ReferenceHandlingStrategy = value?.HandlingStrategy ?? RdnKnownReferenceHandler.Unspecified;
             }
         }
 
@@ -971,16 +937,13 @@ namespace Rdn
 
         private bool? _canUseFastPathSerializationLogic;
 
-        // The cached value used to determine if ReferenceHandler should use Preserve or IgnoreCycles semantics or None of them.
-        internal RdnKnownReferenceHandler ReferenceHandlingStrategy = RdnKnownReferenceHandler.Unspecified;
-
         /// <summary>
         /// Specifies whether the current instance has been locked for user modification.
         /// </summary>
         /// <remarks>
         /// A <see cref="RdnSerializerOptions"/> instance can be locked either if
         /// it has been passed to one of the <see cref="RdnSerializer"/> methods,
-        /// has been associated with a <see cref="RdnSerializerContext"/> instance,
+        /// has been associated with a type info resolver instance,
         /// or a user explicitly called the <see cref="MakeReadOnly()"/> methods on the instance.
         ///
         /// Read-only instances use caching when querying <see cref="RdnConverter"/> and <see cref="RdnTypeInfo"/> metadata.
@@ -1050,32 +1013,10 @@ namespace Rdn
                 // the default resolver to gain access to the default converters.
                 DefaultRdnTypeInfoResolver defaultResolver = DefaultRdnTypeInfoResolver.DefaultInstance;
 
-                switch (_typeInfoResolver)
+                if (_typeInfoResolver is null)
                 {
-                    case null:
-                        // Use the default reflection-based resolver if no resolver has been specified.
-                        _typeInfoResolver = defaultResolver;
-                        break;
-
-                    case RdnSerializerContext ctx when AppContextSwitchHelper.IsSourceGenReflectionFallbackEnabled:
-                        // .NET 6 compatibility mode: enable fallback to reflection metadata for RdnSerializerContext
-                        _effectiveRdnTypeInfoResolver = RdnTypeInfoResolver.Combine(ctx, defaultResolver);
-
-                        if (_cachingContext is { } cachingContext)
-                        {
-                            // A cache has already been created by the source generator.
-                            // Repeat the same configuration routine for that options instance, if different.
-                            // Invalidate any cache entries that have already been stored.
-                            if (cachingContext.Options != this && !cachingContext.Options._isConfiguredForRdnSerializer)
-                            {
-                                cachingContext.Options.ConfigureForRdnSerializer();
-                            }
-                            else
-                            {
-                                cachingContext.Clear();
-                            }
-                        }
-                        break;
+                    // Use the default reflection-based resolver if no resolver has been specified.
+                    _typeInfoResolver = defaultResolver;
                 }
             }
             else if (_typeInfoResolver is null or EmptyRdnTypeInfoResolver)
@@ -1189,7 +1130,7 @@ namespace Rdn
         {
             if (_isReadOnly)
             {
-                ThrowHelper.ThrowInvalidOperationException_SerializerOptionsReadOnly(_typeInfoResolver as RdnSerializerContext);
+                ThrowHelper.ThrowInvalidOperationException_SerializerOptionsReadOnly();
             }
         }
 

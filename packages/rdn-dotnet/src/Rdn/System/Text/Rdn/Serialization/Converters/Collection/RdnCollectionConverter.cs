@@ -9,8 +9,7 @@ using Rdn.Serialization.Metadata;
 namespace Rdn.Serialization
 {
     /// <summary>
-    /// Base class for all collections. Collections are assumed to implement <see cref="IEnumerable{T}"/>
-    /// or a variant thereof e.g. <see cref="IAsyncEnumerable{T}"/>.
+    /// Base class for all collections. Collections are assumed to implement <see cref="IEnumerable{T}"/>.
     /// </summary>
     internal abstract class RdnCollectionConverter<TCollection, TElement> : RdnResumableConverter<TCollection>
     {
@@ -140,53 +139,9 @@ namespace Rdn.Serialization
                     }
                 }
 
-                // Handle the metadata properties.
-                if (state.Current.CanContainMetadata && state.Current.ObjectState < StackFrameObjectState.ReadMetadata)
-                {
-                    if (!RdnSerializer.TryReadMetadata(this, rdnTypeInfo, ref reader, ref state))
-                    {
-                        value = default;
-                        return false;
-                    }
-
-                    if (state.Current.MetadataPropertyNames == MetadataPropertyName.Ref)
-                    {
-                        value = RdnSerializer.ResolveReferenceId<TCollection>(ref state);
-                        return true;
-                    }
-
-                    state.Current.ObjectState = StackFrameObjectState.ReadMetadata;
-                }
-
-                // Dispatch to any polymorphic converters: should always be entered regardless of ObjectState progress
-                if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Type) != 0 &&
-                    state.Current.PolymorphicSerializationState != PolymorphicSerializationState.PolymorphicReEntryStarted &&
-                    ResolvePolymorphicConverter(rdnTypeInfo, ref state) is RdnConverter polymorphicConverter)
-                {
-                    Debug.Assert(!IsValueType);
-                    bool success = polymorphicConverter.OnTryReadAsObject(ref reader, polymorphicConverter.Type!, options, ref state, out object? objectResult);
-                    value = (TCollection)objectResult!;
-                    state.ExitPolymorphicConverter(success);
-                    return success;
-                }
-
                 if (state.Current.ObjectState < StackFrameObjectState.CreatedObject)
                 {
-                    if (state.Current.CanContainMetadata)
-                    {
-                        RdnSerializer.ValidateMetadataForArrayConverter(this, ref reader, ref state);
-                    }
-
                     CreateCollection(ref reader, ref state, options);
-
-                    if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Id) != 0)
-                    {
-                        Debug.Assert(state.ReferenceId != null);
-                        Debug.Assert(options.ReferenceHandlingStrategy == RdnKnownReferenceHandler.Preserve);
-                        Debug.Assert(state.Current.ReturnValue is TCollection);
-                        state.ReferenceResolver.AddReference(state.ReferenceId, state.Current.ReturnValue);
-                        state.ReferenceId = null;
-                    }
 
                     rdnTypeInfo.OnDeserializing?.Invoke(state.Current.ReturnValue!);
 
@@ -266,7 +221,7 @@ namespace Rdn.Serialization
                             Debug.Assert(reader.TokenType == RdnTokenType.PropertyName);
                             if (options.AllowOutOfOrderMetadataProperties)
                             {
-                                Debug.Assert(RdnSerializer.IsMetadataPropertyName(reader.GetUnescapedSpan(), (state.Current.BaseRdnTypeInfo ?? rdnTypeInfo).PolymorphicTypeResolver), "should only be hit if metadata property.");
+                                Debug.Assert(reader.TokenType == RdnTokenType.PropertyName, "should only be hit if metadata property.");
                                 bool result = reader.TrySkipPartial(reader.CurrentDepth - 1); // skip to the end of the object
                                 Debug.Assert(result, "Metadata reader must have buffered all contents.");
                                 Debug.Assert(reader.TokenType is RdnTokenType.EndObject);
@@ -311,12 +266,7 @@ namespace Rdn.Serialization
 
                     rdnTypeInfo.OnSerializing?.Invoke(value);
 
-                    if (state.CurrentContainsMetadata && CanHaveMetadata)
-                    {
-                        state.Current.MetadataPropertyName = RdnSerializer.WriteMetadataForCollection(this, ref state, writer);
-                    }
-
-                    // Writing the start of the array must happen after any metadata
+                    // Writing the start of the array
                     writer.WriteStartArray();
                     state.Current.RdnPropertyInfo = rdnTypeInfo.ElementTypeInfo!.PropertyInfoForTypeInfo;
                 }

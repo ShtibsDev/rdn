@@ -55,28 +55,10 @@ namespace Rdn
         /// </summary>
         public readonly bool IsContinuation => _continuationCount != 0;
 
-        // The bag of preservable references.
-        public ReferenceResolver ReferenceResolver;
-
         /// <summary>
         /// Whether we need to read ahead in the inner read loop.
         /// </summary>
         public bool SupportContinuation;
-
-        /// <summary>
-        /// Holds the value of $id or $ref of the currently read object
-        /// </summary>
-        public string? ReferenceId;
-
-        /// <summary>
-        /// Holds the value of $type of the currently read object
-        /// </summary>
-        public object? PolymorphicTypeDiscriminator;
-
-        /// <summary>
-        /// Global flag indicating whether we can read preserved references.
-        /// </summary>
-        public bool PreserveReferences;
 
         /// <summary>
         /// Ensures that the stack buffer has sufficient capacity to hold an additional frame.
@@ -95,17 +77,10 @@ namespace Rdn
 
         internal void Initialize(RdnTypeInfo rdnTypeInfo, bool supportContinuation = false)
         {
-            RdnSerializerOptions options = rdnTypeInfo.Options;
-            if (options.ReferenceHandlingStrategy == RdnKnownReferenceHandler.Preserve)
-            {
-                ReferenceResolver = options.ReferenceHandler!.CreateResolver(writing: false);
-                PreserveReferences = true;
-            }
-
             Current.RdnTypeInfo = rdnTypeInfo;
             Current.RdnPropertyInfo = rdnTypeInfo.PropertyInfoForTypeInfo;
             Current.NumberHandling = Current.RdnPropertyInfo.EffectiveNumberHandling;
-            Current.CanContainMetadata = PreserveReferences || rdnTypeInfo.PolymorphicTypeResolver?.UsesTypeDiscriminators == true;
+            Current.CanContainMetadata = false;
             SupportContinuation = supportContinuation;
         }
 
@@ -134,7 +109,7 @@ namespace Rdn
                     Current.RdnPropertyInfo = rdnTypeInfo.PropertyInfoForTypeInfo;
                     // Allow number handling on property to win over handling on type.
                     Current.NumberHandling = numberHandling ?? Current.RdnPropertyInfo.EffectiveNumberHandling;
-                    Current.CanContainMetadata = PreserveReferences || rdnTypeInfo.PolymorphicTypeResolver?.UsesTypeDiscriminators == true;
+                    Current.CanContainMetadata = false;
                 }
             }
             else
@@ -202,53 +177,6 @@ namespace Rdn
                     Current = _stack[_count - 1];
                 }
             }
-        }
-
-        /// <summary>
-        /// Configures the current stack frame for a polymorphic converter.
-        /// </summary>
-        public RdnConverter InitializePolymorphicReEntry(RdnTypeInfo derivedRdnTypeInfo)
-        {
-            Debug.Assert(!IsContinuation);
-            Debug.Assert(Current.PolymorphicRdnTypeInfo == null);
-            Debug.Assert(Current.PolymorphicSerializationState == PolymorphicSerializationState.None);
-
-            Current.PolymorphicRdnTypeInfo = Current.RdnTypeInfo;
-            Current.RdnTypeInfo = derivedRdnTypeInfo;
-            Current.RdnPropertyInfo = derivedRdnTypeInfo.PropertyInfoForTypeInfo;
-            Current.NumberHandling ??= Current.RdnPropertyInfo.NumberHandling;
-            Current.PolymorphicSerializationState = PolymorphicSerializationState.PolymorphicReEntryStarted;
-            SetConstructorArgumentState();
-
-            return derivedRdnTypeInfo.Converter;
-        }
-
-
-        /// <summary>
-        /// Configures the current frame for a continuation of a polymorphic converter.
-        /// </summary>
-        public RdnConverter ResumePolymorphicReEntry()
-        {
-            Debug.Assert(Current.PolymorphicRdnTypeInfo != null);
-            Debug.Assert(Current.PolymorphicSerializationState == PolymorphicSerializationState.PolymorphicReEntrySuspended);
-
-            // Swap out the two values as we resume the polymorphic converter
-            (Current.RdnTypeInfo, Current.PolymorphicRdnTypeInfo) = (Current.PolymorphicRdnTypeInfo, Current.RdnTypeInfo);
-            Current.PolymorphicSerializationState = PolymorphicSerializationState.PolymorphicReEntryStarted;
-            return Current.RdnTypeInfo.Converter;
-        }
-
-        /// <summary>
-        /// Updates frame state after a polymorphic converter has returned.
-        /// </summary>
-        public void ExitPolymorphicConverter(bool success)
-        {
-            Debug.Assert(Current.PolymorphicRdnTypeInfo != null);
-            Debug.Assert(Current.PolymorphicSerializationState == PolymorphicSerializationState.PolymorphicReEntryStarted);
-
-            // Swap out the two values as we exit the polymorphic converter
-            (Current.RdnTypeInfo, Current.PolymorphicRdnTypeInfo) = (Current.PolymorphicRdnTypeInfo, Current.RdnTypeInfo);
-            Current.PolymorphicSerializationState = success ? PolymorphicSerializationState.None : PolymorphicSerializationState.PolymorphicReEntrySuspended;
         }
 
         // Return a RDNPath using simple dot-notation when possible. When special characters are present, bracket-notation is used:

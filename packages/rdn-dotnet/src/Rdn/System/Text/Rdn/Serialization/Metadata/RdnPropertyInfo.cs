@@ -236,7 +236,7 @@ namespace Rdn.Serialization.Metadata
         /// The current <see cref="PropertyType"/> is not a reference type or <see cref="Nullable{T}"/>.
         /// </exception>
         /// <remarks>
-        /// Contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// Contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// derive the value of this property from nullable reference type annotations, including annotations
         /// from attributes such as <see cref="NotNullAttribute"/> or <see cref="MaybeNullAttribute"/>.
         ///
@@ -272,7 +272,7 @@ namespace Rdn.Serialization.Metadata
         /// The current <see cref="PropertyType"/> is not a reference type or <see cref="Nullable{T}"/>.
         /// </exception>
         /// <remarks>
-        /// Contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// Contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// derive the value of this property from nullable reference type annotations, including annotations
         /// from attributes such as <see cref="AllowNullAttribute"/> or <see cref="DisallowNullAttribute"/>.
         ///
@@ -311,7 +311,7 @@ namespace Rdn.Serialization.Metadata
         /// The current <see cref="PropertyType"/> is not valid for use with extension data.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this property will be mapped from <see cref="RdnExtensionDataAttribute"/> annotations.
         /// </remarks>
         public bool IsExtensionData
@@ -339,12 +339,12 @@ namespace Rdn.Serialization.Metadata
         /// The <see cref="RdnPropertyInfo"/> instance has been locked for further modification.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this property will be mapped from <see cref="RdnRequiredAttribute"/> annotations.
         ///
         /// For contracts using <see cref="DefaultRdnTypeInfoResolver"/>, properties using the <see langword="required"/> keyword
         /// will also map to this setting, unless deserialization uses a SetsRequiredMembersAttribute on a constructor that populates all required properties.
-        /// <see langword="required"/> keyword is currently not supported in <see cref="RdnSerializerContext"/> contracts.
+        /// <see langword="required"/> keyword is currently not supported in custom type info resolver contracts.
         /// </remarks>
         public bool IsRequired
         {
@@ -475,17 +475,6 @@ namespace Rdn.Serialization.Metadata
         private void ValidateAndCachePropertyName()
         {
             Debug.Assert(Name != null);
-
-            if (Options.ReferenceHandlingStrategy is RdnKnownReferenceHandler.Preserve &&
-                this is { DeclaringType.IsValueType: false, IsIgnored: false, IsExtensionData: false } &&
-                Name is RdnSerializer.IdPropertyName or RdnSerializer.RefPropertyName)
-            {
-                // Validate potential conflicts with reference preservation metadata property names.
-                // Conflicts with polymorphic type discriminators are contextual and need to be
-                // handled separately by the PolymorphicTypeResolver type.
-
-                ThrowHelper.ThrowInvalidOperationException_PropertyConflictsWithMetadataPropertyName(DeclaringType, Name);
-            }
 
             NameAsUtf8Bytes = Encoding.UTF8.GetBytes(Name);
             EscapedNameSection = RdnHelpers.GetEscapedPropertyNameSection(NameAsUtf8Bytes, Options.Encoder);
@@ -681,10 +670,6 @@ namespace Rdn.Serialization.Metadata
                     ThrowHelper.ThrowNotSupportedException_ObjectCreationHandlingPropertyDoesNotSupportParameterizedConstructors();
                 }
 
-                if (Options.ReferenceHandlingStrategy != RdnKnownReferenceHandler.Unspecified)
-                {
-                    ThrowHelper.ThrowInvalidOperationException_ObjectCreationHandlingPropertyCannotAllowReferenceHandling();
-                }
             }
 
             // Validation complete, commit configuration.
@@ -782,7 +767,7 @@ namespace Rdn.Serialization.Metadata
         /// <remarks>
         /// The value of <see cref="Name"/> cannot conflict with that of other <see cref="RdnPropertyInfo"/> defined in the declaring <see cref="RdnTypeInfo"/>.
         ///
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value typically reflects the underlying .NET member name, the name derived from <see cref="RdnSerializerOptions.PropertyNamingPolicy" />,
         /// or the value specified in <see cref="RdnPropertyNameAttribute" />.
         /// </remarks>
@@ -827,7 +812,7 @@ namespace Rdn.Serialization.Metadata
         /// The <see cref="RdnPropertyInfo"/> instance has been locked for further modification.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this property will be mapped from <see cref="RdnPropertyOrderAttribute"/> annotations.
         /// </remarks>
         public int Order
@@ -1038,7 +1023,7 @@ namespace Rdn.Serialization.Metadata
         /// The <see cref="RdnPropertyInfo"/> instance has been locked for further modification.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this property will be mapped from <see cref="RdnNumberHandlingAttribute"/> annotations.
         /// </remarks>
         public RdnNumberHandling? NumberHandling

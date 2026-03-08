@@ -93,33 +93,6 @@ namespace Rdn
             return WriteElementAsObject(value, rdnTypeInfo);
         }
 
-        /// <summary>
-        /// Converts the provided value into a <see cref="RdnElement"/>.
-        /// </summary>
-        /// <returns>A <see cref="RdnElement"/> representation of the value.</returns>
-        /// <param name="value">The value to convert.</param>
-        /// <param name="inputType">The type of the <paramref name="value"/> to convert.</param>
-        /// <param name="context">A metadata provider for serializable types.</param>
-        /// <exception cref="NotSupportedException">
-        /// There is no compatible <see cref="Rdn.Serialization.RdnConverter"/>
-        /// for <paramref name="inputType"/> or its serializable members.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// The <see cref="RdnSerializerContext.GetTypeInfo(Type)"/> method of the provided
-        /// <paramref name="context"/> returns <see langword="null"/> for the type to convert.
-        /// </exception>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="inputType"/> or <paramref name="context"/> is <see langword="null"/>.
-        /// </exception>
-        public static RdnElement SerializeToElement(object? value, Type inputType, RdnSerializerContext context)
-        {
-            ArgumentNullException.ThrowIfNull(context);
-
-            ValidateInputType(value, inputType);
-            RdnTypeInfo typeInfo = GetTypeInfo(context, inputType);
-            return WriteElementAsObject(value, typeInfo);
-        }
-
         private static RdnElement WriteElement<TValue>(in TValue value, RdnTypeInfo<TValue> rdnTypeInfo)
         {
             Debug.Assert(rdnTypeInfo.IsConfigured);

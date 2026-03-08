@@ -9,7 +9,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Rdn.Encodings.Web;
 using Rdn.Nodes;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -484,31 +483,6 @@ namespace Rdn.Serialization.Converters
 
                 return false;
             }
-        }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling numberHandling)
-        {
-            if ((_converterOptions & EnumConverterOptions.AllowStrings) != 0)
-            {
-                // This explicitly ignores the integer component in converters configured as AllowNumbers | AllowStrings
-                // which is the default for RdnStringEnumConverter. This sacrifices some precision in the schema for simplicity.
-
-                if (s_isFlagsEnum)
-                {
-                    // Do not report enum values in case of flags.
-                    return new() { Type = RdnSchemaType.String };
-                }
-
-                RdnArray enumValues = [];
-                foreach (EnumFieldInfo fieldInfo in _enumFieldInfo)
-                {
-                    enumValues.Add((RdnNode)fieldInfo.RdnName);
-                }
-
-                return new() { Enum = enumValues };
-            }
-
-            return new() { Type = RdnSchemaType.Integer };
         }
 
         private static EnumFieldInfo[] ResolveEnumFields(RdnNamingPolicy? namingPolicy)

@@ -4,7 +4,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using Rdn.Schema;
 using Rdn.Serialization.Converters;
 using Rdn.Serialization.Metadata;
 
@@ -212,11 +211,6 @@ namespace Rdn.Serialization
         internal abstract void WriteAsPropertyNameAsObject(Utf8RdnWriter writer, object? value, RdnSerializerOptions options);
         internal abstract void WriteAsPropertyNameCoreAsObject(Utf8RdnWriter writer, object? value, RdnSerializerOptions options, bool isWritingExtensionDataProperty);
         internal abstract void WriteNumberWithCustomHandlingAsObject(Utf8RdnWriter writer, object? value, RdnNumberHandling handling);
-
-        /// <summary>
-        /// Gets a schema from the type being converted
-        /// </summary>
-        internal virtual RdnSchema? GetSchema(RdnNumberHandling numberHandling) => null;
 
         // Whether a type (ConverterStrategy.Object) is deserialized using a parameterized constructor.
         internal virtual bool ConstructorIsParameterized { get; }

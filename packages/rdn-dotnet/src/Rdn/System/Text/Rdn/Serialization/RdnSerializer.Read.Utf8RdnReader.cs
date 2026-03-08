@@ -210,71 +210,9 @@ namespace Rdn
             return ReadAsObject(ref reader, rdnTypeInfo);
         }
 
-        /// <summary>
-        /// Reads one RDN value (including objects or arrays) from the provided reader into a <paramref name="returnType"/>.
-        /// </summary>
-        /// <returns>A <paramref name="returnType"/> representation of the RDN value.</returns>
-        /// <param name="reader">The reader to read.</param>
-        /// <param name="returnType">The type of the object to convert to and return.</param>
-        /// <param name="context">A metadata provider for serializable types.</param>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="returnType"/> or <paramref name="context"/> is <see langword="null"/>.
-        /// </exception>
-        /// <exception cref="RdnException">
-        /// The RDN is invalid,
-        /// <paramref name="returnType"/> is not compatible with the RDN,
-        /// or a value could not be read from the reader.
-        /// </exception>
-        /// <exception cref="ArgumentException">
-        ///   <paramref name="reader"/> is using unsupported options.
-        /// </exception>
-        /// <exception cref="NotSupportedException">
-        /// There is no compatible <see cref="Rdn.Serialization.RdnConverter"/>
-        /// for <paramref name="returnType"/> or its serializable members.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// The <see cref="RdnSerializerContext.GetTypeInfo(Type)"/> method on the provided <paramref name="context"/>
-        /// did not return a compatible <see cref="RdnTypeInfo"/> for <paramref name="returnType"/>.
-        /// </exception>
-        /// <remarks>
-        ///   <para>
-        ///     If the <see cref="Utf8RdnReader.TokenType"/> property of <paramref name="reader"/>
-        ///     is <see cref="RdnTokenType.PropertyName"/> or <see cref="RdnTokenType.None"/>, the
-        ///     reader will be advanced by one call to <see cref="Utf8RdnReader.Read"/> to determine
-        ///     the start of the value.
-        ///   </para>
-        ///
-        ///   <para>
-        ///     Upon completion of this method, <paramref name="reader"/> will be positioned at the
-        ///     final token in the RDN value. If an exception is thrown, the reader is reset to
-        ///     the state it was in when the method was called.
-        ///   </para>
-        ///
-        ///   <para>
-        ///     This method makes a copy of the data the reader acted on, so there is no caller
-        ///     requirement to maintain data integrity beyond the return of this method.
-        ///   </para>
-        ///   <para>
-        ///     The <see cref="RdnReaderOptions"/> used to create the instance of the <see cref="Utf8RdnReader"/> take precedence over the <see cref="RdnSerializerOptions"/> when they conflict.
-        ///     Hence, <see cref="RdnReaderOptions.AllowTrailingCommas"/>, <see cref="RdnReaderOptions.MaxDepth"/>, and <see cref="RdnReaderOptions.CommentHandling"/> are used while reading.
-        ///   </para>
-        /// </remarks>
-        public static object? Deserialize(ref Utf8RdnReader reader, Type returnType, RdnSerializerContext context)
-        {
-            ArgumentNullException.ThrowIfNull(returnType);
-            ArgumentNullException.ThrowIfNull(context);
-
-            return ReadAsObject(ref reader, GetTypeInfo(context, returnType));
-        }
-
         private static TValue? Read<TValue>(ref Utf8RdnReader reader, RdnTypeInfo<TValue> rdnTypeInfo)
         {
             Debug.Assert(rdnTypeInfo.IsConfigured);
-
-            if (reader.CurrentState.Options.CommentHandling == RdnCommentHandling.Allow)
-            {
-                ThrowHelper.ThrowArgumentException_SerializerDoesNotSupportComments(nameof(reader));
-            }
 
             ReadStack state = default;
             state.Initialize(rdnTypeInfo);
@@ -295,11 +233,6 @@ namespace Rdn
         private static object? ReadAsObject(ref Utf8RdnReader reader, RdnTypeInfo rdnTypeInfo)
         {
             Debug.Assert(rdnTypeInfo.IsConfigured);
-
-            if (reader.CurrentState.Options.CommentHandling == RdnCommentHandling.Allow)
-            {
-                ThrowHelper.ThrowArgumentException_SerializerDoesNotSupportComments(nameof(reader));
-            }
 
             ReadStack state = default;
             state.Initialize(rdnTypeInfo);

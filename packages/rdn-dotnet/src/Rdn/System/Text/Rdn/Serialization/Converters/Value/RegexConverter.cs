@@ -3,7 +3,6 @@
 
 using System.Buffers;
 using System.Text.RegularExpressions;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -82,8 +81,6 @@ namespace Rdn.Serialization.Converters
             writer.WritePropertyName(new string(buf.Slice(0, totalLength)));
             if (rented != null) ArrayPool<char>.Shared.Return(rented);
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => new() { Type = RdnSchemaType.String, Format = "regex" };
 
         private static RegexOptions MapFlags(string flags)
         {

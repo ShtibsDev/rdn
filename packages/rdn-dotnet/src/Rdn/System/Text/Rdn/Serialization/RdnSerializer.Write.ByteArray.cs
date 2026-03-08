@@ -96,36 +96,6 @@ namespace Rdn
             return WriteBytesAsObject(value, rdnTypeInfo);
         }
 
-        /// <summary>
-        /// Converts the provided value into a <see cref="byte"/> array.
-        /// </summary>
-        /// <returns>A UTF-8 representation of the value.</returns>
-        /// <param name="value">The value to convert.</param>
-        /// <param name="inputType">The type of the <paramref name="value"/> to convert.</param>
-        /// <param name="context">A metadata provider for serializable types.</param>
-        /// <exception cref="ArgumentException">
-        /// <paramref name="inputType"/> is not compatible with <paramref name="value"/>.
-        /// </exception>
-        /// <exception cref="System.ArgumentNullException">
-        /// <paramref name="inputType"/> is <see langword="null"/>.
-        /// </exception>
-        /// <exception cref="NotSupportedException">
-        /// There is no compatible <see cref="Rdn.Serialization.RdnConverter"/>
-        /// for <paramref name="inputType"/>  or its serializable members.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// The <see cref="RdnSerializerContext.GetTypeInfo(Type)"/> method of the provided
-        /// <paramref name="context"/> returns <see langword="null"/> for the type to convert.
-        /// </exception>
-        public static byte[] SerializeToUtf8Bytes(object? value, Type inputType, RdnSerializerContext context)
-        {
-            ArgumentNullException.ThrowIfNull(context);
-
-            ValidateInputType(value, inputType);
-            RdnTypeInfo rdnTypeInfo = GetTypeInfo(context, inputType);
-            return WriteBytesAsObject(value, rdnTypeInfo);
-        }
-
         private static byte[] WriteBytes<TValue>(in TValue value, RdnTypeInfo<TValue> rdnTypeInfo)
         {
             Debug.Assert(rdnTypeInfo.IsConfigured);

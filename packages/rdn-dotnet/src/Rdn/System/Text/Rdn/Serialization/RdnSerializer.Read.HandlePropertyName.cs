@@ -86,17 +86,7 @@ namespace Rdn
 
             if (state.Current.CanContainMetadata)
             {
-                if (IsMetadataPropertyName(propertyName, state.Current.BaseRdnTypeInfo.PolymorphicTypeResolver))
-                {
-                    if (options.AllowOutOfOrderMetadataProperties)
-                    {
-                        isAlreadyReadMetadataProperty = true;
-                    }
-                    else
-                    {
-                        ThrowHelper.ThrowUnexpectedMetadataException(propertyName, ref reader, ref state);
-                    }
-                }
+                ThrowHelper.ThrowUnexpectedMetadataException(propertyName, ref reader, ref state);
             }
 
             return propertyName;

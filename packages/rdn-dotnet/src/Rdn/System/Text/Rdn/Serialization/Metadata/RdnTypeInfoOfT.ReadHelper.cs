@@ -1,7 +1,6 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
@@ -100,14 +99,6 @@ namespace Rdn.Serialization.Metadata
                 bufferState.Dispose();
             }
         }
-
-        /// <summary>
-        /// Caches RdnTypeInfo&lt;List&lt;T&gt;&gt; instances used by the DeserializeAsyncEnumerable method.
-        /// Store as a non-generic type to avoid triggering generic recursion in the AOT compiler.
-        /// cf. https://github.com/dotnet/runtime/issues/85184
-        /// </summary>
-        internal RdnTypeInfo? _asyncEnumerableArrayTypeInfo;
-        internal RdnTypeInfo? _asyncEnumerableRootLevelValueTypeInfo;
 
         internal sealed override object? DeserializeAsObject(ref Utf8RdnReader reader, ref ReadStack state)
             => Deserialize(ref reader, ref state);

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -44,7 +43,5 @@ namespace Rdn.Serialization.Converters
         {
             writer.WritePropertyName(value);
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => new RdnSchema { Type = RdnSchemaType.String, Format = "date-time" };
     }
 }

@@ -95,47 +95,6 @@ namespace Rdn
             return ReadFromNodeAsObject(node, rdnTypeInfo);
         }
 
-        /// <summary>
-        /// Converts the <see cref="RdnNode"/> representing a single RDN value into a <paramref name="returnType"/>.
-        /// </summary>
-        /// <returns>A <paramref name="returnType"/> representation of the RDN value.</returns>
-        /// <param name="node">The <see cref="RdnNode"/> to convert.</param>
-        /// <param name="returnType">The type of the object to convert to and return.</param>
-        /// <param name="context">A metadata provider for serializable types.</param>
-        /// <exception cref="System.ArgumentNullException">
-        /// <paramref name="returnType"/> is <see langword="null"/>.
-        ///
-        /// -or-
-        ///
-        /// <paramref name="context"/> is <see langword="null"/>.
-        /// </exception>
-        /// <exception cref="RdnException">
-        /// The RDN is invalid.
-        ///
-        /// -or-
-        ///
-        /// <paramref name="returnType" /> is not compatible with the RDN.
-        ///
-        /// -or-
-        ///
-        /// There is remaining data in the string beyond a single RDN value.</exception>
-        /// <exception cref="NotSupportedException">
-        /// There is no compatible <see cref="Rdn.Serialization.RdnConverter"/>
-        /// for <paramref name="returnType"/> or its serializable members.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// The <see cref="RdnSerializerContext.GetTypeInfo(Type)"/> method of the provided
-        /// <paramref name="context"/> returns <see langword="null"/> for the type to convert.
-        /// </exception>
-        public static object? Deserialize(this RdnNode? node, Type returnType, RdnSerializerContext context)
-        {
-            ArgumentNullException.ThrowIfNull(returnType);
-            ArgumentNullException.ThrowIfNull(context);
-
-            RdnTypeInfo rdnTypeInfo = GetTypeInfo(context, returnType);
-            return ReadFromNodeAsObject(node, rdnTypeInfo);
-        }
-
         private static TValue? ReadFromNode<TValue>(RdnNode? node, RdnTypeInfo<TValue> rdnTypeInfo)
         {
             RdnSerializerOptions options = rdnTypeInfo.Options;

@@ -5,8 +5,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Rdn.Nodes;
 using Rdn.Reflection;
-using Rdn.Schema;
-
 namespace Rdn.Serialization.Converters
 {
     /// <summary>
@@ -129,7 +127,5 @@ namespace Rdn.Serialization.Converters
         internal override void WriteNumberWithCustomHandling(Utf8RdnWriter writer, T? value, RdnNumberHandling handling)
             => _sourceConverter.WriteNumberWithCustomHandlingAsObject(writer, value, handling);
 
-        internal override RdnSchema? GetSchema(RdnNumberHandling numberHandling)
-            => _sourceConverter.GetSchema(numberHandling);
     }
 }

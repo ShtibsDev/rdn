@@ -116,51 +116,5 @@ namespace Rdn
             return ReadFromSpanAsObject(utf8Rdn, rdnTypeInfo);
         }
 
-        /// <summary>
-        /// Converts the <see cref="RdnDocument"/> representing a single RDN value into a <paramref name="returnType"/>.
-        /// </summary>
-        /// <returns>A <paramref name="returnType"/> representation of the RDN value.</returns>
-        /// <param name="document">The <see cref="RdnDocument"/> to convert.</param>
-        /// <param name="returnType">The type of the object to convert to and return.</param>
-        /// <param name="context">A metadata provider for serializable types.</param>
-        /// <exception cref="System.ArgumentNullException">
-        /// <paramref name="document"/> is <see langword="null"/>.
-        ///
-        /// -or-
-        ///
-        /// <paramref name="returnType"/> is <see langword="null"/>.
-        ///
-        /// -or-
-        ///
-        /// <paramref name="context"/> is <see langword="null"/>.
-        /// </exception>
-        /// <exception cref="RdnException">
-        /// The RDN is invalid.
-        ///
-        /// -or-
-        ///
-        /// <paramref name="returnType" /> is not compatible with the RDN.
-        ///
-        /// -or-
-        ///
-        /// There is remaining data in the string beyond a single RDN value.</exception>
-        /// <exception cref="NotSupportedException">
-        /// There is no compatible <see cref="Rdn.Serialization.RdnConverter"/>
-        /// for <paramref name="returnType"/> or its serializable members.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// The <see cref="RdnSerializerContext.GetTypeInfo(Type)"/> method of the provided
-        /// <paramref name="context"/> returns <see langword="null"/> for the type to convert.
-        /// </exception>
-        public static object? Deserialize(this RdnDocument document, Type returnType, RdnSerializerContext context)
-        {
-            ArgumentNullException.ThrowIfNull(document);
-            ArgumentNullException.ThrowIfNull(returnType);
-            ArgumentNullException.ThrowIfNull(context);
-
-            RdnTypeInfo rdnTypeInfo = GetTypeInfo(context, returnType);
-            ReadOnlySpan<byte> utf8Rdn = document.GetRootRawValue().Span;
-            return ReadFromSpanAsObject(utf8Rdn, rdnTypeInfo);
-        }
     }
 }

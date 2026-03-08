@@ -25,10 +25,10 @@ namespace Rdn.Serialization
         // when consuming large RDN strings (which don't support streaming today) but is
         // also possible with other token types such as numbers, booleans, or nulls.
         //
-        // The RdnSerializer.DeserializeAsyncEnumerable methods employ a special buffering
+        // Some deserialization methods employ a special buffering
         // strategy where rather than attempting to fill the entire buffer, the deserializer
         // will be invoked as soon as the first chunk of data is read from the stream.
-        // This is to ensure liveness: data should be surfaced on the IAE as soon as they
+        // This is to ensure liveness: data should be surfaced as soon as they
         // are streamed from the server. On the other hand, this can create performance
         // problems in cases where the underlying stream uses extremely fine-grained buffering.
         // For this reason, we employ a threshold that will revert to buffer filling once crossed.

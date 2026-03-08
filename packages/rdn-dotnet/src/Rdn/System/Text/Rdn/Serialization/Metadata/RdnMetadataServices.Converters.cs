@@ -130,22 +130,6 @@ namespace Rdn.Serialization.Metadata
         public static RdnConverter<long> Int64Converter => s_int64Converter ??= new Int64Converter();
         private static RdnConverter<long>? s_int64Converter;
 
-#if NET
-        /// <summary>
-        /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="Int128"/> values.
-        /// </summary>
-        /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
-        public static RdnConverter<Int128> Int128Converter => s_int128Converter ??= new Int128Converter();
-        private static RdnConverter<Int128>? s_int128Converter;
-
-        /// <summary>
-        /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="UInt128"/> values.
-        /// </summary>
-        /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
-        [CLSCompliant(false)]
-        public static RdnConverter<UInt128> UInt128Converter => s_uint128Converter ??= new UInt128Converter();
-        private static RdnConverter<UInt128>? s_uint128Converter;
-#endif
 
         /// <summary>
         /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="RdnArray"/> values.
@@ -189,19 +173,6 @@ namespace Rdn.Serialization.Metadata
         public static RdnConverter<RdnDocument?> RdnDocumentConverter => s_rdnDocumentConverter ??= new RdnDocumentConverter();
         private static RdnConverter<RdnDocument?>? s_rdnDocumentConverter;
 
-        /// <summary>
-        /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="Memory{Byte}"/> values.
-        /// </summary>
-        /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
-        public static RdnConverter<Memory<byte>> MemoryByteConverter => s_memoryByteConverter ??= new MemoryByteConverter();
-        private static RdnConverter<Memory<byte>>? s_memoryByteConverter;
-
-        /// <summary>
-        /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="ReadOnlyMemory{Byte}"/> values.
-        /// </summary>
-        /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
-        public static RdnConverter<ReadOnlyMemory<byte>> ReadOnlyMemoryByteConverter => s_readOnlyMemoryByteConverter ??= new ReadOnlyMemoryByteConverter();
-        private static RdnConverter<ReadOnlyMemory<byte>>? s_readOnlyMemoryByteConverter;
 
         /// <summary>
         /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="object"/> values.
@@ -209,15 +180,6 @@ namespace Rdn.Serialization.Metadata
         /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
         public static RdnConverter<object?> ObjectConverter => s_objectConverter ??= new DefaultObjectConverter();
         private static RdnConverter<object?>? s_objectConverter;
-
-#if NET
-        /// <summary>
-        /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="Half"/> values.
-        /// </summary>
-        /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
-        public static RdnConverter<Half> HalfConverter => s_halfConverter ??= new HalfConverter();
-        private static RdnConverter<Half>? s_halfConverter;
-#endif
 
         /// <summary>
         /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="float"/> values.
@@ -278,13 +240,6 @@ namespace Rdn.Serialization.Metadata
         /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
         public static RdnConverter<Uri?> UriConverter => s_uriConverter ??= new UriConverter();
         private static RdnConverter<Uri?>? s_uriConverter;
-
-        /// <summary>
-        /// Returns a <see cref="RdnConverter{T}"/> instance that converts <see cref="Version"/> values.
-        /// </summary>
-        /// <remarks>This API is for use by the output of the Rdn source generator and should not be called directly.</remarks>
-        public static RdnConverter<Version?> VersionConverter => s_versionConverter ??= new VersionConverter();
-        private static RdnConverter<Version?>? s_versionConverter;
 
         /// <summary>
         /// Creates a <see cref="RdnConverter{T}"/> instance that throws <see cref="NotSupportedException"/>.

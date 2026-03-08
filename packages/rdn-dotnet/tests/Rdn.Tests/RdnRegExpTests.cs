@@ -319,21 +319,6 @@ public class RdnRegExpTests
     }
 
     [Fact]
-    public void Reader_CommentStillWorksWhenEnabled()
-    {
-        // // is a line comment (when comments are allowed), not regex
-        byte[] input = "[1, // comment\n2]"u8.ToArray();
-        var options = new RdnReaderOptions { CommentHandling = RdnCommentHandling.Skip };
-        var reader = new Utf8RdnReader(input, options);
-        Assert.True(reader.Read()); // StartArray
-        Assert.True(reader.Read()); // Number 1
-        Assert.Equal(1, reader.GetInt32());
-        Assert.True(reader.Read()); // Number 2
-        Assert.Equal(2, reader.GetInt32());
-        Assert.True(reader.Read()); // EndArray
-    }
-
-    [Fact]
     public void Reader_RegexWithCommentHandlingDisallowed()
     {
         // With comments disallowed, /test/gi should still parse as regex
@@ -366,26 +351,11 @@ public class RdnRegExpTests
     }
 
     [Fact]
-    public void Reader_RegexWithCommentSkipMode()
+    public void Reader_RegexAfterCommaWithMultipleRegex()
     {
-        // Regex with CommentHandling.Skip — comments before regex should be skipped
-        byte[] input = "[/* comment */ /test/gi]"u8.ToArray();
-        var options = new RdnReaderOptions { CommentHandling = RdnCommentHandling.Skip };
-        var reader = new Utf8RdnReader(input, options);
-        Assert.True(reader.Read()); // StartArray
-        Assert.True(reader.Read()); // RdnRegExp (comment skipped)
-        Assert.Equal(RdnTokenType.RdnRegExp, reader.TokenType);
-        Assert.Equal("test", reader.GetRdnRegExpSource());
-        Assert.Equal("gi", reader.GetRdnRegExpFlags());
-    }
-
-    [Fact]
-    public void Reader_RegexAfterCommaWithCommentSkip()
-    {
-        // Regex after comma with comment skipping
+        // Multiple regex values in an array
         byte[] input = "[1, /abc/i, /def/g]"u8.ToArray();
-        var options = new RdnReaderOptions { CommentHandling = RdnCommentHandling.Skip };
-        var reader = new Utf8RdnReader(input, options);
+        var reader = new Utf8RdnReader(input);
         Assert.True(reader.Read()); // StartArray
         Assert.True(reader.Read()); // Number 1
         Assert.True(reader.Read()); // RdnRegExp 1
@@ -398,12 +368,11 @@ public class RdnRegExpTests
     }
 
     [Fact]
-    public void Reader_CommentBeforeRegexInObject()
+    public void Reader_RegexAsObjectPropertyValue()
     {
-        // Comment handling in object: comment before property, regex as value
+        // Regex as an object property value
         byte[] input = "{\"p\": /test/gi}"u8.ToArray();
-        var options = new RdnReaderOptions { CommentHandling = RdnCommentHandling.Skip };
-        var reader = new Utf8RdnReader(input, options);
+        var reader = new Utf8RdnReader(input);
         Assert.True(reader.Read()); // StartObject
         Assert.True(reader.Read()); // PropertyName
         Assert.Equal("p", reader.GetString());

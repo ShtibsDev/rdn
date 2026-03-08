@@ -86,7 +86,7 @@ namespace Rdn.Serialization.Metadata
         /// <remarks>
         /// If set to <see langword="null" />, any attempt to deserialize instances of the given type will result in an exception.
         ///
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// types with a single default constructor or default constructors annotated with <see cref="RdnConstructorAttribute"/>
         /// will be mapped to this delegate.
         /// </remarks>
@@ -115,7 +115,7 @@ namespace Rdn.Serialization.Metadata
         /// Serialization callbacks are only supported for <see cref="RdnTypeInfoKind.Object"/> metadata.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this callback will be mapped from any <see cref="IRdnOnSerializing"/> implementation on the type.
         /// </remarks>
         public Action<object>? OnSerializing
@@ -145,7 +145,7 @@ namespace Rdn.Serialization.Metadata
         /// Serialization callbacks are only supported for <see cref="RdnTypeInfoKind.Object"/> metadata.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this callback will be mapped from any <see cref="IRdnOnSerialized"/> implementation on the type.
         /// </remarks>
         public Action<object>? OnSerialized
@@ -175,7 +175,7 @@ namespace Rdn.Serialization.Metadata
         /// Serialization callbacks are only supported for <see cref="RdnTypeInfoKind.Object"/> metadata.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this callback will be mapped from any <see cref="IRdnOnDeserializing"/> implementation on the type.
         /// </remarks>
         public Action<object>? OnDeserializing
@@ -211,7 +211,7 @@ namespace Rdn.Serialization.Metadata
         /// Serialization callbacks are only supported for <see cref="RdnTypeInfoKind.Object"/> metadata.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this callback will be mapped from any <see cref="IRdnOnDeserialized"/> implementation on the type.
         /// </remarks>
         public Action<object>? OnDeserialized
@@ -255,87 +255,25 @@ namespace Rdn.Serialization.Metadata
                 RdnPropertyInfoList CreatePropertyList()
                 {
                     var list = new RdnPropertyInfoList(this);
-                    if (_sourceGenDelayedPropertyInitializer is { } propInit)
-                    {
-                        // .NET 6 source gen backward compatibility -- ensure that the
-                        // property initializer delegate is invoked lazily.
-                        RdnMetadataServices.PopulateProperties(this, list, propInit);
-                    }
-
                     RdnPropertyInfoList? result = Interlocked.CompareExchange(ref _properties, list, null);
-                    _sourceGenDelayedPropertyInitializer = null;
                     return result ?? list;
                 }
             }
         }
 
-        /// <summary>
-        /// Stores the .NET 6-style property initialization delegate for delayed evaluation.
-        /// </summary>
-        internal Func<RdnSerializerContext, RdnPropertyInfo[]>? SourceGenDelayedPropertyInitializer
-        {
-            get => _sourceGenDelayedPropertyInitializer;
-            set
-            {
-                Debug.Assert(!IsReadOnly);
-                Debug.Assert(_properties is null, "must not be set if a property list has been initialized.");
-                _sourceGenDelayedPropertyInitializer = value;
-            }
-        }
-
-        private Func<RdnSerializerContext, RdnPropertyInfo[]>? _sourceGenDelayedPropertyInitializer;
         private RdnPropertyInfoList? _properties;
 
         /// <summary>
         /// Gets or sets a configuration object specifying polymorphism metadata.
         /// </summary>
         /// <exception cref="ArgumentException">
-        /// <paramref name="value" /> has been associated with a different <see cref="RdnTypeInfo"/> instance.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// The <see cref="RdnTypeInfo"/> instance has been locked for further modification.
-        ///
-        /// -or-
-        ///
-        /// Polymorphic serialization is not supported for the current metadata <see cref="Kind"/>.
-        /// </exception>
-        /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
-        /// the configuration of this setting will be mapped from any <see cref="RdnDerivedTypeAttribute"/> or <see cref="RdnPolymorphicAttribute"/> annotations.
-        /// </remarks>
-        public RdnPolymorphismOptions? PolymorphismOptions
-        {
-            get => _polymorphismOptions;
-            set
-            {
-                VerifyMutable();
-
-                if (value != null)
-                {
-                    if (Kind == RdnTypeInfoKind.None)
-                    {
-                        ThrowHelper.ThrowInvalidOperationException_RdnTypeInfoOperationNotPossibleForKind(Kind);
-                    }
-
-                    if (value.DeclaringTypeInfo != null && value.DeclaringTypeInfo != this)
-                    {
-                        ThrowHelper.ThrowArgumentException_RdnPolymorphismOptionsAssociatedWithDifferentRdnTypeInfo(nameof(value));
-                    }
-
-                    value.DeclaringTypeInfo = this;
-                }
-
-                _polymorphismOptions = value;
-            }
-        }
-
         /// <summary>
         /// Specifies whether the current instance has been locked for modification.
         /// </summary>
         /// <remarks>
         /// A <see cref="RdnTypeInfo"/> instance can be locked either if
         /// it has been passed to one of the <see cref="RdnSerializer"/> methods,
-        /// has been associated with a <see cref="RdnSerializerContext"/> instance,
+        /// has been associated with a type info resolver instance,
         /// or a user explicitly called the <see cref="MakeReadOnly"/> method on the instance.
         /// </remarks>
         public bool IsReadOnly { get; private set; }
@@ -346,16 +284,12 @@ namespace Rdn.Serialization.Metadata
         /// <remarks>This method is idempotent.</remarks>
         public void MakeReadOnly() => IsReadOnly = true;
 
-        private protected RdnPolymorphismOptions? _polymorphismOptions;
-
         internal object? CreateObjectWithArgs { get; set; }
 
         // Add method delegate for non-generic Stack and Queue; and types that derive from them.
         internal object? AddMethodDelegate { get; set; }
 
         internal RdnPropertyInfo? ExtensionDataProperty { get; private set; }
-
-        internal PolymorphicTypeResolver? PolymorphicTypeResolver { get; private set; }
 
         // Indicates that SerializeHandler is populated.
         internal bool HasSerializeHandler { get; private protected set; }
@@ -494,7 +428,7 @@ namespace Rdn.Serialization.Metadata
         /// Specified an invalid <see cref="RdnNumberHandling"/> value.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this callback will be mapped from any <see cref="RdnNumberHandlingAttribute"/> annotations.
         /// </remarks>
         public RdnNumberHandling? NumberHandling
@@ -530,7 +464,7 @@ namespace Rdn.Serialization.Metadata
         /// Specified an invalid <see cref="RdnUnmappedMemberHandling"/> value.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this callback will be mapped from any <see cref="RdnUnmappedMemberHandlingAttribute"/> annotations.
         /// </remarks>
         public RdnUnmappedMemberHandling? UnmappedMemberHandling
@@ -574,7 +508,7 @@ namespace Rdn.Serialization.Metadata
         /// Specified an invalid <see cref="RdnObjectCreationHandling"/> value.
         /// </exception>
         /// <remarks>
-        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+        /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
         /// the value of this callback will be mapped from <see cref="RdnObjectCreationHandlingAttribute"/> annotations on types.
         /// </remarks>
         public RdnObjectCreationHandling? PreferredPropertyObjectCreationHandling
@@ -605,7 +539,7 @@ namespace Rdn.Serialization.Metadata
         /// The <see cref="RdnTypeInfo"/> instance has been locked for further modification.
         /// </exception>
         /// <remarks>
-        /// Metadata used to determine the <see cref="RdnSerializerContext.GeneratedSerializerOptions"/>
+        /// Metadata used to determine the originating resolver
         /// configuration for the current metadata instance.
         /// </remarks>
         [EditorBrowsable(EditorBrowsableState.Never)]
@@ -615,15 +549,6 @@ namespace Rdn.Serialization.Metadata
             set
             {
                 VerifyMutable();
-
-                if (value is RdnSerializerContext)
-                {
-                    // The source generator uses this property setter to brand the metadata instance as user-unmodified.
-                    // Even though users could call the same property setter to unset this flag, this is generally speaking fine.
-                    // This flag is only used to determine fast-path invalidation, worst case scenario this would lead to a false negative.
-                    IsCustomized = false;
-                }
-
                 _originatingResolver = value;
             }
         }
@@ -746,13 +671,6 @@ namespace Rdn.Serialization.Metadata
 
             PropertyInfoForTypeInfo.Configure();
 
-            if (PolymorphismOptions != null)
-            {
-                // This needs to be done before ConfigureProperties() is called
-                // RdnPropertyInfo.Configure() must have this value available in order to detect Polymoprhic + cyclic class case
-                PolymorphicTypeResolver = new PolymorphicTypeResolver(Options, PolymorphismOptions, Type, Converter.CanHaveMetadata);
-            }
-
             if (Kind == RdnTypeInfoKind.Object)
             {
                 ConfigureProperties();
@@ -778,32 +696,6 @@ namespace Rdn.Serialization.Metadata
             DetermineIsCompatibleWithCurrentOptions();
             CanUseSerializeHandler = HasSerializeHandler && IsCompatibleWithCurrentOptions;
         }
-
-        /// <summary>
-        /// Gets any ancestor polymorphic types that declare
-        /// a type discriminator for the current type. Consulted
-        /// when serializing polymorphic values as objects.
-        /// </summary>
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        internal RdnTypeInfo? AncestorPolymorphicType
-        {
-            get
-            {
-                Debug.Assert(IsConfigured);
-                Debug.Assert(Type != typeof(object));
-
-                if (!_isAncestorPolymorphicTypeResolved)
-                {
-                    _ancestorPolymorhicType = PolymorphicTypeResolver.FindNearestPolymorphicBaseType(this);
-                    _isAncestorPolymorphicTypeResolved = true;
-                }
-
-                return _ancestorPolymorhicType;
-            }
-        }
-
-        private RdnTypeInfo? _ancestorPolymorhicType;
-        private volatile bool _isAncestorPolymorphicTypeResolved;
 
         /// <summary>
         /// Determines if the transitive closure of all RdnTypeInfo metadata referenced
@@ -1239,13 +1131,7 @@ namespace Rdn.Serialization.Metadata
         internal void PopulatePolymorphismMetadata()
         {
             Debug.Assert(!IsReadOnly);
-
-            RdnPolymorphismOptions? options = RdnPolymorphismOptions.CreateFromAttributeDeclarations(Type);
-            if (options != null)
-            {
-                options.DeclaringTypeInfo = this;
-                _polymorphismOptions = options;
-            }
+            // Polymorphism support has been removed.
         }
 
         internal void MapInterfaceTypesToCallbacks()
@@ -1318,7 +1204,7 @@ namespace Rdn.Serialization.Metadata
             get
             {
                 Debug.Assert(IsConfigurationStarted);
-                return PolymorphicTypeResolver?.UsesTypeDiscriminators == true;
+                return false;
             }
         }
 

@@ -156,8 +156,6 @@ namespace System
         internal const string RsaEncryptDecryptValueMessage = "RSA.EncryptValue and DecryptValue are not supported and throw NotSupportedException. Use RSA.Encrypt and RSA.Decrypt instead.";
         internal const string RsaEncryptDecryptDiagId = "SYSLIB0048";
 
-        internal const string RdnSerializerOptionsAddContextMessage = "RdnSerializerOptions.AddContext is obsolete. To register a RdnSerializerContext, use either the TypeInfoResolver or TypeInfoResolverChain properties.";
-        internal const string RdnSerializerOptionsAddContextDiagId = "SYSLIB0049";
 
         internal const string LegacyFormatterMessage = "Formatter-based serialization is obsolete and should not be used.";
         internal const string LegacyFormatterDiagId = "SYSLIB0050";

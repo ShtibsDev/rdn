@@ -10,7 +10,7 @@ namespace Rdn.Serialization
     /// </summary>
     /// <remarks>
     /// <see langword="null"/> token in RDN will not trigger a validation error.
-    /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or <see cref="RdnSerializerContext"/>,
+    /// For contracts originating from <see cref="DefaultRdnTypeInfoResolver"/> or a custom type info resolver,
     /// this attribute will be mapped to <see cref="RdnPropertyInfo.IsRequired"/>.
     /// </remarks>
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]

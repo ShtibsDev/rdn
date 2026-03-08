@@ -51,17 +51,8 @@ namespace Rdn
         public MetadataPropertyName LatestMetadataPropertyName;
         public MetadataPropertyName MetadataPropertyNames;
 
-        // Serialization state for value serialized by the current frame.
-        public PolymorphicSerializationState PolymorphicSerializationState;
-
-        // Holds any entered polymorphic RdnTypeInfo metadata.
-        public RdnTypeInfo? PolymorphicRdnTypeInfo;
-
         // Gets the initial RdnTypeInfo metadata used when deserializing the current value.
-        public RdnTypeInfo BaseRdnTypeInfo
-            => PolymorphicSerializationState == PolymorphicSerializationState.PolymorphicReEntryStarted
-                ? PolymorphicRdnTypeInfo!
-                : RdnTypeInfo;
+        public RdnTypeInfo BaseRdnTypeInfo => RdnTypeInfo;
 
         // For performance, we order the properties by the first deserialize and PropertyIndex helps find the right slot quicker.
         public int PropertyIndex;

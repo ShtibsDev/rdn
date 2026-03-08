@@ -1,9 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -27,29 +25,6 @@ namespace Rdn.Serialization.Converters
             }
 
             return ReadAsPropertyNameCore(ref reader, typeToConvert, options);
-        }
-
-        private protected static RdnSchema GetSchemaForNumericType(RdnSchemaType schemaType, RdnNumberHandling numberHandling, bool isIeeeFloatingPoint = false)
-        {
-            Debug.Assert(schemaType is RdnSchemaType.Integer or RdnSchemaType.Number);
-            Debug.Assert(!isIeeeFloatingPoint || schemaType is RdnSchemaType.Number);
-#if NET
-            Debug.Assert(isIeeeFloatingPoint == (typeof(T) == typeof(double) || typeof(T) == typeof(float) || typeof(T) == typeof(Half)));
-#endif
-            string? pattern = null;
-
-            if ((numberHandling & (RdnNumberHandling.AllowReadingFromString | RdnNumberHandling.WriteAsString)) != 0)
-            {
-                pattern = schemaType is RdnSchemaType.Integer
-                    ? @"^-?(?:0|[1-9]\d*)$"
-                    : isIeeeFloatingPoint
-                        ? @"^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$"
-                        : @"^-?(?:0|[1-9]\d*)(?:\.\d+)?$";
-
-                schemaType |= RdnSchemaType.String;
-            }
-
-            return new RdnSchema { Type = schemaType, Pattern = pattern };
         }
     }
 }

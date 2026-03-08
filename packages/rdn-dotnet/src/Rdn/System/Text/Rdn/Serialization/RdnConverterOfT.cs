@@ -362,51 +362,6 @@ namespace Rdn.Serialization
             bool isContinuation = state.IsContinuation;
             bool success;
 
-            if (
-#if NET
-                // Short-circuit the check against "is not null"; treated as a constant by recent versions of the JIT.
-                !typeof(T).IsValueType &&
-#else
-                !IsValueType &&
-#endif
-                value is not null &&
-                // Do not handle objects that have already been
-                // handled by a polymorphic converter for a base type.
-                state.Current.PolymorphicSerializationState != PolymorphicSerializationState.PolymorphicReEntryStarted)
-            {
-                RdnTypeInfo rdnTypeInfo = state.PeekNestedRdnTypeInfo();
-                Debug.Assert(rdnTypeInfo.Converter.Type == Type);
-
-                bool canBePolymorphic = CanBePolymorphic || rdnTypeInfo.PolymorphicTypeResolver is not null;
-                RdnConverter? polymorphicConverter = canBePolymorphic ?
-                    ResolvePolymorphicConverter(value, rdnTypeInfo, options, ref state) :
-                    null;
-
-                if (!isContinuation && options.ReferenceHandlingStrategy != RdnKnownReferenceHandler.Unspecified &&
-                    TryHandleSerializedObjectReference(writer, value, options, polymorphicConverter, ref state))
-                {
-                    // The reference handler wrote reference metadata, serialization complete.
-                    return true;
-                }
-
-                if (polymorphicConverter is not null)
-                {
-                    success = polymorphicConverter.TryWriteAsObject(writer, value, options, ref state);
-                    state.Current.ExitPolymorphicConverter(success);
-
-                    if (success)
-                    {
-                        if (state.Current.IsPushedReferenceForCycleDetection)
-                        {
-                            state.ReferenceResolver.PopReferenceForCycleDetection();
-                            state.Current.IsPushedReferenceForCycleDetection = false;
-                        }
-                    }
-
-                    return success;
-                }
-            }
-
 #if DEBUG
             // DEBUG: ensure push/pop operations preserve stack integrity
             RdnTypeInfo originalRdnTypeInfo = state.Current.RdnTypeInfo;
@@ -430,12 +385,6 @@ namespace Rdn.Serialization
             }
 #endif
             state.Pop(success);
-
-            if (success && state.Current.IsPushedReferenceForCycleDetection)
-            {
-                state.ReferenceResolver.PopReferenceForCycleDetection();
-                state.Current.IsPushedReferenceForCycleDetection = false;
-            }
 #if DEBUG
             Debug.Assert(ReferenceEquals(originalRdnTypeInfo, state.Current.RdnTypeInfo));
 #endif
@@ -451,8 +400,7 @@ namespace Rdn.Serialization
                 return TryWrite(writer, value, options, ref state);
             }
 
-            RdnDictionaryConverter<T>? dictionaryConverter = this as RdnDictionaryConverter<T>
-                ?? (this as RdnMetadataServicesConverter<T>)?.Converter as RdnDictionaryConverter<T>;
+            RdnDictionaryConverter<T>? dictionaryConverter = this as RdnDictionaryConverter<T>;
 
             if (dictionaryConverter == null)
             {
@@ -700,8 +648,7 @@ namespace Rdn.Serialization
             RdnConverter<T>? result = null;
 
             // For consistency do not return any default converters for options instances linked to a
-            // RdnSerializerContext, even if the default converters might have been rooted.
-            if (!IsInternalConverter && options.TypeInfoResolver is not RdnSerializerContext)
+            if (!IsInternalConverter)
             {
                 result = _fallbackConverterForPropertyNameSerialization;
 

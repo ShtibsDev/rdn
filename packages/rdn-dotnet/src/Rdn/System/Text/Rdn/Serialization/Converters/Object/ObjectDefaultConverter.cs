@@ -65,49 +65,8 @@ namespace Rdn.Serialization.Converters
                     state.Current.ObjectState = StackFrameObjectState.StartToken;
                 }
 
-                // Handle the metadata properties.
-                if (state.Current.CanContainMetadata && state.Current.ObjectState < StackFrameObjectState.ReadMetadata)
-                {
-                    if (!RdnSerializer.TryReadMetadata(this, rdnTypeInfo, ref reader, ref state))
-                    {
-                        value = default;
-                        return false;
-                    }
-
-                    if (state.Current.MetadataPropertyNames == MetadataPropertyName.Ref)
-                    {
-                        value = RdnSerializer.ResolveReferenceId<T>(ref state);
-                        return true;
-                    }
-
-                    state.Current.ObjectState = StackFrameObjectState.ReadMetadata;
-                }
-
-                // Dispatch to any polymorphic converters: should always be entered regardless of ObjectState progress
-                if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Type) != 0 &&
-                    state.Current.PolymorphicSerializationState != PolymorphicSerializationState.PolymorphicReEntryStarted &&
-                    ResolvePolymorphicConverter(rdnTypeInfo, ref state) is RdnConverter polymorphicConverter)
-                {
-                    Debug.Assert(!IsValueType);
-                    bool success = polymorphicConverter.OnTryReadAsObject(ref reader, polymorphicConverter.Type!, options, ref state, out object? objectResult);
-                    value = (T)objectResult!;
-                    state.ExitPolymorphicConverter(success);
-                    return success;
-                }
-
                 if (state.Current.ObjectState < StackFrameObjectState.CreatedObject)
                 {
-                    if (state.Current.CanContainMetadata)
-                    {
-                        RdnSerializer.ValidateMetadataForObjectConverter(ref state);
-                    }
-
-                    if (state.Current.MetadataPropertyNames == MetadataPropertyName.Ref)
-                    {
-                        value = RdnSerializer.ResolveReferenceId<T>(ref state);
-                        return true;
-                    }
-
                     if (state.ParentProperty?.TryGetPrePopulatedValue(ref state) == true)
                     {
                         obj = state.Current.ReturnValue!;
@@ -120,14 +79,6 @@ namespace Rdn.Serialization.Converters
                         }
 
                         obj = rdnTypeInfo.CreateObject();
-                    }
-
-                    if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Id) != 0)
-                    {
-                        Debug.Assert(state.ReferenceId != null);
-                        Debug.Assert(options.ReferenceHandlingStrategy == RdnKnownReferenceHandler.Preserve);
-                        state.ReferenceResolver.AddReference(state.ReferenceId, obj);
-                        state.ReferenceId = null;
                     }
 
                     rdnTypeInfo.OnDeserializing?.Invoke(obj);
@@ -330,11 +281,6 @@ namespace Rdn.Serialization.Converters
 
                 writer.WriteStartObject();
 
-                if (state.CurrentContainsMetadata && CanHaveMetadata)
-                {
-                    RdnSerializer.WriteMetadataForObject(this, ref state, writer);
-                }
-
                 foreach (RdnPropertyInfo rdnPropertyInfo in rdnTypeInfo.PropertyCache)
                 {
                     if (rdnPropertyInfo.CanSerialize)
@@ -372,11 +318,6 @@ namespace Rdn.Serialization.Converters
                 if (!state.Current.ProcessedStartToken)
                 {
                     writer.WriteStartObject();
-
-                    if (state.CurrentContainsMetadata && CanHaveMetadata)
-                    {
-                        RdnSerializer.WriteMetadataForObject(this, ref state, writer);
-                    }
 
                     rdnTypeInfo.OnSerializing?.Invoke(obj);
 

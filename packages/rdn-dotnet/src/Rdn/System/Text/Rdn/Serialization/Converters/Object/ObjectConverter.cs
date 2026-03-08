@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 using Rdn.Nodes;
-using Rdn.Schema;
 using Rdn.Serialization.Metadata;
 
 namespace Rdn.Serialization.Converters
@@ -84,7 +83,7 @@ namespace Rdn.Serialization.Converters
 
     /// <summary>
     /// Defines an object converter that supports deserialization via RdnElement/RdnNode representations.
-    /// Used as the default in reflection or if object is declared in the RdnSerializerContext type graph.
+    /// Used as the default in reflection or if object is declared in the type info resolver type graph.
     /// </summary>
     internal sealed class DefaultObjectConverter : ObjectConverter
     {
@@ -107,43 +106,15 @@ namespace Rdn.Serialization.Converters
 
         internal override bool OnTryRead(ref Utf8RdnReader reader, Type typeToConvert, RdnSerializerOptions options, scoped ref ReadStack state, out object? value)
         {
-            object? referenceValue;
-
             if (options.UnknownTypeHandling == RdnUnknownTypeHandling.RdnElement)
             {
-                RdnElement element = RdnElement.ParseValue(ref reader, options.AllowDuplicateProperties);
-
-                // Edge case where we want to lookup for a reference when parsing into typeof(object)
-                if (options.ReferenceHandlingStrategy == RdnKnownReferenceHandler.Preserve &&
-                    RdnSerializer.TryHandleReferenceFromRdnElement(ref reader, ref state, element, out referenceValue))
-                {
-                    value = referenceValue;
-                }
-                else
-                {
-                    value = element;
-                }
-
+                value = RdnElement.ParseValue(ref reader, options.AllowDuplicateProperties);
                 return true;
             }
 
             Debug.Assert(options.UnknownTypeHandling == RdnUnknownTypeHandling.RdnNode);
-
-            RdnNode? node = RdnNodeConverter.Instance.Read(ref reader, typeToConvert, options);
-
-            if (options.ReferenceHandlingStrategy == RdnKnownReferenceHandler.Preserve &&
-                RdnSerializer.TryHandleReferenceFromRdnNode(ref reader, ref state, node, out referenceValue))
-            {
-                value = referenceValue;
-            }
-            else
-            {
-                value = node;
-            }
-
+            value = RdnNodeConverter.Instance.Read(ref reader, typeToConvert, options);
             return true;
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => RdnSchema.CreateTrueSchema();
     }
 }

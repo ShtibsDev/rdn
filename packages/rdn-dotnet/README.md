@@ -197,7 +197,7 @@ RdnSerializer.Serialize(model, options);
 // {"Data":x"0102FF"}
 ```
 
-Both formats are always accepted during deserialization. Works with `byte[]`, `Memory<byte>`, and `ReadOnlyMemory<byte>`. Backwards-compatible: plain base64 strings (`"SGVsbG8="`) still deserialize into `byte[]`.
+Both formats are always accepted during deserialization. Works with `byte[]`. Backwards-compatible: plain base64 strings (`"SGVsbG8="`) still deserialize into `byte[]`.
 
 ### BigInteger
 
@@ -298,7 +298,7 @@ double inf = RdnSerializer.Deserialize<double>("Infinity");   // double.Positive
 
 ### High-Level: RdnSerializer
 
-Drop-in replacement for `JsonSerializer`. Supports generics, runtime `Type`, stream/pipe async, and source generation.
+Drop-in replacement for `JsonSerializer`. Supports generics, runtime `Type`, and stream/pipe async.
 
 ```csharp
 // String
@@ -466,7 +466,6 @@ All familiar `System.Text.Json` options carry over:
 | `IgnoreReadOnlyProperties`             | `bool`                      | `false`                 |
 | `IgnoreReadOnlyFields`                 | `bool`                      | `false`                 |
 | `IncludeFields`                        | `bool`                      | `false`                 |
-| `ReferenceHandler`                     | `ReferenceHandler?`         | `null`                  |
 | `UnmappedMemberHandling`               | `RdnUnmappedMemberHandling` | `Skip`                  |
 | `PreferredObjectCreationHandling`      | `RdnObjectCreationHandling` | `Replace`               |
 | `AllowTrailingCommas`                  | `bool`                      | `false`                 |
@@ -512,25 +511,6 @@ public class Event
     public List<string> Tags { get; set; }
 }
 
-// Polymorphism
-[RdnDerivedType(typeof(Circle), "circle")]
-[RdnDerivedType(typeof(Square), "square")]
-[RdnPolymorphic]
-public abstract class Shape { }
-```
-
-## Source Generation (AOT)
-
-For ahead-of-time compilation and trimming scenarios:
-
-```csharp
-[RdnSourceGenerationOptions(
-    PropertyNamingPolicy = RdnKnownNamingPolicy.CamelCase,
-    DateTimeFormat = RdnDateTimeFormat.Iso,
-    BinaryFormat = RdnBinaryFormat.Base64)]
-public partial class AppRdnContext : RdnSerializerContext
-{
-}
 ```
 
 ## ASP.NET Core Integration

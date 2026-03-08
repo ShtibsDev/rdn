@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 using Rdn.Nodes;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -71,8 +70,5 @@ namespace Rdn.Serialization.Converters
                 writer.WriteNumberValue(value);
             }
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling numberHandling) =>
-            GetSchemaForNumericType(RdnSchemaType.Number, numberHandling, isIeeeFloatingPoint: true);
     }
 }

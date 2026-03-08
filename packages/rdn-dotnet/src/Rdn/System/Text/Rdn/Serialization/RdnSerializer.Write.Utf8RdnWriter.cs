@@ -108,35 +108,5 @@ namespace Rdn
             rdnTypeInfo.SerializeAsObject(writer, value);
         }
 
-        /// <summary>
-        /// Writes one RDN value (including objects or arrays) to the provided writer.
-        /// </summary>
-        /// <param name="writer"></param>
-        /// <param name="value">The value to convert and write.</param>
-        /// <param name="inputType">The type of the <paramref name="value"/> to convert.</param>
-        /// <param name="context">A metadata provider for serializable types.</param>
-        /// <exception cref="ArgumentException">
-        /// <paramref name="inputType"/> is not compatible with <paramref name="value"/>.
-        /// </exception>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="writer"/> or <paramref name="inputType"/> is <see langword="null"/>.
-        /// </exception>
-        /// <exception cref="NotSupportedException">
-        /// There is no compatible <see cref="Rdn.Serialization.RdnConverter"/>
-        /// for <paramref name="inputType"/> or its serializable members.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// The <see cref="RdnSerializerContext.GetTypeInfo(Type)"/> method of the provided
-        /// <paramref name="context"/> returns <see langword="null"/> for the type to convert.
-        /// </exception>
-        public static void Serialize(Utf8RdnWriter writer, object? value, Type inputType, RdnSerializerContext context)
-        {
-            ArgumentNullException.ThrowIfNull(writer);
-            ArgumentNullException.ThrowIfNull(context);
-
-            ValidateInputType(value, inputType);
-            RdnTypeInfo rdnTypeInfo = GetTypeInfo(context, inputType);
-            rdnTypeInfo.SerializeAsObject(writer, value);
-        }
     }
 }

@@ -4,7 +4,6 @@
 using System.Buffers.Text;
 using System.Diagnostics;
 using Rdn.Nodes;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -98,12 +97,5 @@ namespace Rdn.Serialization.Converters
 
             writer.WritePropertyName(output.Slice(0, bytesWritten));
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => new()
-        {
-            Type = RdnSchemaType.String,
-            Comment = "Represents a System.TimeSpan value.",
-            Pattern = @"^-?(\d+\.)?\d{2}:\d{2}:\d{2}(\.\d{1,7})?$"
-        };
     }
 }

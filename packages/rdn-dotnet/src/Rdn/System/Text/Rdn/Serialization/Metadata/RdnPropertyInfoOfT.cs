@@ -172,24 +172,6 @@ namespace Rdn.Serialization.Metadata
         {
             T value = Get!(obj);
 
-            if (
-#if NET
-                !typeof(T).IsValueType && // treated as a constant by recent versions of the JIT.
-#else
-                !EffectiveConverter.IsValueType &&
-#endif
-                Options.ReferenceHandlingStrategy == RdnKnownReferenceHandler.IgnoreCycles &&
-                value is not null &&
-                !state.IsContinuation &&
-                // .NET types that are serialized as RDN primitive values don't need to be tracked for cycle detection e.g: string.
-                EffectiveConverter.ConverterStrategy != ConverterStrategy.Value &&
-                state.ReferenceResolver.ContainsReferenceForCycleDetection(value))
-            {
-                // If a reference cycle is detected, treat value as null.
-                value = default!;
-                Debug.Assert(value == null);
-            }
-
             if (IgnoreDefaultValuesOnWrite)
             {
                 // Fast path `ShouldSerialize` check when using RdnIgnoreCondition.WhenWritingNull/Default configuration

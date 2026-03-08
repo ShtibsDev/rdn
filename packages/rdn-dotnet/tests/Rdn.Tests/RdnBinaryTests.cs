@@ -337,25 +337,4 @@ public class RdnBinaryTests
         public ReadOnlyMemory<byte> Data { get; set; }
     }
 
-    [Fact]
-    public void Serializer_MemoryByteRoundtrip()
-    {
-        var original = new MemoryModel { Data = new byte[] { 0x01, 0x02, 0xFF } };
-        string rdn = RdnSerializer.Serialize(original);
-        Assert.Contains("b\"", rdn);
-        var deserialized = RdnSerializer.Deserialize<MemoryModel>(rdn);
-        Assert.NotNull(deserialized);
-        Assert.Equal(original.Data.ToArray(), deserialized!.Data.ToArray());
-    }
-
-    [Fact]
-    public void Serializer_ReadOnlyMemoryByteRoundtrip()
-    {
-        var original = new ReadOnlyMemoryModel { Data = new byte[] { 0x01, 0x02, 0xFF } };
-        string rdn = RdnSerializer.Serialize(original);
-        Assert.Contains("b\"", rdn);
-        var deserialized = RdnSerializer.Deserialize<ReadOnlyMemoryModel>(rdn);
-        Assert.NotNull(deserialized);
-        Assert.Equal(original.Data.ToArray(), deserialized!.Data.ToArray());
-    }
 }

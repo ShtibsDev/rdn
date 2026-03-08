@@ -4,7 +4,6 @@
 using System.Buffers.Text;
 using System.Diagnostics;
 using Rdn.Nodes;
-using Rdn.Schema;
 
 namespace Rdn.Serialization.Converters
 {
@@ -37,7 +36,5 @@ namespace Rdn.Serialization.Converters
         {
             writer.WritePropertyName(value);
         }
-
-        internal override RdnSchema? GetSchema(RdnNumberHandling _) => new() { Type = RdnSchemaType.Boolean };
     }
 }

@@ -30,7 +30,7 @@ namespace Rdn
             set
             {
                 Debug.Assert(value >= 0);
-                if (value > RdnCommentHandling.Skip)
+                if (value > RdnCommentHandling.Disallow)
                     throw new ArgumentOutOfRangeException(nameof(value), SR.RdnDocumentDoesNotSupportComments);
 
                 _commentHandling = value;
